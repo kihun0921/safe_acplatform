@@ -1,0 +1,138 @@
+.admin-members-page {
+  padding: var(--gap-2xl) 0;
+  background-color: var(--bg-secondary);
+  min-height: 100vh;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--gap-2xl);
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  color: var(--primary);
+  margin: 0;
+  font-family: var(--font-serif);
+}
+
+.members-table-wrapper {
+  background-color: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+}
+
+.members-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.members-table thead {
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.members-table th {
+  padding: var(--gap-md) var(--gap-lg);
+  text-align: left;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.members-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.members-table tbody tr:hover {
+  background-color: var(--bg-secondary);
+}
+
+.members-table td {
+  padding: var(--gap-md) var(--gap-lg);
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+}
+
+.cell-name {
+  font-weight: var(--font-weight-medium);
+  color: var(--primary);
+}
+
+.cell-email {
+  color: var(--text-secondary);
+}
+
+.cell-status {
+  text-align: center;
+}
+
+.cell-actions {
+  display: flex;
+  gap: var(--gap-md);
+}
+
+.action-link {
+  padding: var(--gap-sm) var(--gap-md);
+  background-color: transparent;
+  color: var(--primary);
+  border: none;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-link:hover {
+  text-decoration: underline;
+}
+
+.action-link.danger {
+  color: var(--danger);
+}
+
+@media (max-width: 960px) {
+  .page-header {
+    flex-direction: column;
+    gap: var(--gap-lg);
+  }
+
+  .members-table {
+    font-size: var(--font-size-sm);
+  }
+
+  .members-table th,
+  .members-table td {
+    padding: var(--gap-md);
+  }
+}
+
+@media (max-width: 640px) {
+  .page-title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .members-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .members-table {
+    min-width: 600px;
+  }
+
+  .cell-company {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .members-table tbody tr,
+  .action-link {
+    transition: none;
+  }
+}

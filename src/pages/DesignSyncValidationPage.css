@@ -1,0 +1,224 @@
+.validation-page {
+  padding: var(--gap-2xl) 0;
+  background-color: var(--bg-secondary);
+  min-height: 100vh;
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  color: var(--primary);
+  margin: 0 0 var(--gap-2xl) 0;
+  font-family: var(--font-serif);
+}
+
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--gap-lg);
+  margin-bottom: var(--gap-2xl);
+}
+
+.stat-card {
+  background-color: white;
+  border-radius: var(--radius-lg);
+  padding: var(--gap-xl);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  border-left: 4px solid;
+}
+
+.stat-card.pass {
+  border-left-color: var(--success);
+}
+
+.stat-card.fail {
+  border-left-color: var(--danger);
+}
+
+.stat-card.pending {
+  border-left-color: var(--warn);
+}
+
+.stat-card.total {
+  border-left-color: var(--primary);
+}
+
+.stat-number {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--primary);
+  margin-bottom: var(--gap-md);
+}
+
+.stat-card.pass .stat-number {
+  color: var(--success);
+}
+
+.stat-card.fail .stat-number {
+  color: var(--danger);
+}
+
+.stat-card.pending .stat-number {
+  color: var(--warn);
+}
+
+.stat-label {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+}
+
+.filter-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-md);
+  margin-bottom: var(--gap-2xl);
+}
+
+.filter-btn {
+  padding: var(--gap-sm) var(--gap-lg);
+  background-color: white;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.filter-btn.active {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.validation-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-lg);
+  margin-bottom: var(--gap-2xl);
+}
+
+.validation-item {
+  background-color: white;
+  border-radius: var(--radius-lg);
+  padding: var(--gap-xl);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.validation-item:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--gap-lg);
+}
+
+.item-info {
+  flex: 1;
+}
+
+.item-requirement {
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  margin: 0 0 var(--gap-sm) 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.item-section {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.item-notes {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: var(--gap-md) 0 0 0;
+}
+
+.conclusion {
+  background: linear-gradient(135deg, var(--success-lighter) 0%, var(--primary-lighter) 100%);
+  border-radius: var(--radius-lg);
+  padding: var(--gap-2xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.conclusion-title {
+  font-size: var(--font-size-2xl);
+  color: var(--primary);
+  margin: 0 0 var(--gap-lg) 0;
+  font-family: var(--font-serif);
+}
+
+.conclusion-content {
+  margin-bottom: var(--gap-lg);
+}
+
+.conclusion-content p {
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  line-height: var(--line-height-relaxed);
+  margin: var(--gap-md) 0;
+}
+
+.conclusion-checklist {
+  list-style: none;
+  padding: 0;
+  margin: var(--gap-lg) 0 0 0;
+}
+
+.conclusion-checklist li {
+  padding: var(--gap-sm) 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+}
+
+@media (max-width: 960px) {
+  .stats-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .validation-item {
+    padding: var(--gap-lg);
+  }
+}
+
+@media (max-width: 640px) {
+  .page-title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .stats-section {
+    grid-template-columns: 1fr;
+  }
+
+  .item-header {
+    flex-direction: column;
+  }
+
+  .conclusion {
+    padding: var(--gap-xl);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .validation-item,
+  .filter-btn {
+    transition: none;
+  }
+
+  .validation-item:hover {
+    box-shadow: var(--shadow-sm);
+  }
+}

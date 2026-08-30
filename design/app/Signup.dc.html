@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&family=Noto+Serif+KR:wght@600;700&display=swap">
+  <style>
+    :root{
+      --bg: oklch(98% 0.004 250); --surface: oklch(100% 0 0); --surface-alt: oklch(96.5% 0.006 250);
+      --border: oklch(90% 0.006 250); --text: oklch(22% 0.015 255); --text-secondary: oklch(46% 0.012 255);
+      --text-muted: oklch(60% 0.008 255); --primary: oklch(33% 0.09 255);
+      --primary-soft: oklch(94% 0.02 255);
+      --font-body: 'Noto Sans KR', system-ui, -apple-system, 'Malgun Gothic', sans-serif;
+      --font-display: 'Noto Serif KR', 'Noto Sans KR', serif;
+    }
+    *{ box-sizing:border-box; } body{ margin:0; font-family:var(--font-body); color:var(--text); background:var(--bg); }
+    a{ color:var(--primary); text-decoration:none; }
+    input{ font-family:var(--font-body); }
+    ::placeholder{ color:var(--text-muted); }
+  </style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;">
+  <header style="background:var(--surface);border-bottom:1px solid var(--border);height:72px;display:flex;align-items:center;">
+    <div style="max-width:1200px;margin:0 auto;padding:0 40px;width:100%;">
+      <a href="main.html" style="display:flex;align-items:center;gap:9px;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-2.9 8.4-7 9.7C7.9 19.4 5 15.5 5 11V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+        <span style="font-family:var(--font-display);font-weight:700;font-size:20px;color:var(--text);">올케어안전플랫폼</span>
+      </a>
+    </div>
+  </header>
+
+  <main style="flex:1;display:flex;align-items:center;justify-content:center;padding:48px 24px;">
+    <div style="max-width:440px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px;box-shadow:0 1px 2px rgba(15,23,42,0.05);">
+      <h1 style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--text);margin:0 0 6px;text-align:center;">회원가입</h1>
+      <p style="font-size:13.5px;color:var(--text-muted);margin:0 0 24px;text-align:center;">모든 항목은 필수 입력입니다</p>
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">이메일 <span style="color:var(--primary);">*</span><span style="color:var(--text-muted);font-weight:400;"> (필수)</span></label>
+          <input type="email" placeholder="you@company.com" style="border:1px solid var(--border);border-radius:9px;padding:11px 14px;font-size:14px;outline:none;">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">비밀번호 <span style="color:var(--primary);">*</span><span style="color:var(--text-muted);font-weight:400;"> (필수)</span></label>
+          <input type="password" placeholder="8자 이상" style="border:1px solid var(--border);border-radius:9px;padding:11px 14px;font-size:14px;outline:none;">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">소속 건설사명 <span style="color:var(--primary);">*</span><span style="color:var(--text-muted);font-weight:400;"> (필수)</span></label>
+          <input type="text" placeholder="예: OO건설(주)" style="border:1px solid var(--border);border-radius:9px;padding:11px 14px;font-size:14px;outline:none;">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">사업자등록번호 <span style="color:var(--primary);">*</span><span style="color:var(--text-muted);font-weight:400;"> (필수)</span></label>
+          <input type="text" placeholder="000-00-00000" style="border:1px solid var(--border);border-radius:9px;padding:11px 14px;font-size:14px;outline:none;">
+        </div>
+        <div style="display:flex;gap:12px;">
+          <div style="display:flex;flex-direction:column;gap:6px;flex:1;">
+            <label style="font-size:13px;font-weight:600;color:var(--text);">담당자명 <span style="color:var(--primary);">*</span><span style="color:var(--text-muted);font-weight:400;"> (필수)</span></label>
+            <input type="text" placeholder="홍길동" style="border:1px solid var(--border);border-radius:9px;padding:11px 14px;font-size:14px;outline:none;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;flex:1;">
+            <label style="font-size:13px;font-weight:600;color:var(--text);">연락처 <span style="color:var(--primary);">*</span><span style="color:var(--text-muted);font-weight:400;"> (필수)</span></label>
+            <input type="tel" placeholder="010-0000-0000" style="border:1px solid var(--border);border-radius:9px;padding:11px 14px;font-size:14px;outline:none;">
+          </div>
+        </div>
+        <a href="main.html" style="background:{{accentColor}};color:#fff;text-align:center;padding:13px;border-radius:9px;font-weight:700;font-size:14.5px;margin-top:6px;">회원가입 완료</a>
+      </div>
+
+      <div style="display:flex;justify-content:center;gap:16px;margin-top:20px;font-size:13px;color:var(--text-muted);">
+        <span>이미 계정이 있으신가요?</span>
+        <a href="login.html" style="font-weight:600;">로그인</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accentColor":{"editor":"color","default":"#c2410c","options":["#c2410c","#0f766e","#b91c1c","#7c3aed"]}}'>
+class Component extends DCLogic {
+  renderVals() { return { accentColor: this.props.accentColor ?? '#c2410c' }; }
+}
+</script>
+</body>
+</html>

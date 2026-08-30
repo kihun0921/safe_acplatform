@@ -1,0 +1,56 @@
+/* Badge Component - 올케어안전플랫폼 */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.badge-default {
+  background-color: var(--surface-alt);
+  color: var(--text-secondary);
+}
+
+.badge-success {
+  background-color: var(--success-soft);
+  color: var(--success);
+}
+
+.badge-warn {
+  background-color: var(--warn-soft);
+  color: var(--warn);
+}
+
+.badge-danger {
+  background-color: var(--danger-soft);
+  color: var(--danger);
+}
+
+.badge-primary,
+.badge-info {
+  background-color: var(--primary-soft);
+  color: var(--primary);
+}
+
+.badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.badge-label {
+  display: inline-block;
+}
+
+@media (max-width: 640px) {
+  .badge {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+}

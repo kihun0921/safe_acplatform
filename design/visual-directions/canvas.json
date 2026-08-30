@@ -1,0 +1,11 @@
+{
+  "artboards": [
+    { "file": "DirectionA.dc.html", "x": 0, "y": 0, "w": 1440, "h": 3300, "expand": "fill" },
+    { "file": "DirectionB.dc.html", "x": 1600, "y": 0, "w": 1440, "h": 3200, "expand": "fill" }
+  ],
+  "annotations": [
+    { "id": "direction-a-note", "x": 0, "y": -190, "w": 620, "text": "A. 트러스트 코퍼레이트\n네이비 프라이머리 + 앰버 액센트, 세리프(Noto Serif KR) 헤드라인 · 산세리프 본문, 필드/배지 채움(soft-fill), 부드러운 그림자와 넉넉한 라운드.\n장점: 공공기관·건설 실무자 대상 서비스에 어울리는 신뢰감과 격식.\n트레이드오프: 다소 formal해서 가볍고 빠른 SaaS 느낌은 약함." },
+    { "id": "direction-b-note", "x": 1600, "y": -190, "w": 620, "text": "B. 모던 미니멀 SaaS\n인디고 단일 액센트, IBM Plex Sans KR 전용(세리프 없음), 배지·CTA밴드는 아웃라인 중심, 그림자 대신 얇은 보더, 각진 6px 라운드.\n장점: 가볍고 효율적인 실무 툴 인상, 최신 B2B SaaS 제품과 유사한 톤.\n트레이드오프: A보다 관공서 대응 서비스 특유의 권위감·신뢰감은 약할 수 있음." }
+  ],
+  "launch": { "view": "canvas" }
+}

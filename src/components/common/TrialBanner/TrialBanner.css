@@ -1,0 +1,21 @@
+.trial-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--gap-md);
+  background-color: var(--warn-soft);
+  color: var(--warn);
+  border-radius: var(--radius-md);
+  padding: var(--gap-md) var(--gap-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--gap-xl);
+}
+
+.trial-banner-link {
+  color: var(--warn);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  text-decoration: underline;
+}

@@ -1,0 +1,131 @@
+/* Layout & Responsive Design */
+
+/* Desktop (1200px+) */
+@media (min-width: 1201px) {
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--gap-2xl);
+  }
+
+  .sidebar-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: var(--gap-2xl);
+  }
+}
+
+/* Tablet (960px - 1200px) */
+@media (min-width: 961px) and (max-width: 1200px) {
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 var(--gap-xl);
+  }
+
+  .sidebar-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: var(--gap-xl);
+  }
+
+  h1 {
+    font-size: var(--font-size-3xl);
+  }
+
+  h2 {
+    font-size: var(--font-size-2xl);
+  }
+}
+
+/* Mobile (640px - 960px) */
+@media (min-width: 641px) and (max-width: 960px) {
+  .container {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0 var(--gap-lg);
+  }
+
+  .sidebar-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  h1 {
+    font-size: var(--font-size-2xl);
+  }
+
+  h2 {
+    font-size: var(--font-size-xl);
+  }
+}
+
+/* Mobile Small (< 640px) */
+@media (max-width: 640px) {
+  .container {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0 var(--gap-md);
+  }
+
+  .sidebar-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  h1 {
+    font-size: var(--font-size-xl);
+  }
+
+  h2 {
+    font-size: var(--font-size-lg);
+  }
+
+  h3 {
+    font-size: var(--font-size-base);
+  }
+
+  .hidden-mobile {
+    display: none;
+  }
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Accessibility: High Contrast */
+@media (prefers-contrast: more) {
+  :root {
+    --border: oklch(70% 0.01 255);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Print Styles */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  a {
+    text-decoration: underline;
+  }
+}

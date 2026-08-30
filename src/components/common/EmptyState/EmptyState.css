@@ -1,0 +1,53 @@
+/* EmptyState Component - 올케어안전플랫폼 */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-lg);
+  padding: 48px;
+  min-height: 300px;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 64px;
+  display: block;
+  opacity: 0.6;
+}
+
+.empty-state-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text);
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.empty-state-message {
+  font-size: var(--font-size-base);
+  color: var(--text-muted);
+  line-height: var(--line-height-normal);
+  max-width: 400px;
+  margin: 0;
+}
+
+.empty-state .btn {
+  margin-top: var(--gap-lg);
+}
+
+@media (max-width: 640px) {
+  .empty-state {
+    min-height: 200px;
+    padding: var(--gap-2xl) var(--gap-lg);
+  }
+
+  .empty-state-icon {
+    font-size: 48px;
+  }
+
+  .empty-state-title {
+    font-size: var(--font-size-lg);
+  }
+}

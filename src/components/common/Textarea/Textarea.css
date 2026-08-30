@@ -1,0 +1,94 @@
+/* Textarea Component - 올케어안전플랫폼 */
+
+.textarea-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-sm);
+  width: 100%;
+}
+
+.textarea-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text);
+}
+
+.required {
+  color: var(--danger);
+}
+
+.textarea {
+  padding: var(--gap-md) var(--gap-lg);
+  font-size: var(--font-size-base);
+  font-family: var(--font-body);
+  line-height: var(--line-height-relaxed);
+  color: var(--text);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  min-height: 120px;
+  transition: all 0.2s ease;
+}
+
+.textarea:hover:not(:disabled):not(:focus) {
+  border-color: var(--text-muted);
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px oklch(33% 0.09 255 / 0.12);
+}
+
+.textarea:disabled {
+  background-color: var(--surface-alt);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.textarea-error {
+  border-color: var(--danger);
+  background-color: var(--danger-soft);
+}
+
+.textarea-error:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px oklch(56% 0.17 25 / 0.12);
+}
+
+.textarea-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--gap-md);
+}
+
+.textarea-error-text {
+  font-size: var(--font-size-sm);
+  color: var(--danger);
+  margin: 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.textarea-count {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .textarea {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .textarea {
+    font-size: 16px;
+  }
+}

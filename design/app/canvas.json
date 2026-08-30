@@ -1,0 +1,34 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 3300, "expand": "fill", "page": "page-member" },
+
+    { "file": "LoginGuide.dc.html", "x": 0, "y": 3450, "w": 980, "h": 950, "expand": "fill", "page": "page-member" },
+    { "file": "Login.dc.html", "x": 1080, "y": 3450, "w": 980, "h": 950, "expand": "fill", "page": "page-member" },
+    { "file": "Signup.dc.html", "x": 2160, "y": 3450, "w": 980, "h": 950, "expand": "fill", "page": "page-member" },
+
+    { "file": "AnnouncementDetail.dc.html", "x": 0, "y": 4540, "w": 980, "h": 950, "expand": "fill", "page": "page-member" },
+    { "file": "MyDocuments.dc.html", "x": 1080, "y": 4540, "w": 980, "h": 950, "expand": "fill", "page": "page-member" },
+    { "file": "MyPage.dc.html", "x": 2160, "y": 4540, "w": 980, "h": 950, "expand": "fill", "page": "page-member" },
+
+    { "file": "SubscriptionGuide.dc.html", "x": 0, "y": 5630, "w": 980, "h": 950, "expand": "fill", "page": "page-member" },
+    { "file": "InquiryList.dc.html", "x": 1080, "y": 5630, "w": 980, "h": 950, "expand": "fill", "page": "page-member" },
+    { "file": "InquiryDetail.dc.html", "x": 2160, "y": 5630, "w": 980, "h": 950, "expand": "fill", "page": "page-member" },
+
+    { "file": "AdminLogin.dc.html", "x": 0, "y": 0, "w": 1180, "h": 900, "expand": "fill", "page": "page-admin" },
+    { "file": "AdminDashboard.dc.html", "x": 1280, "y": 0, "w": 1180, "h": 900, "expand": "fill", "page": "page-admin" },
+    { "file": "MemberManagement.dc.html", "x": 2560, "y": 0, "w": 1180, "h": 900, "expand": "fill", "page": "page-admin" },
+
+    { "file": "ApiCredentials.dc.html", "x": 0, "y": 1040, "w": 1180, "h": 900, "expand": "fill", "page": "page-admin" },
+    { "file": "SubscriptionBilling.dc.html", "x": 1280, "y": 1040, "w": 1180, "h": 900, "expand": "fill", "page": "page-admin" },
+    { "file": "InquiryManagement.dc.html", "x": 2560, "y": 1040, "w": 1180, "h": 900, "expand": "fill", "page": "page-admin" }
+  ],
+  "annotations": [
+    { "id": "member-note", "x": 0, "y": -140, "w": 600, "text": "회원 화면 — 로그인 안내, 로그인/회원가입, 공고 상세, 내 문서함, 마이페이지, 구독 안내, 문의하기/상세", "page": "page-member" },
+    { "id": "admin-note", "x": 0, "y": -140, "w": 600, "text": "관리자 화면 — 관리자 로그인, 대시보드, 회원관리, 발주처 API 관리, 결제관리, 문의관리", "page": "page-admin" }
+  ],
+  "pages": [
+    { "id": "page-member", "name": "회원 화면" },
+    { "id": "page-admin", "name": "관리자 화면" }
+  ],
+  "launch": { "view": "canvas", "page": "page-member" }
+}

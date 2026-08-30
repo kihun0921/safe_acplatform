@@ -1,0 +1,48 @@
+/* ErrorState Component - 올케어안전플랫폼 */
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-lg);
+  padding: 48px;
+  min-height: 300px;
+  text-align: center;
+  background-color: var(--surface);
+  border: 1px solid var(--danger-soft);
+  border-radius: var(--radius-lg);
+}
+
+.error-state-icon {
+  font-size: 40px;
+  display: block;
+  color: var(--danger);
+}
+
+.error-state-title {
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  color: var(--text);
+  margin: 0;
+  font-family: var(--font-body);
+}
+
+.error-state-message {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: var(--line-height-relaxed);
+  max-width: 400px;
+  margin: 0;
+}
+
+.error-state .btn {
+  margin-top: var(--gap-lg);
+}
+
+@media (max-width: 640px) {
+  .error-state {
+    min-height: 200px;
+    padding: var(--gap-2xl) var(--gap-lg);
+  }
+}

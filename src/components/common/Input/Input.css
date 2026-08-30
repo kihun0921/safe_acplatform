@@ -1,0 +1,84 @@
+/* Input Component - 올케어안전플랫폼 */
+
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-sm);
+  width: 100%;
+}
+
+.input-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text);
+}
+
+.required {
+  color: var(--danger);
+}
+
+.input {
+  padding: var(--gap-md) var(--gap-lg);
+  font-size: var(--font-size-base);
+  font-family: var(--font-body);
+  color: var(--text);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.input:hover:not(:disabled):not(:focus) {
+  border-color: var(--text-muted);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px oklch(33% 0.09 255 / 0.12);
+}
+
+.input:disabled {
+  background-color: var(--surface-alt);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.input-error {
+  border-color: var(--danger);
+  background-color: var(--danger-soft);
+}
+
+.input-error:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px oklch(56% 0.17 25 / 0.12);
+}
+
+.input-error-text {
+  font-size: var(--font-size-sm);
+  color: var(--danger);
+  margin: 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.input-helper-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}

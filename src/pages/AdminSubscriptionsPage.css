@@ -1,0 +1,73 @@
+.admin-subscriptions-page {
+  padding: var(--gap-2xl) 0;
+  background-color: var(--bg-secondary);
+  min-height: 100vh;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--gap-2xl);
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  color: var(--primary);
+  margin: 0;
+  font-family: var(--font-serif);
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--gap-3xl);
+  background-color: var(--surface);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+}
+
+.payments-table-wrap {
+  background-color: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+}
+
+.payments-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.payments-table th,
+.payments-table td {
+  padding: var(--gap-md) var(--gap-lg);
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.payments-table th {
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-semibold);
+  background-color: var(--surface-alt);
+}
+
+.payments-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.payments-table tbody tr:hover {
+  background-color: var(--surface-alt);
+}
+
+.cell-sub {
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .page-title {
+    font-size: var(--font-size-2xl);
+  }
+}

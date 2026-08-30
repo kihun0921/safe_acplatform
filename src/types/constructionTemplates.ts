@@ -1,0 +1,207 @@
+// 공고 제목 기반 공사 성질(공종) 자동 분류 + 표준 위험성평가 항목 라이브러리.
+//
+// LLM 없이 키워드 매칭만으로 동작하는 규칙 기반 1차 분류다. 공고 원문(제목)만으로는
+// 완벽하게 정확한 공종을 판단할 수 없으므로, 사용자가 위험성평가 단계에서 언제든
+// 공사 종류를 수동으로 바꾸고 표준 항목을 다시 불러올 수 있게 설계했다 (자동분류는
+// "일일이 입력하지 않아도 되는 출발점"이지, 최종 확정값이 아니다).
+import { ConstructionType, CONSTRUCTION_TYPES, RiskRow, newRowId } from './wizardContent'
+
+export { CONSTRUCTION_TYPES }
+export type { ConstructionType }
+
+interface ClassificationRule {
+  type: ConstructionType
+  keywords: string[]
+}
+
+// 우선순위 순서대로 검사한다 (위에 있을수록 더 구체적이고 위험성이 특이한 공종).
+// 예: "노후건축물 석면 철거공사"는 "건축물"도 포함하지만 철거/석면이 우선 매칭되어
+// 철거공사로 분류된다.
+const CLASSIFICATION_RULES: ClassificationRule[] = [
+  { type: '철거공사', keywords: ['철거', '해체', '석면'] },
+  { type: '소방시설공사', keywords: ['소방', '스프링클러', '옥내소화전', '제연설비', '소화설비'] },
+  { type: '정보통신공사', keywords: ['정보통신', '통신구', '통신선로', 'CCTV', '방송설비', '네트워크'] },
+  { type: '전기공사', keywords: ['전기', '변전', '수배전', '태양광', '전력', '배전반'] },
+  {
+    type: '기계설비공사',
+    keywords: ['기계설비', '배관', '냉난방', '공조', '급배수', '승강기', '엘리베이터', '리프트', '펌프', '밸브'],
+  },
+  { type: '조경공사', keywords: ['조경', '식재', '녹지', '공원', '숲'] },
+  { type: '도장·방수공사', keywords: ['도장', '방수', '도색'] },
+  { type: '강구조물공사', keywords: ['강구조', '철골'] },
+  {
+    type: '실내건축공사',
+    keywords: ['실내', '리모델링', '인테리어', '내부', '환경개선', '도배', '장판', '칸막이', '개보수'],
+  },
+  {
+    type: '토목공사',
+    keywords: ['토목', '도로', '하천', '옹벽', '포장', '아스콘', '상하수도', '준설', '터널', '교량', '제방', '배수로'],
+  },
+  { type: '종합건축공사', keywords: ['신축', '증축', '건축물', '청사', '학교', '아파트', '건립', '개축'] },
+]
+
+/**
+ * 공고 제목에서 키워드를 찾아 공사 종류를 추정한다. 일치하는 키워드가 없으면
+ * '일반공사'로 fallback한다.
+ */
+export function classifyConstructionType(title: string): ConstructionType {
+  for (const rule of CLASSIFICATION_RULES) {
+    if (rule.keywords.some((kw) => title.includes(kw))) return rule.type
+  }
+  return '일반공사'
+}
+
+// 공종별 대표 세부 공정(위험성평가 개요 문구에 들어가는 "세부 공정(...)별" 부분).
+const PROCESS_STEPS_BY_TYPE: Record<ConstructionType, string> = {
+  종합건축공사: '가설·토공·골조·마감·설비',
+  실내건축공사: '가설·철거·조적·창호·전기·도장·마감',
+  토목공사: '토공·기초·구조물·포장·부대공',
+  철거공사: '사전조사·차단·해체·잔재처리·마감',
+  강구조물공사: '가공·운반·조립·용접·도장',
+  '도장·방수공사': '표면처리·프라이머·방수시공·도장·양생',
+  전기공사: '배관·배선·기기설치·결선·시운전',
+  정보통신공사: '관로매설·케이블포설·단자설치·장비설치·시험',
+  소방시설공사: '배관·배선·기기설치·시운전·검사',
+  기계설비공사: '배관·기기설치·용접·보온·시운전',
+  조경공사: '터파기·식재·관수설비·시설물설치·마감',
+  일반공사: '가설·시공·마감',
+}
+
+// 위험성평가 "개요" 텍스트를 사업명·공종으로 자동 조합한다 (AI 없이 템플릿 치환만으로 —
+// 사용자가 매번 직접 타이핑하지 않도록). 사업명이 아직 없으면 공종만으로 조합한다.
+export function buildRiskOverviewText(projectName: string, constructionType: ConstructionType): string {
+  const steps = PROCESS_STEPS_BY_TYPE[constructionType] || PROCESS_STEPS_BY_TYPE['일반공사']
+  const subject = projectName ? `${projectName}, ${constructionType}` : constructionType
+  return (
+    `본 공사(${subject})의 세부 공정(${steps} 등)별 유해·위험요인을 사전에 파악하고, ` +
+    `「위험성수준 3단계(상·중·하) 판단법」에 따라 자체 위험성평가를 실시하여 개선대책을 수립·이행합니다.`
+  )
+}
+
+export interface RiskTemplateItem {
+  hazard: string
+  countermeasure: string
+}
+
+// 공종별 표준 위험성평가 항목 (KOSHA 표준안전작업지침 및 건설업 위험성평가 사례 기준
+// 일반적으로 통용되는 유해·위험요인/개선대책). 사용자가 그대로 쓰거나, 행 추가/삭제/
+// 수정으로 현장 실정에 맞게 편집하는 것을 전제로 한 출발점 데이터다.
+export const RISK_TEMPLATES: Record<ConstructionType, RiskTemplateItem[]> = {
+  종합건축공사: [
+    { hazard: '고소작업 중 추락', countermeasure: '안전대 착용 및 안전난간 설치, 개구부 덮개 설치' },
+    { hazard: '양중장비 인양물 낙하', countermeasure: '인양구간 출입통제, 신호수 배치, 와이어로프 점검' },
+    { hazard: '거푸집·동바리 붕괴', countermeasure: '구조검토 후 설치, 콘크리트 타설 전 안전점검 실시' },
+    { hazard: '굴착사면 붕괴', countermeasure: '흙막이 지보공 설치, 계측관리, 우천 시 작업중지' },
+    { hazard: '전동공구·자재 취급 중 협착·베임', countermeasure: '작업 전 안전교육, 방호덮개 설치 확인' },
+    { hazard: '건설기계(굴착기·지게차 등)와 근로자 충돌', countermeasure: '유도자 배치, 작업반경 출입금지' },
+  ],
+  실내건축공사: [
+    { hazard: '철거 작업 중 낙하물에 의한 부상', countermeasure: '철거 구간 출입통제, 낙하물 방지망 설치' },
+    { hazard: '분진·유해가스 흡입(마감재 시공)', countermeasure: '국소배기장치 설치, 방진마스크 지급' },
+    { hazard: '전동공구 사용 중 감전', countermeasure: '접지 및 누전차단기 설치, 정기 절연점검' },
+    { hazard: '사다리·이동식비계 전도', countermeasure: '안전한 설치 상태 확인, 2인1조 작업' },
+    { hazard: '마감재 운반 중 협착·요통', countermeasure: '운반기구(대차 등) 활용, 중량물 취급요령 교육' },
+    { hazard: '화기작업(용접 등) 중 화재', countermeasure: '소화기 비치, 인화성물질 이격 조치' },
+  ],
+  토목공사: [
+    { hazard: '굴착사면 및 흙막이 붕괴', countermeasure: '구배기준 준수, 흙막이 지보공 설치, 계측관리' },
+    { hazard: '건설기계(굴착기·덤프트럭 등) 협착·전도', countermeasure: '유도자 배치, 후진경보장치 확인' },
+    { hazard: '포장장비(롤러·피니셔) 화상·협착', countermeasure: '접근금지구역 설정, 신호체계 확립' },
+    { hazard: '수중·하천 작업 중 익수', countermeasure: '구명조끼 착용, 유속·수위 확인 후 작업' },
+    { hazard: '지하매설물(가스관·전선관) 손상', countermeasure: '사전 굴착위치 확인, 입회 굴착' },
+    { hazard: '교통통제구간 차량 충돌', countermeasure: '안전표지·라바콘 설치, 교통유도원 배치' },
+  ],
+  철거공사: [
+    { hazard: '구조물 붕괴 및 낙하물', countermeasure: '해체계획서에 따른 순서 준수, 지지대 확인' },
+    { hazard: '석면 등 유해물질 노출', countermeasure: '사전조사 및 안전한 제거작업, 방진마스크·보호복 착용' },
+    { hazard: '분진 비산', countermeasure: '살수 작업 병행, 방진막 설치' },
+    { hazard: '중장비(브레이커 등) 협착', countermeasure: '작업반경 출입통제, 신호수 배치' },
+    { hazard: '미확인 매설물(가스·전기) 접촉', countermeasure: '사전 조사 및 입회 작업' },
+    { hazard: '소음·진동으로 인한 건강장해', countermeasure: '방음벽 설치, 작업시간 조정' },
+  ],
+  강구조물공사: [
+    { hazard: '고소 철골작업 중 추락', countermeasure: '안전대 부착설비 설치, 안전난간·수평보호망 설치' },
+    { hazard: '강재 인양 중 낙하', countermeasure: '인양로프·샤클 점검, 낙하위험구간 통제' },
+    { hazard: '용접·용단 작업 중 화재·화상', countermeasure: '불티비산방지막 설치, 소화기 비치' },
+    { hazard: '크레인 전도', countermeasure: '지반상태 확인, 아웃트리거 완전 전개' },
+    { hazard: '강재 운반 중 협착', countermeasure: '2인1조 작업, 보호장갑 착용' },
+  ],
+  '도장·방수공사': [
+    { hazard: '유기용제 흡입으로 인한 중독', countermeasure: '환기설비 설치, 방독마스크 지급' },
+    { hazard: '고소 도장작업 중 추락', countermeasure: '이동식비계·안전대 사용, 안전난간 설치' },
+    { hazard: '인화성 도료 취급 중 화재·폭발', countermeasure: '화기엄금, 정전기 방지조치' },
+    { hazard: '옥상방수 작업 중 열탕(아스팔트) 화상', countermeasure: '보호장갑·보호복 착용' },
+    { hazard: '밀폐공간(지하실 등) 작업 시 질식', countermeasure: '환기 실시, 산소농도 측정 후 작업' },
+  ],
+  전기공사: [
+    { hazard: '활선 작업 중 감전', countermeasure: '정전작업 원칙, 절연용 보호구 착용' },
+    { hazard: '고소 전주·배전작업 중 추락', countermeasure: '안전대 착용, 승주용 발판 확인' },
+    { hazard: '정전 작업 중 잔류전하 감전', countermeasure: '검전 및 접지 실시 후 작업' },
+    { hazard: '케이블 포설 중 협착', countermeasure: '견인장비 정격하중 준수' },
+    { hazard: '태양광 패널 설치 중 추락·낙하', countermeasure: '지붕작업 안전대 고정설비 설치' },
+  ],
+  정보통신공사: [
+    { hazard: '고소 안테나·중계기 설치작업 중 추락', countermeasure: '안전대 착용, 작업발판 확인' },
+    { hazard: '케이블 포설 중 협착', countermeasure: '견인기 정격하중 준수, 신호체계 확립' },
+    { hazard: '통신주 작업 중 인접 활선 감전', countermeasure: '이격거리 확보, 절연용 보호구 착용' },
+    { hazard: '맨홀·핸드홀 내 작업 중 질식', countermeasure: '유해가스 측정, 환기 실시' },
+    { hazard: '통신실 내 화재(장비 과열)', countermeasure: '소화설비 비치, 정기점검' },
+  ],
+  소방시설공사: [
+    { hazard: '배관 용접작업 중 화재', countermeasure: '화기작업 허가제, 불티받이 설치' },
+    { hazard: '고소 스프링클러 설치작업 중 추락', countermeasure: '이동식비계·안전대 사용' },
+    { hazard: '소방수조 내 작업 중 익수·질식', countermeasure: '산소농도 측정, 구명줄 사용' },
+    { hazard: '전동공구 사용 중 감전', countermeasure: '누전차단기 설치, 절연점검' },
+    { hazard: '배관 자재 운반 중 협착', countermeasure: '2인1조 작업, 보호장갑 착용' },
+  ],
+  기계설비공사: [
+    { hazard: '배관 설치 중 고소 추락', countermeasure: '안전대·안전난간 설치' },
+    { hazard: '중량물(펌프·탱크 등) 인양 중 낙하·협착', countermeasure: '인양장비 정격하중 준수, 신호수 배치' },
+    { hazard: '용접작업 중 화재·화상', countermeasure: '불티비산방지막 설치, 소화기 비치' },
+    { hazard: '밀폐공간(기계실·피트) 작업 중 질식', countermeasure: '환기 실시, 산소농도 측정' },
+    { hazard: '냉매·유해가스 누출', countermeasure: '가스검지기 사용, 환기설비 가동' },
+  ],
+  조경공사: [
+    { hazard: '수목 식재작업 중 요통 등 근골격계질환', countermeasure: '중량물 취급요령 교육, 보조기구 사용' },
+    { hazard: '굴착기 등 장비 협착', countermeasure: '작업반경 출입통제, 유도자 배치' },
+    { hazard: '고소(수목전정) 작업 중 추락', countermeasure: '안전대 착용, 사다리 전도방지 조치' },
+    { hazard: '조경석 등 중량물 인양 중 낙하', countermeasure: '인양로프 점검, 하부 출입통제' },
+    { hazard: '예초기·전동톱 사용 중 베임', countermeasure: '보호장갑·보안경 착용' },
+  ],
+  일반공사: [
+    { hazard: '고소작업 중 추락', countermeasure: '안전대 착용, 안전난간 설치' },
+    { hazard: '건설기계와 근로자 충돌', countermeasure: '유도자 배치, 작업반경 출입통제' },
+    { hazard: '중량물 취급 중 협착·요통', countermeasure: '운반기구 활용, 2인1조 작업' },
+    { hazard: '전동공구 사용 중 감전·베임', countermeasure: '절연점검, 방호덮개 확인' },
+    { hazard: '자재 적재상태 불량으로 인한 붕괴·낙하', countermeasure: '적재높이 준수, 결속 상태 확인' },
+  ],
+}
+
+// 유해·위험요인 문구에 흔히 등장하는 키워드로 일반적인 위험수준을 "참고값"으로 제안한다.
+// 실제 현장 위험도는 작업방법·숙련도·안전조치 여부에 따라 달라지므로 최종 판단은 항상
+// 사용자가 확정해야 한다 — 여기서는 표준 항목을 불러올 때 빈칸 대신 출발점을 주는 용도.
+const HIGH_RISK_KEYWORDS = ['추락', '붕괴', '감전', '질식', '폭발', '화재', '매몰', '무너짐']
+const MID_RISK_KEYWORDS = ['협착', '충돌', '낙하', '화상', '베임', '전도', '끼임']
+
+function suggestRiskLevel(hazard: string): '상' | '중' | '하' {
+  if (HIGH_RISK_KEYWORDS.some((kw) => hazard.includes(kw))) return '상'
+  if (MID_RISK_KEYWORDS.some((kw) => hazard.includes(kw))) return '중'
+  return '하'
+}
+
+/** 표준 항목을 실제 위험성평가표에 넣을 수 있는 RiskRow[]로 변환한다 (번호는 호출측에서 재부여). */
+export function buildRiskRowsFromTemplate(type: ConstructionType): RiskRow[] {
+  return RISK_TEMPLATES[type].map((item, i) => ({
+    id: newRowId(),
+    no: i + 1,
+    hazard: item.hazard,
+    level: suggestRiskLevel(item.hazard),
+    countermeasure: item.countermeasure,
+    plannedDate: '',
+    completedDate: '',
+    manager: '',
+    frequency: '',
+    severity: '',
+    checked: true,
+  }))
+}

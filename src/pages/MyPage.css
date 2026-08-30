@@ -1,0 +1,116 @@
+.mypage {
+  padding: var(--gap-2xl) 0;
+  background-color: var(--bg-secondary);
+  min-height: 100vh;
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  color: var(--primary);
+  margin: 0 0 var(--gap-2xl) 0;
+  font-family: var(--font-serif);
+}
+
+.profile-section,
+.account-section {
+  margin-bottom: var(--gap-2xl);
+}
+
+.profile-card,
+.account-card {
+  background-color: white;
+  border-radius: var(--radius-lg);
+  padding: var(--gap-2xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.profile-title,
+.account-title {
+  font-size: var(--font-size-2xl);
+  color: var(--text-primary);
+  margin: 0 0 var(--gap-lg) 0;
+  font-family: var(--font-serif);
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-lg);
+  margin-bottom: var(--gap-2xl);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--gap-md);
+  border-bottom: 1px solid var(--border);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.label {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  font-size: var(--font-size-base);
+}
+
+.value {
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+}
+
+.account-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-md);
+}
+
+.account-actions .btn {
+  justify-content: flex-start;
+  padding: var(--gap-md) 0;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-lg);
+}
+
+.edit-form-hint {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.edit-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--gap-md);
+}
+
+@media (max-width: 960px) {
+  .profile-card,
+  .account-card {
+    padding: var(--gap-xl);
+  }
+}
+
+@media (max-width: 640px) {
+  .page-title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .profile-card,
+  .account-card {
+    padding: var(--gap-lg);
+  }
+
+  .info-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--gap-sm);
+  }
+}

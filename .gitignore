@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build output
+dist/
+build/
+.tsc-out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Misc
+.cache/
+dist-ssr/
+
+# Supabase CLI local state (project ref/pooler url cache, not secrets but not source either)
+supabase/.temp/
+
+# 작업 중 임시로 쌓인 스크린샷/백업 (일부는 실제 회원 이메일 등 개인정보가 찍혀 있어 제외)
+화면 캡처*.png
+*.zip

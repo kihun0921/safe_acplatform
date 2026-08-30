@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&family=Noto+Serif+KR:wght@600;700&display=swap">
+  <style>
+    :root{
+      --bg: oklch(97% 0.006 255); --surface: oklch(100% 0 0); --surface-alt: oklch(95% 0.008 255);
+      --border: oklch(88% 0.008 255); --text: oklch(20% 0.02 255); --text-secondary: oklch(44% 0.014 255);
+      --text-muted: oklch(58% 0.01 255); --primary: oklch(33% 0.09 255); --primary-soft: oklch(93% 0.025 255);
+      --success: oklch(58% 0.13 150); --success-soft: oklch(94% 0.035 150);
+      --danger: oklch(56% 0.17 25); --danger-soft: oklch(94% 0.03 25);
+      --font-body: 'Noto Sans KR', system-ui, -apple-system, 'Malgun Gothic', sans-serif;
+      --font-display: 'Noto Serif KR', 'Noto Sans KR', serif;
+    }
+    *{ box-sizing:border-box; } body{ margin:0; font-family:var(--font-body); color:var(--text); background:var(--bg); }
+    a{ color:var(--primary); text-decoration:none; }
+    button{ font-family:var(--font-body); }
+    table{ border-collapse:collapse; width:100%; }
+    th,td{ text-align:left; padding:12px 14px; font-size:13.5px; }
+    th{ color:var(--text-muted); font-weight:600; font-size:12.5px; border-bottom:1px solid var(--border); }
+    tbody tr{ border-bottom:1px solid var(--border); }
+    @media (max-width:900px){ .admin-nav{ display:none !important; } }
+  </style>
+</helmet>
+
+<div>
+  <header style="background:var(--primary);color:#fff;">
+    <div style="max-width:1280px;margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;gap:24px;">
+      <div style="display:flex;align-items:center;gap:32px;">
+        <div style="display:flex;align-items:center;gap:9px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-2.9 8.4-7 9.7C7.9 19.4 5 15.5 5 11V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+          <span style="font-family:var(--font-display);font-weight:700;font-size:16px;">올케어안전플랫폼</span>
+          <span style="background:rgba(255,255,255,0.16);font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;">관리자</span>
+        </div>
+        <nav class="admin-nav" style="display:flex;align-items:center;gap:22px;">
+          <a href="admin-dashboard.html" style="font-size:13.5px;font-weight:500;color:rgba(255,255,255,0.8);">대시보드</a>
+          <a href="member-management.html" style="font-size:13.5px;font-weight:700;color:#fff;">회원관리</a>
+          <a href="api-credentials.html" style="font-size:13.5px;font-weight:500;color:rgba(255,255,255,0.8);">API 관리</a>
+          <a href="subscription-billing.html" style="font-size:13.5px;font-weight:500;color:rgba(255,255,255,0.8);">결제관리</a>
+          <a href="inquiry-management.html" style="font-size:13.5px;font-weight:500;color:rgba(255,255,255,0.8);">문의관리</a>
+        </nav>
+      </div>
+      <a href="admin-login.html" style="font-size:13px;color:rgba(255,255,255,0.8);">로그아웃</a>
+    </div>
+  </header>
+
+  <main style="max-width:1280px;margin:0 auto;padding:40px 40px 88px;">
+    <h1 style="font-family:var(--font-display);font-size:24px;font-weight:700;color:var(--text);margin:0 0 24px;">회원 관리</h1>
+
+    <div style="display:flex;gap:6px;background:var(--surface-alt);padding:4px;border-radius:9px;width:fit-content;margin-bottom:18px;">
+      <button onClick="{{selectAll}}" style="{{allTabStyle}}">전체 ({{allCount}})</button>
+      <button onClick="{{selectActive}}" style="{{activeTabStyle}}">정상 ({{activeCount}})</button>
+      <button onClick="{{selectSuspended}}" style="{{suspendedTabStyle}}">정지 ({{suspendedCount}})</button>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+      <table>
+        <thead>
+          <tr><th>소속 건설사</th><th>담당자</th><th>이메일</th><th>가입일</th><th>구독</th><th>상태</th></tr>
+        </thead>
+        <tbody>
+          <sc-for list="{{filteredMembers}}" as="m" hint-placeholder-count="5">
+            <tr>
+              <td style="font-weight:600;color:var(--text);">{{m.company}}</td>
+              <td>{{m.manager}}</td>
+              <td style="color:var(--text-secondary);">{{m.email}}</td>
+              <td style="color:var(--text-muted);">{{m.joined}}</td>
+              <td><span style="{{m.subStyle}}">{{m.subLabel}}</span></td>
+              <td><span style="{{m.statusStyle}}">{{m.statusLabel}}</span></td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.rawMembers = [
+      { company: 'OO건설(주)', manager: '김담당', email: 'manager@ooconst.co.kr', joined: '2026-03-11', subscribed: true, status: 'active' },
+      { company: '대한종합건설', manager: '이현장', email: 'hjlee@daehan.co.kr', joined: '2026-04-02', subscribed: true, status: 'active' },
+      { company: '한빛토건', manager: '박안전', email: 'safety@hanbit.co.kr', joined: '2026-05-19', subscribed: false, status: 'active' },
+      { company: '서울전기설비', manager: '최공무', email: 'gm@seoulelec.co.kr', joined: '2026-06-08', subscribed: true, status: 'suspended' },
+      { company: '중부산업개발', manager: '정담당', email: 'jd@jungbu.co.kr', joined: '2026-07-14', subscribed: false, status: 'active' }
+    ];
+    this.state = { filter: 'all' };
+  }
+  renderVals() {
+    const state = this.state;
+    const subStyleFor = (subscribed) => subscribed
+      ? 'background:var(--success-soft);color:var(--success);font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;'
+      : 'background:var(--surface-alt);color:var(--text-muted);font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;';
+    const statusStyleFor = (status) => status === 'active'
+      ? 'background:var(--success-soft);color:var(--success);font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;'
+      : 'background:var(--danger-soft);color:var(--danger);font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;';
+
+    const decorated = this.rawMembers.map((m) => ({
+      ...m,
+      subLabel: m.subscribed ? '구독중' : '미구독',
+      subStyle: subStyleFor(m.subscribed),
+      statusLabel: m.status === 'active' ? '정상' : '정지',
+      statusStyle: statusStyleFor(m.status)
+    }));
+
+    const filteredMembers = decorated.filter((m) => {
+      if (state.filter === 'active') return m.status === 'active';
+      if (state.filter === 'suspended') return m.status === 'suspended';
+      return true;
+    });
+
+    const tabStyle = (active) => active
+      ? 'background:var(--surface);color:var(--text);border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 1px 2px rgba(15,23,42,0.06);'
+      : 'background:transparent;color:var(--text-muted);border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;';
+
+    return {
+      filteredMembers,
+      allCount: decorated.length,
+      activeCount: decorated.filter((m) => m.status === 'active').length,
+      suspendedCount: decorated.filter((m) => m.status === 'suspended').length,
+      allTabStyle: tabStyle(state.filter === 'all'),
+      activeTabStyle: tabStyle(state.filter === 'active'),
+      suspendedTabStyle: tabStyle(state.filter === 'suspended'),
+      selectAll: () => this.setState({ filter: 'all' }),
+      selectActive: () => this.setState({ filter: 'active' }),
+      selectSuspended: () => this.setState({ filter: 'suspended' })
+    };
+  }
+}
+</script>
+</body>
+</html>

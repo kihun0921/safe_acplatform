@@ -1,0 +1,137 @@
+/* Button Component - 올케어안전플랫폼 */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-sm);
+  padding: var(--gap-md) var(--gap-lg);
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+/* Primary Button - 네이비 */
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active:not(:disabled) {
+  background-color: var(--primary-strong);
+  transform: scale(0.98);
+}
+
+/* Accent Button - CTA (amber, 기본 accent-color) */
+.btn-accent {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.btn-accent:hover:not(:disabled) {
+  filter: brightness(0.92);
+  box-shadow: var(--shadow-md);
+}
+
+/* Secondary Button - Outlined */
+.btn-secondary {
+  background-color: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--primary-soft);
+}
+
+/* Text Button */
+.btn-text {
+  background-color: transparent;
+  color: var(--primary);
+  padding: var(--gap-sm) var(--gap-md);
+}
+
+.btn-text:hover:not(:disabled) {
+  text-decoration: underline;
+  color: var(--primary-strong);
+}
+
+/* Pill Button */
+.btn-pill {
+  border-radius: var(--radius-full);
+  padding: var(--gap-sm) var(--gap-lg);
+}
+
+/* Danger Button */
+.btn-danger {
+  background-color: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+  box-shadow: var(--shadow-md);
+}
+
+/* Success Button */
+.btn-success {
+  background-color: var(--success);
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  filter: brightness(0.92);
+  box-shadow: var(--shadow-md);
+}
+
+/* Sizes */
+.btn-sm {
+  font-size: var(--font-size-sm);
+  padding: var(--gap-sm) var(--gap-md);
+}
+
+.btn-md {
+  font-size: var(--font-size-base);
+  padding: var(--gap-md) var(--gap-lg);
+}
+
+.btn-lg {
+  font-size: var(--font-size-md);
+  padding: var(--gap-lg) var(--gap-2xl);
+}
+
+/* States */
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-full {
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+}

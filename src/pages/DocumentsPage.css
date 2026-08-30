@@ -1,0 +1,174 @@
+.documents-page {
+  padding: var(--gap-2xl) 0;
+  background-color: var(--bg-secondary);
+}
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  color: var(--primary);
+  margin: 0 0 var(--gap-2xl) 0;
+  font-family: var(--font-serif);
+}
+
+.documents-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--gap-lg);
+  margin-bottom: var(--gap-xl);
+}
+
+.documents-toolbar .input-wrapper {
+  min-width: 260px;
+  margin-bottom: 0;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: var(--gap-lg);
+}
+
+.tab {
+  padding: var(--gap-md) var(--gap-lg);
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: var(--primary);
+}
+
+.tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* ---- 문서 목록 표 ---- */
+.documents-table-wrap {
+  background-color: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+}
+
+.documents-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.documents-table th,
+.documents-table td {
+  padding: var(--gap-md) var(--gap-lg);
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.documents-table th {
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-semibold);
+  background-color: var(--surface-alt);
+}
+
+.documents-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.documents-table tbody tr:hover {
+  background-color: var(--surface-alt);
+}
+
+.documents-table .col-doc-title {
+  white-space: normal;
+  min-width: 220px;
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.documents-table .col-no {
+  width: 48px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.documents-table .col-org {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.documents-table .col-narrow {
+  width: 90px;
+  text-align: center;
+}
+
+.documents-table .col-date {
+  width: 100px;
+  color: var(--text-secondary);
+}
+
+.col-date-time {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.documents-table .col-actions {
+  width: 1%;
+}
+
+/* 구독+쿠폰 상태에 따라 PDF/DOCX/쿠폰등록/구독하기까지 버튼이 최대 3개까지 붙을 수 있어,
+   기본 버튼 크기로 한 줄에 넣으면 표 전체 폭이 넓어져 삭제 버튼을 보려면 가로 스크롤을
+   밀어야 했다. 이 컬럼의 버튼만 작게 줄여 한 줄에 들어오도록 한다. */
+.download-menu {
+  display: flex;
+  gap: var(--gap-xs);
+}
+
+.download-menu .btn {
+  padding: var(--gap-xs) var(--gap-sm);
+  font-size: var(--font-size-xs);
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--gap-3xl);
+  background-color: var(--surface);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+}
+
+.empty-state > div {
+  margin-top: var(--gap-lg);
+}
+
+@media (max-width: 640px) {
+  .page-title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .filter-tabs {
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .documents-toolbar .input-wrapper {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab {
+    transition: none;
+  }
+}

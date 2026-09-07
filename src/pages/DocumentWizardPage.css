@@ -28,6 +28,38 @@
   margin-bottom: var(--gap-2xl);
 }
 
+/* 스크롤 위치와 무관하게 항상 보이는 저장 버튼 */
+.floating-save-bar {
+  position: fixed;
+  right: var(--gap-2xl);
+  bottom: var(--gap-2xl);
+  z-index: var(--z-fixed);
+  display: flex;
+  align-items: center;
+  gap: var(--gap-md);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: var(--gap-sm) var(--gap-sm) var(--gap-sm) var(--gap-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.floating-save-bar .save-status {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .floating-save-bar {
+    right: var(--gap-lg);
+    bottom: var(--gap-lg);
+  }
+
+  .floating-save-bar .save-status {
+    display: none;
+  }
+}
+
 .empty-state {
   padding: var(--gap-2xl);
   text-align: center;
@@ -277,6 +309,38 @@
   line-height: var(--line-height-normal);
 }
 
+/* ---- 발주처 요구사항에 따라 껐다 켤 수 있는 항목(붙임 참고표 등) ---- */
+.field-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-md);
+  flex-wrap: wrap;
+}
+
+.section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.section-toggle input {
+  cursor: pointer;
+}
+
+.section-excluded-note {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary, var(--text-secondary));
+  background-color: var(--surface-muted, rgba(0, 0, 0, 0.04));
+  border-radius: var(--radius-md);
+  padding: var(--gap-sm) var(--gap-md);
+  margin: 0;
+}
+
 .ai-reference-group {
   padding: var(--gap-lg);
   background-color: var(--primary-soft);
@@ -432,6 +496,129 @@
   background-color: var(--danger-soft);
 }
 
+.wizard-table .col-action-detail {
+  width: 56px;
+}
+
+.row-detail-btn {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.row-detail-btn:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+  background-color: var(--primary-soft);
+}
+
+.row-detail-btn-filled {
+  color: var(--primary);
+  border-color: var(--primary);
+  background-color: var(--primary-soft);
+}
+
+.risk-row-process-caption {
+  margin: 4px 0 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* ---- 유해·위험요인 상세페이지 팝업 ---- */
+.risk-detail-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--gap-lg);
+}
+
+.risk-detail-modal {
+  background-color: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--gap-xl);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.risk-detail-modal h2 {
+  margin: 0 0 var(--gap-md) 0;
+  font-size: var(--font-size-lg);
+  color: var(--text-primary);
+}
+
+.risk-detail-modal-summary {
+  background-color: var(--surface-alt);
+  border-radius: var(--radius-md);
+  padding: var(--gap-md);
+  margin-bottom: var(--gap-lg);
+}
+
+.risk-detail-modal-summary strong {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.risk-detail-modal-summary p {
+  margin: 0 0 var(--gap-sm) 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.risk-detail-modal-summary p:last-child {
+  margin-bottom: 0;
+}
+
+.risk-detail-modal-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-md);
+}
+
+.risk-detail-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--gap-md);
+  margin-top: var(--gap-lg);
+}
+
+@media (max-width: 640px) {
+  .risk-detail-modal-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- 안전보건방침 조항/목표처럼 줄 단위 텍스트 목록을 편집하는 공용 에디터 ---- */
+.wizard-list-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-sm);
+}
+
+.wizard-list-editor-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+}
+
+.wizard-list-editor-row input {
+  flex: 1;
+}
+
 /* ---- 위험성평가: 빈도·강도법 점수 배지 / 체크리스트법 미해당 행 ---- */
 .risk-score-badge {
   display: inline-block;
@@ -518,6 +705,21 @@
 .checklist-item-label {
   font-size: var(--font-size-sm);
   color: var(--text-primary);
+}
+
+.checklist-item-hint {
+  display: block;
+  margin-top: 2px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--font-size-xs, 12px);
+  color: var(--primary, #3b82f6);
+  cursor: pointer;
+}
+
+.checklist-item-hint:hover {
+  text-decoration: underline;
 }
 
 .checklist-item-options {

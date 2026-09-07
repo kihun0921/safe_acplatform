@@ -112,7 +112,11 @@ export function useSupabaseDocuments(userId: string | undefined) {
     }
   }
 
-  const createDocument = async (announcementId: string | null, title: string) => {
+  const createDocument = async (
+    announcementId: string | null,
+    title: string,
+    initialContent?: WizardContent,
+  ) => {
     if (!userId) return null
 
     try {
@@ -120,6 +124,7 @@ export function useSupabaseDocuments(userId: string | undefined) {
         userId,
         announcementId,
         title,
+        initialContent,
       )
       if (err) throw err
       if (data) setDocuments((prev) => [data, ...prev])

@@ -12,14 +12,20 @@ import {
   WidthType,
   HeadingLevel,
   AlignmentType,
+  BorderStyle,
+  TableOfContents,
 } from 'docx'
 import type {
   WizardContent,
   RiskRow,
   RiskMethod,
   PpeRow,
+  PpeIndividualIssuanceRow,
   EducationRow,
   PreventionRow,
+  MachineryPreventionRow,
+  HazardPreventionRow,
+  PreventionExecutionRow,
   SafetyOrgRole,
   WorkPermitRow,
   ContactRow,
@@ -30,6 +36,23 @@ import type {
   YearlyStat,
   ChecklistCategoryResult,
   UploadedFile,
+  SafetyEquipmentRow,
+  InspectionPlanRow,
+  MeetingPlanRow,
+  ApprovalEntry,
+  AgencyType,
+  VulnerableWorkerRow,
+  FireWatchAssignmentRow,
+  TwoPersonTeamRow,
+} from '../types/wizardContent'
+import {
+  LOTO_PROCEDURE_STEPS,
+  SAFETY_INSPECTION_CYCLE_TABLE,
+  EVALUATION_CRITERIA_TABLE,
+  ACCIDENT_TYPE_TABLE,
+  PPE_MANAGEMENT_RULES,
+  PPE_VALIDITY_TABLE,
+  isSectionIncluded,
 } from '../types/wizardContent'
 
 // Windows/Mac 파일시스템에서 사용할 수 없는 문자를 제거해 다운로드 파일명으로 안전하게 만든다.
@@ -82,30 +105,45 @@ function riskTable(rows: RiskRow[], method: RiskMethod): DocumentTable {
   // 최종 문서에서 제외한다 (화면에서는 삭제하지 않고 흐리게 표시만 해둔 것과의 차이).
   const exportRows = isChecklist ? rows.filter((r) => (r.checked ?? true)) : rows
 
+  // "상세페이지" 팝업 필드(세부공정명/위험분류/현재의 안전보건조치/개선후 위험성/확인자)는
+  // 하나도 채우지 않았다면 칼럼 자체를 추가하지 않는다 — 기존에 작성해둔 단순한 문서의
+  // 내보내기 결과가 이번 기능 추가로 넓어지지 않도록 하기 위함.
+  const hasDetail = exportRows.some(
+    (r) => r.processName || r.hazardCategory || r.currentMeasures || r.residualRisk || r.confirmer,
+  )
+
   const headers = [
     '번호',
+    ...(hasDetail ? ['세부공정명', '위험분류'] : []),
     '유해·위험요인',
+    ...(hasDetail ? ['현재의 안전보건조치'] : []),
     ...(isLevel3 ? ['위험성수준'] : []),
     ...(isFreqSeverity ? ['빈도', '강도', '위험성(빈도×강도)'] : []),
     '개선대책',
+    ...(hasDetail ? ['개선후 위험성'] : []),
     '개선예정일',
     '개선완료일',
     '담당자',
+    ...(hasDetail ? ['확인자'] : []),
   ]
 
   return {
     headers,
     rows: exportRows.map((r, i) => [
       String(i + 1),
+      ...(hasDetail ? [r.processName ?? '', r.hazardCategory ?? ''] : []),
       r.hazard,
+      ...(hasDetail ? [r.currentMeasures ?? ''] : []),
       ...(isLevel3 ? [r.level] : []),
       ...(isFreqSeverity
         ? [r.frequency ?? '', r.severity ?? '', String((Number(r.frequency) || 0) * (Number(r.severity) || 0))]
         : []),
       r.countermeasure,
+      ...(hasDetail ? [r.residualRisk ?? ''] : []),
       r.plannedDate,
       r.completedDate,
       r.manager,
+      ...(hasDetail ? [r.confirmer ?? ''] : []),
     ]),
   }
 }
@@ -114,6 +152,21 @@ function ppeTable(rows: PpeRow[]): DocumentTable {
   return {
     headers: ['품명', '수량', '지급대상', '관리계획'],
     rows: rows.map((r) => [r.name, r.qty, r.target, r.managementPlan]),
+  }
+}
+
+function ppeIndividualIssuanceTable(rows: PpeIndividualIssuanceRow[]): DocumentTable {
+  return {
+    headers: ['구분', '직종', '근로자명', '보호구명', '지급수량', '지급서명(또는 지급시기)', '안전인증 여부'],
+    rows: rows.map((r) => [
+      r.category,
+      r.jobType,
+      r.workerName,
+      r.itemName,
+      r.qty,
+      r.issuedSignature,
+      r.certified ? 'O' : 'X',
+    ]),
   }
 }
 
@@ -149,6 +202,71 @@ function preventionTable(rows: PreventionRow[]): DocumentTable {
   }
 }
 
+const CHECK_MARK = 'O'
+
+function machineryPreventionTable(rows: MachineryPreventionRow[]): DocumentTable {
+  return {
+    headers: ['기계·기구·설비 등', '방호장치 설치', '보호구 지급·착용', '안전보건교육', '표지부착/안전수칙', '기타 대책'],
+    rows: rows.map((r) => [
+      r.item,
+      r.guardInstall ? CHECK_MARK : '',
+      r.ppeProvision ? CHECK_MARK : '',
+      r.safetyEducation ? CHECK_MARK : '',
+      r.signagePost ? CHECK_MARK : '',
+      r.otherMeasure,
+    ]),
+  }
+}
+
+function hazardPreventionTable(rows: HazardPreventionRow[]): DocumentTable {
+  return {
+    headers: ['유해·위험물질 등', '국소배기장치 설치', '보호구 지급·착용', '안전보건교육', '표지부착/안전수칙', '기타 대책'],
+    rows: rows.map((r) => [
+      r.item,
+      r.localExhaust ? CHECK_MARK : '',
+      r.ppeProvision ? CHECK_MARK : '',
+      r.safetyEducation ? CHECK_MARK : '',
+      r.signagePost ? CHECK_MARK : '',
+      r.otherMeasure,
+    ]),
+  }
+}
+
+function preventionExecutionTable(rows: PreventionExecutionRow[]): DocumentTable {
+  return {
+    headers: ['취약한 부분', '산재예방대책', '실행 계획', '비고'],
+    rows: rows.map((r) => [r.weakPoint, r.measure, r.executionPlan, r.note]),
+  }
+}
+
+function safetyInspectionCycleTable(): DocumentTable {
+  return {
+    headers: ['기계·장비', '점검사항', '검사주기'],
+    rows: SAFETY_INSPECTION_CYCLE_TABLE.map((r) => [r.equipment, r.checkItems, r.cycle]),
+  }
+}
+
+function evaluationCriteriaTable(): DocumentTable {
+  return {
+    headers: ['구분', '평가항목', '배점'],
+    rows: EVALUATION_CRITERIA_TABLE.map((r) => [r.category, r.item, String(r.score)]),
+  }
+}
+
+function accidentTypeTable(): DocumentTable {
+  return {
+    headers: ['구분', '사고유형', '상세내용'],
+    rows: ACCIDENT_TYPE_TABLE.map((r) => [r.category, r.type, r.detail]),
+  }
+}
+
+function ppeValidityTable(): DocumentTable {
+  return {
+    headers: ['구분', '유효기간', '점검대상'],
+    rows: PPE_VALIDITY_TABLE.map((r) => [r.category, r.validity, r.items]),
+  }
+}
+
 function safetyOrgTable(roles: SafetyOrgRole[]): DocumentTable {
   return {
     headers: ['구분', '담당자명'],
@@ -179,8 +297,39 @@ function signalTable(rows: SignalRow[]): DocumentTable {
 
 function hazardousItemTable(rows: HazardousItemRow[], nameLabel: string): DocumentTable {
   return {
-    headers: [nameLabel, '관리대책', '점검항목', '관리책임자'],
-    rows: rows.map((r) => [r.name, r.controlMeasure, r.checkItem, r.manager]),
+    headers: [nameLabel, '주요 방호조치(관리대책)', '점검항목', '관리책임자', '증빙서류', '비고(관계법령 등)'],
+    rows: rows.map((r) => [r.name, r.controlMeasure, r.checkItem, r.manager, r.evidenceDoc, r.note]),
+  }
+}
+
+function safetyEquipmentTable(rows: SafetyEquipmentRow[]): DocumentTable {
+  return {
+    headers: ['품명 및 규격', '수량', '개소/설치장소', '검교정 및 인증여부'],
+    rows: rows.map((r) => [r.name, r.qty, r.location, r.certStatus]),
+  }
+}
+
+function inspectionPlanTable(rows: InspectionPlanRow[]): DocumentTable {
+  return {
+    headers: ['점검 종류', '점검자', '점검주기', '점검지역/대상', '비고'],
+    rows: rows.map((r) => [r.kind, r.inspector, r.cycle, r.target, r.note]),
+  }
+}
+
+function meetingPlanTable(rows: MeetingPlanRow[]): DocumentTable {
+  return {
+    headers: ['회의명', '회의주관', '회의시기', '회의참석자', '비고'],
+    rows: rows.map((r) => [r.name, r.host, r.timing, r.attendees, r.note]),
+  }
+}
+
+function approvalLineTable(entries: ApprovalEntry[]): DocumentTable {
+  return {
+    headers: ['구분', ...entries.map((e) => e.role)],
+    rows: [
+      ['직책', ...entries.map((e) => e.title)],
+      ['성명', ...entries.map((e) => e.name)],
+    ],
   }
 }
 
@@ -195,6 +344,27 @@ function emergencyTeamTable(rows: EmergencyTeamRow[]): DocumentTable {
   return {
     headers: ['구분', '구성원', '주요역할', '비고'],
     rows: rows.map((r) => [r.role, r.member, r.mainDuty, r.note]),
+  }
+}
+
+function vulnerableWorkerTable(rows: VulnerableWorkerRow[]): DocumentTable {
+  return {
+    headers: ['성명', '소속(업체명)', '구분', '세부사항', '담당 세부공정', '배치 시 안전조치사항'],
+    rows: rows.map((r) => [r.name, r.company, r.category, r.detail, r.assignedProcess, r.safetyMeasure]),
+  }
+}
+
+function fireWatchAssignmentTable(rows: FireWatchAssignmentRow[]): DocumentTable {
+  return {
+    headers: ['지정구분', '성명', '소속(업체명)', '담당 작업(장소)', '지정일', '교육이수사항'],
+    rows: rows.map((r) => [r.role, r.name, r.company, r.workAssigned, r.designatedDate, r.trainingNote]),
+  }
+}
+
+function twoPersonTeamTable(rows: TwoPersonTeamRow[]): DocumentTable {
+  return {
+    headers: ['작업내용(세부공정)', '작업일자', '1조 성명', '2조 성명', '소속(업체명)', '비상연락처'],
+    rows: rows.map((r) => [r.workContent, r.workDate, r.member1, r.member2, r.company, r.contact]),
   }
 }
 
@@ -243,10 +413,102 @@ async function resolveIncidentAttachment(
   return { image: { url, caption: name }, name: null }
 }
 
+// 발주처별 장(章) 제목 매핑 — 입력 화면(DOM) 순서는 발주처와 무관하게 동일하게 유지하고,
+// 다운로드 문서에 찍히는 장 번호·그룹 제목만 선택한 발주처의 실제 제출 서식에 맞게
+// 바꾼다("일반"은 지금까지의 기본 구성 그대로). 새 발주처를 지원할 때는 이 타입에 키를
+// 추가할 필요 없이, 아래 두 맵에 발주처별 엔트리만 추가하면 된다.
+type ChapterKey =
+  | 'overview'
+  | 'risk'
+  | 'policy'
+  | 'prevention'
+  | 'org'
+  | 'safetyEquipment'
+  | 'inspectionPlan'
+  | 'checklist'
+  | 'education'
+  | 'permit'
+  | 'signalContact'
+  | 'signalSignal'
+  | 'ppe'
+  | 'ppeIndividual'
+  | 'hazardEquipment'
+  | 'hazardMaterial'
+  | 'hazardProcedure'
+  | 'emergencyTeam'
+  | 'emergencyContact'
+  | 'emergencyPlan'
+  | 'meetingPlan'
+  | 'miscItems'
+  | 'incident'
+  | 'workerAssignment'
+
+const DEFAULT_CHAPTER_HEADINGS: Record<ChapterKey, string> = {
+  overview: 'Ⅰ-2. 사업개요',
+  risk: 'Ⅱ-1. 위험성평가',
+  policy: 'Ⅱ-2. 안전보건방침',
+  prevention: 'Ⅱ-3. 산업재해예방활동 이행계획',
+  org: 'Ⅱ-4. 안전보건관리조직',
+  safetyEquipment: 'Ⅲ-1. 안전보건 장비(물품) 및 시설 운용',
+  inspectionPlan: 'Ⅲ-1. 안전 순회점검·자체점검·합동점검 계획',
+  checklist: 'Ⅲ-1. 안전점검 및 조치계획',
+  education: 'Ⅲ-2. 안전보건교육계획',
+  permit: 'Ⅲ-3. 안전작업제도',
+  signalContact: 'Ⅳ-1. 신호 및 연락체계 - 연락체계',
+  signalSignal: 'Ⅳ-1. 신호 및 연락체계 - 신호체계',
+  ppe: 'Ⅳ-2. 개인보호구 지급계획',
+  ppeIndividual: 'Ⅳ-2. 개인보호구 지급계획 - 개인별 지급기록',
+  hazardEquipment: 'Ⅳ-3. 위험물질 및 설비관리계획 - 유해위험 기계·기구·설비',
+  hazardMaterial: 'Ⅳ-3. 위험물질 및 설비관리계획 - 유해위험물질',
+  hazardProcedure: 'Ⅳ-3. 위험물질 및 설비관리계획 - 작업절차 및 안전수칙',
+  emergencyTeam: 'Ⅳ-4. 비상대책 - 대책반 구성',
+  emergencyContact: 'Ⅳ-4. 비상대책 - 비상연락체계',
+  emergencyPlan: 'Ⅳ-4. 비상대책 - 중대산업재해 조치계획 및 모의훈련',
+  meetingPlan: 'Ⅵ-1. 기타사항 - 안전보건 협의체 회의 계획',
+  miscItems: 'Ⅵ-1. 기타사항 - 청렴서약서·적격업체 선정기준',
+  incident: 'Ⅴ-1. 산업재해 발생현황',
+  workerAssignment: 'Ⅷ. 작업투입 인력 인적사항',
+}
+
+// LH(한국토지주택공사) 실제 제출 서식(설계안전보건대장/안전보건관리계획서 샘플) 분석
+// 결과에 따른 Ⅰ~Ⅷ장 번호 — 위험성평가·산재예방대책 등은 LH 서식에서 다른 장에 속한다.
+const LH_CHAPTER_HEADINGS: Record<ChapterKey, string> = {
+  overview: 'Ⅰ-1. 사업개요',
+  risk: 'Ⅱ-3. 위험성평가 (붙임1·2 참조)',
+  policy: 'Ⅰ-2. 안전보건 경영방침 및 목표',
+  prevention: 'Ⅱ-4. 산업재해예방활동 이행계획',
+  org: 'Ⅰ-4. 안전보건관리 역할',
+  safetyEquipment: 'Ⅲ-2. 재해예방을 위한 시설 및 장비',
+  inspectionPlan: 'Ⅱ-5. 안전점검·순찰·검사 등 안전보건활동 계획',
+  checklist: 'Ⅱ-5. 안전점검 및 조치계획',
+  education: 'Ⅱ-1. 안전보건교육 실시계획',
+  permit: 'Ⅱ-2. 안전작업에 관한 작업계획',
+  signalContact: 'Ⅲ-1. 신호 및 연락체계 - 연락체계',
+  signalSignal: 'Ⅲ-1. 신호 및 연락체계 - 신호체계',
+  ppe: 'Ⅲ-2. 재해예방을 위한 시설 및 장비 - 개인보호구 지급계획',
+  ppeIndividual: 'Ⅲ-2. 재해예방을 위한 시설 및 장비 - 개인보호구 개인별 지급기록',
+  hazardEquipment: 'Ⅱ-4. 산업재해예방활동 이행계획 - 위험기계·기구·설비',
+  hazardMaterial: 'Ⅱ-4. 산업재해예방활동 이행계획 - 유해·위험물질',
+  hazardProcedure: 'Ⅱ-4. 산업재해예방활동 이행계획 - 작업절차 및 안전수칙',
+  emergencyTeam: 'Ⅳ. 중대산업재해 등 비상 상황시 조치계획 - 대책반 구성',
+  emergencyContact: 'Ⅳ. 중대산업재해 등 비상 상황시 조치계획 - 비상연락체계',
+  emergencyPlan: 'Ⅳ. 중대산업재해 등 비상 상황시 조치계획 - 조치계획 및 모의훈련',
+  meetingPlan: 'Ⅴ. 기타사항 - 안전보건 협의체 회의계획',
+  miscItems: 'Ⅴ. 기타사항 - 청렴서약서·적격업체 선정기준·정기위험성평가계획·안전보건관리비용기준',
+  incident: 'Ⅵ. 재해발생 수준',
+  workerAssignment: 'Ⅷ. 작업투입 인력 인적사항',
+}
+
+function chapterHeading(agency: AgencyType | undefined, key: ChapterKey): string {
+  const map = agency === 'LH' ? LH_CHAPTER_HEADINGS : DEFAULT_CHAPTER_HEADINGS
+  return map[key]
+}
+
 /**
  * 마법사 입력 내용(WizardContent)을 실제 문서 순서(표지→Ⅰ.실행수준→Ⅱ.재해발생수준)대로
  * PDF/DOCX 출력용 DocumentContent로 변환한다. 첨부파일은 signed URL이 필요하므로
- * resolveFileUrl(path)를 통해 비동기로 해석한다.
+ * resolveFileUrl(path)를 통해 비동기로 해석한다. 장(章) 제목은 cover.agency에 따라
+ * chapterHeading()이 골라주므로, 발주처가 바뀌어도 이 함수의 섹션 순서·개수는 그대로다.
  */
 export async function buildExportContent(
   content: WizardContent,
@@ -267,22 +529,41 @@ export async function buildExportContent(
     hazardousMgmt,
     emergencyPlan,
     incidentHistory,
+    inspectionPlan,
+    meetingPlan,
+    miscItems,
+    workerAssignment,
   } = content
 
-  const [workerPhotos, sitePhotos, improvementPhotos, accidentReport, insuranceMember] = await Promise.all([
+  const [
+    workerPhotos,
+    sitePhotos,
+    improvementPhotos,
+    accidentReport,
+    insuranceMember,
+    accidentRate,
+    otherAttachment,
+    policyDoc,
+  ] = await Promise.all([
     resolveImages(checklist.workerPhotos, resolveFileUrl),
     resolveImages(checklist.sitePhotos, resolveFileUrl),
     resolveImages(checklist.improvementPhotos, resolveFileUrl),
     resolveIncidentAttachment(incidentHistory.accidentReportFile, '산재요양(반려)확인서', resolveFileUrl),
     resolveIncidentAttachment(incidentHistory.insuranceMemberFile, '4대사회보험 가입자명부', resolveFileUrl),
+    resolveIncidentAttachment(incidentHistory.accidentRateFile, '산업재해율 조회결과', resolveFileUrl),
+    resolveIncidentAttachment(incidentHistory.otherAttachmentFile, '기타서류', resolveFileUrl),
+    resolveIncidentAttachment(safetyPolicy.policyDocFile, '안전보건방침 증빙자료', resolveFileUrl),
   ])
 
-  const attachmentNames = [accidentReport.name, insuranceMember.name].filter(
+  const attachmentNames = [accidentReport.name, insuranceMember.name, accidentRate.name, otherAttachment.name].filter(
     (v): v is string => Boolean(v),
   )
-  const attachmentImages = [accidentReport.image, insuranceMember.image].filter(
-    (v): v is DocumentImage => Boolean(v),
-  )
+  const attachmentImages = [
+    accidentReport.image,
+    insuranceMember.image,
+    accidentRate.image,
+    otherAttachment.image,
+  ].filter((v): v is DocumentImage => Boolean(v))
 
   const sections: DocumentSection[] = [
     {
@@ -292,17 +573,29 @@ export async function buildExportContent(
         `발주기관명: ${cover.orgName}\n` +
         `업체명: ${cover.companyName}\n` +
         `대표이사: ${cover.ceoName}\n` +
-        `작성일자: ${cover.docDate}`,
+        `작성일자: ${cover.docDate}` +
+        (cover.contractPeriod ? `\n도급기간: ${cover.contractPeriod}` : '') +
+        (cover.contractAmount ? `\n도급금액(부가세 포함): ${cover.contractAmount}` : '') +
+        (cover.safetyManagementBudget ? `\n계상된 안전관리비: ${cover.safetyManagementBudget}` : ''),
     },
+    ...(cover.approvalLine.some((e) => e.title || e.name)
+      ? [{ heading: '표지 - 결재란(수급사)', table: approvalLineTable(cover.approvalLine) }]
+      : []),
     {
-      heading: 'Ⅰ-2. 사업개요',
+      heading: chapterHeading(cover.agency, 'overview'),
       content:
-        `사업기간: ${businessOverview.period}\n` +
-        `위치: ${businessOverview.location}` +
-        (businessOverview.mainContent ? `\n주요내용: ${businessOverview.mainContent}` : ''),
+        `1. 과업 목적\n` +
+        `□ 산업재해 예방을 위한 조직구성, 점검 및 안전보건조치에 대한 사전 계획수립으로 ` +
+        `안전한 근로환경 마련 및 산업재해 예방 노력\n\n` +
+        `2. 사업 개요\n` +
+        `□ 사 업 명 : ${cover.projectName || '-'}\n` +
+        `□ 사업기간 : ${businessOverview.period || '-'}\n` +
+        `□ 위    치 : ${businessOverview.location || '-'}\n` +
+        `□ 사 업 비 : ${businessOverview.budget || '-'}\n` +
+        `□ 주요내용 : ${businessOverview.mainContent || '-'}`,
     },
     {
-      heading: 'Ⅱ-1. 위험성평가',
+      heading: chapterHeading(cover.agency, 'risk'),
       content:
         `평가방법: ${riskAssessment.method}\n` +
         `평가자: ${riskAssessment.assessor}\n` +
@@ -315,22 +608,54 @@ export async function buildExportContent(
         '결과를 반영하여 지속 관리합니다.',
     },
     {
-      heading: 'Ⅱ-2. 안전보건방침',
+      heading: chapterHeading(cover.agency, 'policy'),
       content:
-        `${cover.companyName || '회사'} 안전보건 경영방침 및 목표\n` +
-        `목표: ${safetyPolicy.goalText}\n` +
-        `${cover.docDate} · ${cover.companyName} 대표이사 ${cover.ceoName}`,
+        `${cover.companyName || '회사'} 안전보건 경영방침 및 목표\n\n` +
+        `[방침]\n${safetyPolicy.principles.map((p, i) => `${i + 1}. ${p}`).join('\n') || '-'}\n\n` +
+        `[목표]\n${safetyPolicy.goals.map((g, i) => `${i + 1}. ${g}`).join('\n') || '-'}\n\n` +
+        `${safetyPolicy.announceDate || cover.docDate} · ${cover.companyName} 대표이사 ${cover.ceoName}` +
+        (policyDoc.name ? `\n첨부파일(비이미지 - 파일명만 표기): ${policyDoc.name}` : ''),
     },
     {
-      heading: 'Ⅱ-3. 산업재해예방활동 이행계획',
+      heading: chapterHeading(cover.agency, 'prevention'),
       table: preventionTable(preventionPlan.rows),
     },
+    ...(preventionPlan.machineryRows.length && isSectionIncluded(content, 'machineryMatrix')
+      ? [
+          {
+            heading: `${chapterHeading(cover.agency, 'prevention')} - 기계·기구·설비별 예방대책`,
+            table: machineryPreventionTable(preventionPlan.machineryRows),
+          },
+        ]
+      : []),
+    ...(preventionPlan.hazardRows.length && isSectionIncluded(content, 'hazardMatrix')
+      ? [
+          {
+            heading: `${chapterHeading(cover.agency, 'prevention')} - 유해·위험물질별 예방대책`,
+            table: hazardPreventionTable(preventionPlan.hazardRows),
+          },
+        ]
+      : []),
+    ...(preventionPlan.executionRows.length && isSectionIncluded(content, 'executionPlan')
+      ? [
+          {
+            heading: `${chapterHeading(cover.agency, 'prevention')} - 실행계획`,
+            table: preventionExecutionTable(preventionPlan.executionRows),
+          },
+        ]
+      : []),
     {
-      heading: 'Ⅱ-4. 안전보건관리조직',
+      heading: chapterHeading(cover.agency, 'org'),
       table: safetyOrgTable(safetyOrg.roles),
     },
+    ...(ppe.equipmentRows.length && isSectionIncluded(content, 'safetyEquipment')
+      ? [{ heading: chapterHeading(cover.agency, 'safetyEquipment'), table: safetyEquipmentTable(ppe.equipmentRows) }]
+      : []),
+    ...(inspectionPlan.rows.length && isSectionIncluded(content, 'inspectionPlan')
+      ? [{ heading: chapterHeading(cover.agency, 'inspectionPlan'), table: inspectionPlanTable(inspectionPlan.rows) }]
+      : []),
     {
-      heading: 'Ⅲ-1. 안전점검 및 조치계획',
+      heading: chapterHeading(cover.agency, 'checklist'),
       content:
         `점검일자: ${checklist.inspectionDate}\n` +
         `점검현장: ${checklist.inspectionSite}\n` +
@@ -339,6 +664,10 @@ export async function buildExportContent(
       table: checklistTable(checklist.categories),
     },
   ]
+
+  if (policyDoc.image) {
+    sections.push({ heading: `${chapterHeading(cover.agency, 'policy')} - 증빙자료`, images: [policyDoc.image] })
+  }
 
   if (workerPhotos.length) {
     sections.push({ heading: '현장점검 사진 - 작업자 점검', images: workerPhotos })
@@ -352,48 +681,75 @@ export async function buildExportContent(
 
   sections.push(
     {
-      heading: 'Ⅲ-2. 안전보건교육계획',
+      heading: chapterHeading(cover.agency, 'education'),
       content: education.note || undefined,
       table: educationTable(education.rows),
     },
+    ...(isSectionIncluded(content, 'workPermitSystem')
+      ? [{ heading: chapterHeading(cover.agency, 'permit'), table: workPermitTable(workPermitSystem.rows) }]
+      : []),
+    ...(isSectionIncluded(content, 'signalContacts')
+      ? [{ heading: chapterHeading(cover.agency, 'signalContact'), table: contactTable(signalContact.contacts) }]
+      : []),
+    ...(isSectionIncluded(content, 'signalSignals')
+      ? [{ heading: chapterHeading(cover.agency, 'signalSignal'), table: signalTable(signalContact.signals) }]
+      : []),
     {
-      heading: 'Ⅲ-3. 안전작업제도',
-      table: workPermitTable(workPermitSystem.rows),
-    },
-    {
-      heading: 'Ⅳ-1. 신호 및 연락체계 - 연락체계',
-      table: contactTable(signalContact.contacts),
-    },
-    {
-      heading: 'Ⅳ-1. 신호 및 연락체계 - 신호체계',
-      table: signalTable(signalContact.signals),
-    },
-    {
-      heading: 'Ⅳ-2. 개인보호구 지급계획',
+      heading: chapterHeading(cover.agency, 'ppe'),
       table: ppeTable(ppe.rows),
     },
+    ...(ppe.individualIssuanceRows.length && isSectionIncluded(content, 'ppeIndividualIssuance')
+      ? [
+          {
+            heading: chapterHeading(cover.agency, 'ppeIndividual'),
+            table: ppeIndividualIssuanceTable(ppe.individualIssuanceRows),
+          },
+        ]
+      : []),
     {
-      heading: 'Ⅳ-3. 위험물질 및 설비관리계획 - 유해위험 기계·기구·설비',
+      heading: chapterHeading(cover.agency, 'hazardEquipment'),
       table: hazardousItemTable(hazardousMgmt.equipmentRows, '장비명'),
     },
     {
-      heading: 'Ⅳ-3. 위험물질 및 설비관리계획 - 유해위험물질',
+      heading: chapterHeading(cover.agency, 'hazardMaterial'),
       table: hazardousItemTable(hazardousMgmt.materialRows, '물질명'),
     },
     {
-      heading: 'Ⅳ-3. 위험물질 및 설비관리계획 - 작업절차 및 안전수칙',
+      heading: chapterHeading(cover.agency, 'hazardProcedure'),
       table: procedureTable(hazardousMgmt.procedureRows),
     },
     {
-      heading: 'Ⅳ-4. 비상대책 - 대책반 구성',
+      heading: chapterHeading(cover.agency, 'emergencyTeam'),
       table: emergencyTeamTable(emergencyPlan.teamRows),
     },
     {
-      heading: 'Ⅳ-4. 비상대책 - 비상연락체계',
+      heading: chapterHeading(cover.agency, 'emergencyContact'),
       table: contactTable(emergencyPlan.contactRows),
     },
     {
-      heading: 'Ⅴ-1. 산업재해 발생현황',
+      heading: chapterHeading(cover.agency, 'emergencyPlan'),
+      content:
+        `[조치계획 요약]\n${emergencyPlan.responseSummary || '-'}\n\n` +
+        `모의훈련 주기: ${emergencyPlan.drillCycle || '-'}\n` +
+        `모의훈련 시간: ${emergencyPlan.drillHours || '-'}`,
+    },
+    ...(meetingPlan.rows.length && isSectionIncluded(content, 'meetingPlan')
+      ? [{ heading: chapterHeading(cover.agency, 'meetingPlan'), table: meetingPlanTable(meetingPlan.rows) }]
+      : []),
+    ...(isSectionIncluded(content, 'miscItems')
+      ? [
+          {
+            heading: chapterHeading(cover.agency, 'miscItems'),
+            content:
+              `안전·보건관리비 집행 청렴서약서 제출: ${miscItems.integrityPledgeConfirm ? '제출함' : '미제출'}\n\n` +
+              `[적격업체(관계수급인) 선정 평가기준]\n${miscItems.contractorSelectionCriteria || '-'}\n\n` +
+              `[정기 위험성평가 실시계획(도급기간 1년 이상인 경우)]\n${miscItems.periodicRiskAssessmentPlan || '-'}\n\n` +
+              `[종사자(관계수급인) 안전·보건 관리비용 기준]\n${miscItems.subcontractorSafetyCostStandard || '-'}`,
+          },
+        ]
+      : []),
+    {
+      heading: chapterHeading(cover.agency, 'incident'),
       content:
         `사업장관리번호: ${incidentHistory.workplaceManagementNumber}\n` +
         `무재해 확인: ${incidentHistory.noAccidentConfirm ? '확인함' : '미확인'}` +
@@ -403,7 +759,60 @@ export async function buildExportContent(
   )
 
   if (attachmentImages.length) {
-    sections.push({ heading: 'Ⅴ-1. 산업재해 발생현황 - 첨부서류', images: attachmentImages })
+    sections.push({ heading: `${chapterHeading(cover.agency, 'incident')} - 첨부서류`, images: attachmentImages })
+  }
+
+  if (isSectionIncluded(content, 'appendixLoto')) {
+    sections.push({
+      heading: '붙임1. LOTO(Lock Out, Tag Out) 절차',
+      content: LOTO_PROCEDURE_STEPS.map((s) => `${s.label}: ${s.text}`).join('\n'),
+    })
+  }
+  if (isSectionIncluded(content, 'appendixInspectionCycle')) {
+    sections.push({
+      heading: '붙임2. 법정 안전검사 주기',
+      table: safetyInspectionCycleTable(),
+    })
+  }
+  if (isSectionIncluded(content, 'appendixEvaluationCriteria')) {
+    sections.push({
+      heading: '붙임3. 발주기관 평가기준표',
+      table: evaluationCriteriaTable(),
+    })
+  }
+  if (isSectionIncluded(content, 'appendixPpeManagement')) {
+    sections.push({
+      heading: '붙임4. 개인보호구 관리계획',
+      content: PPE_MANAGEMENT_RULES.map((rule, i) => `${i + 1}) ${rule}`).join('\n'),
+      table: ppeValidityTable(),
+    })
+  }
+  if (isSectionIncluded(content, 'appendixAccidentTypes')) {
+    sections.push({
+      heading: '붙임5. 사고유형 분류표',
+      table: accidentTypeTable(),
+    })
+  }
+
+  if (isSectionIncluded(content, 'workerAssignmentLH')) {
+    if (workerAssignment.vulnerableWorkers.length) {
+      sections.push({
+        heading: `${chapterHeading(cover.agency, 'workerAssignment')} - 안전취약근로자 식별 및 관리대장`,
+        table: vulnerableWorkerTable(workerAssignment.vulnerableWorkers),
+      })
+    }
+    if (workerAssignment.fireWatchAssignments.length) {
+      sections.push({
+        heading: `${chapterHeading(cover.agency, 'workerAssignment')} - 화재감시자·작업지휘자·감시자 지정`,
+        table: fireWatchAssignmentTable(workerAssignment.fireWatchAssignments),
+      })
+    }
+    if (workerAssignment.twoPersonTeams.length) {
+      sections.push({
+        heading: `${chapterHeading(cover.agency, 'workerAssignment')} - 위험작업 시 2인1조 편성표`,
+        table: twoPersonTeamTable(workerAssignment.twoPersonTeams),
+      })
+    }
   }
 
   return {
@@ -570,34 +979,243 @@ async function addImagePage(pdf: jsPDF, image: DocumentImage, cursor: PdfCursor)
   }
 }
 
+function createContentWrapper(): HTMLElement {
+  const div = document.createElement('div')
+  div.style.padding = '20px'
+  div.style.fontFamily = "'Noto Sans KR', sans-serif"
+  return div
+}
+
+function appendSectionBody(wrapper: HTMLElement, section: DocumentSection): void {
+  const heading = document.createElement('h2')
+  heading.textContent = section.heading
+  heading.style.marginTop = '0'
+  heading.style.marginBottom = '10px'
+  wrapper.appendChild(heading)
+
+  if (section.content) {
+    const text = document.createElement('p')
+    text.textContent = section.content
+    text.style.lineHeight = '1.6'
+    text.style.whiteSpace = 'pre-wrap'
+    wrapper.appendChild(text)
+  }
+
+  if (section.table && section.table.rows.length > 0) {
+    const table = document.createElement('table')
+    table.style.width = '100%'
+    table.style.borderCollapse = 'collapse'
+    table.style.marginTop = '10px'
+    table.style.marginBottom = '10px'
+
+    const thead = document.createElement('thead')
+    const headRow = document.createElement('tr')
+    section.table.headers.forEach((h) => {
+      const th = document.createElement('th')
+      th.textContent = h
+      th.style.border = '1px solid #999'
+      th.style.padding = '6px 8px'
+      th.style.backgroundColor = '#f0f0f0'
+      th.style.fontSize = '12px'
+      headRow.appendChild(th)
+    })
+    thead.appendChild(headRow)
+    table.appendChild(thead)
+
+    const tbody = document.createElement('tbody')
+    section.table.rows.forEach((row) => {
+      const tr = document.createElement('tr')
+      row.forEach((cell) => {
+        const td = document.createElement('td')
+        td.textContent = cell || '-'
+        td.style.border = '1px solid #ccc'
+        td.style.padding = '6px 8px'
+        td.style.fontSize = '12px'
+        td.style.whiteSpace = 'pre-wrap'
+        tr.appendChild(td)
+      })
+      tbody.appendChild(tr)
+    })
+    table.appendChild(tbody)
+    wrapper.appendChild(table)
+  }
+
+  if (section.footnote) {
+    const note = document.createElement('p')
+    note.textContent = section.footnote
+    note.style.fontSize = '11px'
+    note.style.color = '#666'
+    note.style.marginTop = '4px'
+    wrapper.appendChild(note)
+  }
+}
+
+function buildSectionBody(section: DocumentSection): HTMLElement {
+  const wrapper = createContentWrapper()
+  appendSectionBody(wrapper, section)
+  return wrapper
+}
+
+// 표지 페이지 - 첨부 예시양식(붙임2)처럼 제목을 박스로 가운데 배치하고, 그 아래에
+// 사업명/발주기관명/업체명/대표이사/작성일자 등 표지 정보를 나열한다.
+function buildCoverBody(content: DocumentContent, coverSection: DocumentSection): HTMLElement {
+  const wrapper = createContentWrapper()
+  wrapper.style.textAlign = 'center'
+  wrapper.style.padding = '60px 30px'
+
+  const titleBox = document.createElement('div')
+  titleBox.style.border = '2px solid #333'
+  titleBox.style.backgroundColor = '#eef2ec'
+  titleBox.style.padding = '48px 24px'
+  titleBox.style.margin = '60px 10px 50px'
+
+  const titleMain = document.createElement('div')
+  titleMain.textContent = content.title
+  titleMain.style.fontSize = '28px'
+  titleMain.style.fontWeight = '800'
+  titleMain.style.lineHeight = '1.5'
+  titleBox.appendChild(titleMain)
+  wrapper.appendChild(titleBox)
+
+  if (coverSection.content) {
+    const infoBlock = document.createElement('div')
+    infoBlock.style.fontSize = '15px'
+    infoBlock.style.lineHeight = '2.1'
+    infoBlock.style.marginBottom = '70px'
+    coverSection.content.split('\n').forEach((line) => {
+      const row = document.createElement('div')
+      row.textContent = line
+      infoBlock.appendChild(row)
+    })
+    wrapper.appendChild(infoBlock)
+  }
+
+  if (content.metadata?.company) {
+    const companyEl = document.createElement('div')
+    companyEl.textContent = content.metadata.company
+    companyEl.style.fontSize = '18px'
+    companyEl.style.fontWeight = '700'
+    companyEl.style.borderTop = '2px solid #333'
+    companyEl.style.display = 'inline-block'
+    companyEl.style.padding = '14px 50px 0'
+    wrapper.appendChild(companyEl)
+  }
+
+  return wrapper
+}
+
+interface TocEntry {
+  heading: string
+  page: number
+}
+
+function buildTocBody(entries: TocEntry[]): HTMLElement {
+  const wrapper = createContentWrapper()
+
+  const title = document.createElement('h1')
+  title.textContent = '목차'
+  title.style.textAlign = 'center'
+  title.style.marginBottom = '24px'
+  wrapper.appendChild(title)
+
+  const box = document.createElement('div')
+  box.style.border = '1px solid #999'
+  box.style.padding = '20px 24px'
+
+  entries.forEach((entry) => {
+    const row = document.createElement('div')
+    row.style.display = 'flex'
+    row.style.justifyContent = 'space-between'
+    row.style.gap = '12px'
+    row.style.padding = '7px 0'
+    row.style.fontSize = '13px'
+    row.style.borderBottom = '1px dotted #ccc'
+
+    const label = document.createElement('span')
+    label.textContent = entry.heading
+    row.appendChild(label)
+
+    const page = document.createElement('span')
+    page.textContent = String(entry.page)
+    page.style.flexShrink = '0'
+    row.appendChild(page)
+
+    box.appendChild(row)
+  })
+
+  wrapper.appendChild(box)
+  return wrapper
+}
+
 export async function exportToPDF(
   documentContent: DocumentContent,
   filename: string = 'document.pdf',
 ): Promise<void> {
-  const textOnlySections = documentContent.sections
-    .filter((s) => s.content || s.table)
-    .map((s) => ({ ...s, images: undefined }))
+  const textSections = documentContent.sections.filter((s) => s.content || s.table)
   const images = documentContent.sections.flatMap((s) => s.images ?? [])
+  const [coverSection, ...bodySections] = textSections
 
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const cursor: PdfCursor = { usedPage: false }
 
-  const element = createHTMLContent({ ...documentContent, sections: textOnlySections })
-  element.style.position = 'fixed'
-  element.style.left = '-9999px'
-  element.style.top = '0'
-  element.style.width = `${OFFSCREEN_WIDTH_PX}px`
-  element.style.backgroundColor = '#ffffff'
-  element.style.boxSizing = 'border-box'
-  document.body.appendChild(element)
-
-  try {
-    const canvas = await renderElementToCanvas(element)
-    addCanvasAsPages(pdf, canvas, cursor)
-  } finally {
-    document.body.removeChild(element)
+  const pageCountOf = (canvas: HTMLCanvasElement): number => {
+    const pxPerMm = canvas.width / PDF_CONTENT_WIDTH_MM
+    const pageHeightPx = Math.max(1, Math.floor(PDF_CONTENT_HEIGHT_MM * pxPerMm))
+    return Math.max(1, Math.ceil(canvas.height / pageHeightPx))
   }
 
+  const renderOffscreen = async (build: () => HTMLElement): Promise<HTMLCanvasElement> => {
+    const container = createOffscreenContainer()
+    container.appendChild(build())
+    try {
+      return await renderElementToCanvas(container)
+    } finally {
+      document.body.removeChild(container)
+    }
+  }
+
+  // 1) 표지 - 다른 섹션과 섞이지 않는 독립된 페이지(내용이 길면 자동으로 다음 페이지까지 이어짐)
+  let coverPageCount = 0
+  if (coverSection) {
+    const canvas = await renderOffscreen(() => buildCoverBody(documentContent, coverSection))
+    coverPageCount = pageCountOf(canvas)
+    addCanvasAsPages(pdf, canvas, cursor)
+  }
+
+  // 2) 본문 섹션들을 각각 별도 캔버스로 미리 렌더링 - 이렇게 섹션 단위로 캔버스를 나눠 두면
+  // 아래에서 섹션마다 새 페이지를 강제할 수 있고(사업개요/위험성평가 등이 이전 섹션과 한
+  // 페이지에 섞이지 않는다), 목차의 쪽수 계산에도 그대로 재사용할 수 있다.
+  const rendered: { heading: string; canvas: HTMLCanvasElement; pageCount: number }[] = []
+  for (const section of bodySections) {
+    const canvas = await renderOffscreen(() => buildSectionBody(section))
+    rendered.push({ heading: section.heading, canvas, pageCount: pageCountOf(canvas) })
+  }
+
+  // 3) 목차 - 표지/본문 각 섹션의 실제 페이지 수를 반영해 쪽수를 계산한다. 목차 자체가
+  // 항목이 많아 여러 페이지가 될 수도 있으므로, 먼저 1페이지로 가정해 실제 쪽수를 측정하고
+  // 다르면 그 쪽수로 한 번 더 계산해 다시 그린다.
+  if (rendered.length) {
+    const buildEntries = (tocPageCount: number): TocEntry[] => {
+      let page = coverPageCount + tocPageCount + 1
+      return rendered.map((r) => {
+        const entry: TocEntry = { heading: r.heading, page }
+        page += r.pageCount
+        return entry
+      })
+    }
+    const measureCanvas = await renderOffscreen(() => buildTocBody(buildEntries(1)))
+    const tocPageCount = pageCountOf(measureCanvas)
+    const finalCanvas =
+      tocPageCount === 1 ? measureCanvas : await renderOffscreen(() => buildTocBody(buildEntries(tocPageCount)))
+    addCanvasAsPages(pdf, finalCanvas, cursor)
+  }
+
+  // 4) 본문 섹션 - 섹션마다 새 페이지에서 시작
+  for (const { canvas } of rendered) {
+    addCanvasAsPages(pdf, canvas, cursor)
+  }
+
+  // 5) 첨부 이미지(사진 등) - 기존과 동일하게 사진 1장당 새 페이지
   for (const image of images) {
     try {
       await addImagePage(pdf, image, cursor)
@@ -607,136 +1225,6 @@ export async function exportToPDF(
   }
 
   pdf.save(filename)
-}
-
-function createHTMLContent(content: DocumentContent): HTMLElement {
-  const div = document.createElement('div')
-  div.style.padding = '20px'
-  div.style.fontFamily = "'Noto Sans KR', sans-serif"
-
-  const title = document.createElement('h1')
-  title.textContent = content.title
-  title.style.marginBottom = '20px'
-  div.appendChild(title)
-
-  if (content.metadata?.company) {
-    const meta = document.createElement('p')
-    meta.textContent = `회사명: ${content.metadata.company}`
-    meta.style.color = '#666'
-    meta.style.marginBottom = '10px'
-    div.appendChild(meta)
-  }
-
-  if (content.metadata?.date) {
-    const date = document.createElement('p')
-    date.textContent = `작성일: ${content.metadata.date}`
-    date.style.color = '#666'
-    date.style.marginBottom = '30px'
-    div.appendChild(date)
-  }
-
-  content.sections.forEach((section) => {
-    const heading = document.createElement('h2')
-    heading.textContent = section.heading
-    heading.style.marginTop = '20px'
-    heading.style.marginBottom = '10px'
-    div.appendChild(heading)
-
-    if (section.content) {
-      const text = document.createElement('p')
-      text.textContent = section.content
-      text.style.lineHeight = '1.6'
-      text.style.whiteSpace = 'pre-wrap'
-      div.appendChild(text)
-    }
-
-    if (section.table && section.table.rows.length > 0) {
-      const table = document.createElement('table')
-      table.style.width = '100%'
-      table.style.borderCollapse = 'collapse'
-      table.style.marginTop = '10px'
-      table.style.marginBottom = '10px'
-
-      const thead = document.createElement('thead')
-      const headRow = document.createElement('tr')
-      section.table.headers.forEach((h) => {
-        const th = document.createElement('th')
-        th.textContent = h
-        th.style.border = '1px solid #999'
-        th.style.padding = '6px 8px'
-        th.style.backgroundColor = '#f0f0f0'
-        th.style.fontSize = '12px'
-        headRow.appendChild(th)
-      })
-      thead.appendChild(headRow)
-      table.appendChild(thead)
-
-      const tbody = document.createElement('tbody')
-      section.table.rows.forEach((row) => {
-        const tr = document.createElement('tr')
-        row.forEach((cell) => {
-          const td = document.createElement('td')
-          td.textContent = cell || '-'
-          td.style.border = '1px solid #ccc'
-          td.style.padding = '6px 8px'
-          td.style.fontSize = '12px'
-          td.style.whiteSpace = 'pre-wrap'
-          tr.appendChild(td)
-        })
-        tbody.appendChild(tr)
-      })
-      table.appendChild(tbody)
-      div.appendChild(table)
-    }
-
-    if (section.footnote) {
-      const note = document.createElement('p')
-      note.textContent = section.footnote
-      note.style.fontSize = '11px'
-      note.style.color = '#666'
-      note.style.marginTop = '4px'
-      div.appendChild(note)
-    }
-
-    if (section.images && section.images.length > 0) {
-      const gallery = document.createElement('div')
-      gallery.style.display = 'flex'
-      gallery.style.flexWrap = 'wrap'
-      gallery.style.gap = '12px'
-      gallery.style.marginTop = '10px'
-      gallery.style.marginBottom = '10px'
-
-      section.images.forEach((img) => {
-        const figure = document.createElement('figure')
-        figure.style.margin = '0'
-        figure.style.width = '160px'
-
-        const imageEl = document.createElement('img')
-        imageEl.src = img.url
-        imageEl.crossOrigin = 'anonymous'
-        imageEl.style.width = '100%'
-        imageEl.style.height = '120px'
-        imageEl.style.objectFit = 'cover'
-        imageEl.style.border = '1px solid #ccc'
-        figure.appendChild(imageEl)
-
-        if (img.caption) {
-          const caption = document.createElement('figcaption')
-          caption.textContent = img.caption
-          caption.style.fontSize = '11px'
-          caption.style.color = '#666'
-          caption.style.textAlign = 'center'
-          figure.appendChild(caption)
-        }
-
-        gallery.appendChild(figure)
-      })
-
-      div.appendChild(gallery)
-    }
-  })
-
-  return div
 }
 
 // ============================================================================
@@ -837,32 +1325,70 @@ function buildDocxTable(table: DocumentTable): Table {
   })
 }
 
+// 표지에 넣을 제목 박스 테두리 (붙임2 예시양식처럼 제목을 상자로 감싼다)
+const COVER_BOX_BORDER = { style: BorderStyle.SINGLE, size: 12, color: '333333' }
+
 export async function exportToDOCX(
   documentContent: DocumentContent,
   filename: string = 'document.docx',
 ): Promise<void> {
-  const children: (Paragraph | Table)[] = [
-    new Paragraph({
-      text: documentContent.title,
-      heading: HeadingLevel.HEADING_1,
-      spacing: { after: 300 },
-    }),
-  ]
+  const [coverSection, ...bodySections] = documentContent.sections.filter((s) => s.content || s.table)
+  const gallerySections = documentContent.sections.filter((s) => !s.content && !s.table && s.images?.length)
 
+  const children: (Paragraph | Table | TableOfContents)[] = []
+
+  // 1) 표지 - 제목을 박스로 감싸 가운데 배치하고 그 아래에 표지 정보를 나열
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 800, after: 200 },
+      border: { top: COVER_BOX_BORDER, bottom: COVER_BOX_BORDER, left: COVER_BOX_BORDER, right: COVER_BOX_BORDER },
+      children: [new TextRun({ text: documentContent.title, bold: true, size: 36 })],
+    }),
+  )
+  if (coverSection?.content) {
+    coverSection.content.split('\n').forEach((line) => {
+      children.push(
+        new Paragraph({ text: line, alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
+      )
+    })
+  }
   if (documentContent.metadata?.company) {
     children.push(
-      new Paragraph({ text: `회사명: ${documentContent.metadata.company}`, spacing: { after: 100 } }),
-    )
-  }
-  if (documentContent.metadata?.date) {
-    children.push(
-      new Paragraph({ text: `작성일: ${documentContent.metadata.date}`, spacing: { after: 300 } }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 600 },
+        border: { top: { style: BorderStyle.SINGLE, size: 8, color: '333333' } },
+        children: [new TextRun({ text: documentContent.metadata.company, bold: true, size: 26 })],
+      }),
     )
   }
 
-  for (const section of documentContent.sections) {
+  // 2) 목차 - Word의 목차 필드를 삽입한다(열었을 때 자동으로 채워지지 않으면 우클릭 후
+  // "필드 업데이트"로 갱신 가능 - 실제 인쇄 시 각 PC의 폰트/여백에 따라 페이지가 달라지므로
+  // 고정된 쪽수를 미리 적어 넣는 대신 Word가 실제 쪽수를 계산하도록 한다).
+  if (bodySections.length) {
     children.push(
-      new Paragraph({ text: section.heading, heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 150 } }),
+      new Paragraph({
+        text: '목차',
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+        pageBreakBefore: true,
+        spacing: { after: 200 },
+      }),
+    )
+    children.push(new TableOfContents('목차', { hyperlink: true, headingStyleRange: '2-2' }))
+  }
+
+  // 3) 본문 섹션 - 섹션마다 새 페이지에서 시작
+  for (const section of bodySections) {
+    children.push(
+      new Paragraph({
+        text: section.heading,
+        heading: HeadingLevel.HEADING_2,
+        pageBreakBefore: true,
+        spacing: { before: 200, after: 150 },
+      }),
     )
 
     if (section.content) {
@@ -884,32 +1410,34 @@ export async function exportToDOCX(
         }),
       )
     }
+  }
 
-    if (section.images && section.images.length > 0) {
-      for (const img of section.images) {
-        const buffer = await fetchImageBuffer(img.url)
-        if (!buffer) continue
+  // 4) 사진 갤러리 섹션 - 사진 1장 = 페이지 1장
+  for (const section of gallerySections) {
+    if (!section.images?.length) continue
+    for (const img of section.images) {
+      const buffer = await fetchImageBuffer(img.url)
+      if (!buffer) continue
 
-        const type = docxImageType(img.caption ?? '')
-        const dims = await getImageDimensions(buffer, mimeForDocxType(type))
-        const size = dims
-          ? fitImageSize(dims.width, dims.height)
-          : { width: DOCX_MAX_IMAGE_WIDTH_PX, height: Math.round(DOCX_MAX_IMAGE_WIDTH_PX * 0.75) }
+      const type = docxImageType(img.caption ?? '')
+      const dims = await getImageDimensions(buffer, mimeForDocxType(type))
+      const size = dims
+        ? fitImageSize(dims.width, dims.height)
+        : { width: DOCX_MAX_IMAGE_WIDTH_PX, height: Math.round(DOCX_MAX_IMAGE_WIDTH_PX * 0.75) }
 
-        // 사진 1장 = 페이지 1장: 이미지마다 새 페이지에서 시작하도록 강제 페이지 나눔
+      // 사진 1장 = 페이지 1장: 이미지마다 새 페이지에서 시작하도록 강제 페이지 나눔
+      children.push(
+        new Paragraph({
+          pageBreakBefore: true,
+          alignment: AlignmentType.CENTER,
+          children: [new ImageRun({ data: buffer, type, transformation: size })],
+          spacing: { after: 120 },
+        }),
+      )
+      if (img.caption) {
         children.push(
-          new Paragraph({
-            pageBreakBefore: true,
-            alignment: AlignmentType.CENTER,
-            children: [new ImageRun({ data: buffer, type, transformation: size })],
-            spacing: { after: 120 },
-          }),
+          new Paragraph({ text: img.caption, alignment: AlignmentType.CENTER, spacing: { after: 200 } }),
         )
-        if (img.caption) {
-          children.push(
-            new Paragraph({ text: img.caption, alignment: AlignmentType.CENTER, spacing: { after: 200 } }),
-          )
-        }
       }
     }
   }

@@ -109,6 +109,21 @@
   flex-shrink: 0;
 }
 
+.hero-manual-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.hero-manual-link:hover {
+  text-decoration: underline;
+}
+
 /* Hero visual */
 .hero-visual {
   position: relative;
@@ -538,72 +553,69 @@
   white-space: nowrap;
 }
 
-/* ===== Footer ===== */
+/* ===== Footer =====
+   페이지 테마(라이트/다크)와 무관하게 항상 짙은 네이비로 고정 — 브랜드 자산(allcaresolution.net
+   푸터)과 동일한 톤을 유지해야 하므로, OS 다크모드에서 밝게 뒤집히는 --primary 토큰 대신
+   이 섹션 전용 고정 색상을 쓴다. */
 .footer {
-  padding: 56px 40px 40px;
-  border-top: 1px solid var(--border);
+  --footer-bg: oklch(24% 0.05 255);
+  --footer-text: oklch(97% 0.004 250);
+  background: var(--footer-bg);
+  color: var(--footer-text);
 }
 
-.footer-grid {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
-  gap: 40px;
-  padding: 0 40px;
-}
-
-.footer-brand {
+.footer-inner {
+  padding: 40px 40px 32px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
 }
 
-.footer-logo {
+.footer-nav {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 17px;
-  color: var(--text);
-}
-
-.footer-brand p {
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--text-muted);
-  margin: 0;
-  max-width: 320px;
-}
-
-.footer-links {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.footer-heading {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.footer-links a {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.footer-bottom {
-  max-width: 1200px;
-  margin: 32px auto 0;
-  padding: 20px 40px 0;
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px 28px;
+}
+
+.footer-nav a {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--footer-text);
+  opacity: 0.9;
+}
+
+.footer-nav a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.footer-company,
+.footer-contact {
+  margin: 0;
   font-size: 12.5px;
-  color: var(--text-muted);
+  line-height: 1.9;
+  color: var(--footer-text);
+  opacity: 0.75;
+}
+
+.footer-company strong {
+  font-weight: 700;
+  opacity: 1;
+}
+
+.footer-dot {
+  display: inline-block;
+  margin: 0 10px;
+  opacity: 0.5;
+}
+
+.footer-copyright {
+  margin: 8px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid oklch(100% 0 0 / 0.14);
+  font-size: 12px;
+  color: var(--footer-text);
+  opacity: 0.55;
 }
 
 /* ===== Responsive ===== */
@@ -633,22 +645,14 @@
   .feature-grid {
     grid-template-columns: 1fr;
   }
-
-  .footer-grid {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 
 @media (max-width: 640px) {
   .container,
   .hero-section,
-  .footer {
+  .footer-inner {
     padding-left: 20px;
     padding-right: 20px;
-  }
-
-  .footer-grid {
-    padding: 0;
   }
 
   .hero-title {
@@ -656,10 +660,6 @@
   }
 
   .process-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  .footer-grid {
     grid-template-columns: 1fr !important;
   }
 

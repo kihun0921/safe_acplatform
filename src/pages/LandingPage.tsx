@@ -103,6 +103,10 @@ export default function LandingPage(): JSX.Element {
                 <CheckIcon /> 공고 요구 항목 자동 매칭
               </span>
             </div>
+
+            <Link to="/announcements#manual-start" className="hero-manual-link">
+              <PencilIcon /> 찾는 공고가 없나요? 직접작성으로 바로 시작하기
+            </Link>
           </div>
 
           <div className="hero-visual">
@@ -266,32 +270,33 @@ export default function LandingPage(): JSX.Element {
 
       {/* Footer */}
       <footer className="footer">
-        <div className="container footer-grid">
-          <div className="footer-brand">
-            <div className="footer-logo">
-              <ShieldIcon />
-              <span>올케어안전플랫폼</span>
-            </div>
-            <p>
-              [회사명] · 대표 [대표자명]
-              <br />
-              사업자등록번호 [000-00-00000]
-            </p>
-          </div>
-          <div className="footer-links">
-            <span className="footer-heading">바로가기</span>
-            <Link to="/announcements">공고검색</Link>
-            <Link to="/documents">내 문서함</Link>
-            <a href="#how-it-works">이용방법</a>
-          </div>
-          <div className="footer-links">
-            <span className="footer-heading">고객지원</span>
-            <a href="#">이용약관</a>
-            <a href="#">개인정보처리방침</a>
-          </div>
-        </div>
-        <div className="footer-bottom">
-          <span>© 2026 올케어안전플랫폼. All rights reserved.</span>
+        <div className="container footer-inner">
+          <nav className="footer-nav">
+            <a href="#how-it-works">서비스 소개</a>
+            <Link to="/terms">이용약관</Link>
+            <Link to="/privacy">개인정보처리방침</Link>
+            <Link to="/customer-service">고객센터</Link>
+            <Link to="/refund-policy">환불규정</Link>
+          </nav>
+          <p className="footer-company">
+            <strong>올케어솔루션 주식회사</strong>
+            <span className="footer-dot">·</span>
+            사업자등록번호: 131-86-73738
+            <span className="footer-dot">·</span>
+            통신판매업번호: 제2026-성남중원-0323호
+            <span className="footer-dot">·</span>
+            대표: 강영아
+            <span className="footer-dot">·</span>
+            주소: 경기도 성남시 중원구 산성대로 106, 3층 비366호(성남동, 윤현빌딩)
+          </p>
+          <p className="footer-contact">
+            고객센터: 031-8023-9277
+            <span className="footer-dot">·</span>
+            평일 09:00 ~ 17:00 (점심시간 12:00 ~ 13:00)
+            <span className="footer-dot">·</span>
+            이메일: all73738@naver.com
+          </p>
+          <p className="footer-copyright">© 2026 올케어솔루션 주식회사. All rights reserved.</p>
         </div>
       </footer>
     </div>
@@ -302,6 +307,14 @@ function CheckIcon(): JSX.Element {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="4 12 9 17 20 6" />
+    </svg>
+  )
+}
+
+function PencilIcon(): JSX.Element {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z" />
     </svg>
   )
 }
@@ -339,15 +352,6 @@ function DownloadIcon(): JSX.Element {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
       <path d="M5 19h14" />
-    </svg>
-  )
-}
-
-function ShieldIcon(): JSX.Element {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 3l7 3v5c0 4.5-2.9 8.4-7 9.7C7.9 19.4 5 15.5 5 11V6l7-3z" />
-      <path d="M9 12l2 2 4-4" />
     </svg>
   )
 }

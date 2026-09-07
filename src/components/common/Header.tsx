@@ -45,6 +45,11 @@ export default function Header({ role, user, onLogout }: HeaderProps): JSX.Eleme
                   </Link>
                 </li>
                 <li>
+                  <Link to="/announcements#manual-start" onClick={closeMenu}>
+                    직접작성
+                  </Link>
+                </li>
+                <li>
                   <Link to="/documents" onClick={closeMenu}>
                     내 문서함
                   </Link>
@@ -67,39 +72,14 @@ export default function Header({ role, user, onLogout }: HeaderProps): JSX.Eleme
               </>
             )}
 
+            {/* 세부 관리자 메뉴는 AdminLayout의 좌측 사이드바가 전담하지만(상단 메뉴 중복 방지),
+                관리자가 admin 라우트 밖(홈 등)에 있을 때도 다시 들어갈 진입점은 필요하다. */}
             {isAuthenticated && isAdmin && (
-              <>
-                <li>
-                  <Link to="/admin/dashboard" onClick={closeMenu}>
-                    대시보드
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/admin/members" onClick={closeMenu}>
-                    회원관리
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/admin/api-credentials" onClick={closeMenu}>
-                    API관리
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/admin/subscriptions" onClick={closeMenu}>
-                    결제관리
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/admin/coupons" onClick={closeMenu}>
-                    쿠폰관리
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/admin/inquiries" onClick={closeMenu}>
-                    문의관리
-                  </Link>
-                </li>
-              </>
+              <li>
+                <Link to="/admin/dashboard" onClick={closeMenu}>
+                  관리자 화면
+                </Link>
+              </li>
             )}
 
             {!isAuthenticated && (

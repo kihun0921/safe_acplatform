@@ -253,7 +253,27 @@ export async function createDocumentRow(
   userId: string,
   announcementId: string | null,
   title: string,
+  initialContent?: WizardContent,
 ): Promise<{ data: AppDocument | null; error: Error | null }> {
+  // 호출측이 미리 만든 내용(예: 직접작성 플로우)이 없으면, 회원이 저장해둔 "내 기본
+  // 템플릿"(document_templates)을 먼저 확인해 그걸 새 문서의 출발점으로 쓴다 — 없으면
+  // 빈 기본값으로 시작한다.
+  let content = initialContent
+  if (!content) {
+    const template = await getMyDocumentTemplate(userId)
+    if (template) {
+      content = mergeWizardContent(template)
+      // 사업명/발주기관명/작성일자는 이번 공고에 맞게 새로 채워야 하므로, 템플릿의 이전
+      // 프로젝트 값이 남아있으면 문서 화면의 자동채움(공고 제목/발주기관)이 "이미 값이
+      // 있다"고 판단해 덮어쓰지 못한다 — 그래서 이 세 필드만은 비워서 시작한다.
+      content.cover.projectName = ''
+      content.cover.orgName = ''
+      content.cover.docDate = new Date().toISOString().slice(0, 10)
+    } else {
+      content = createEmptyWizardContent()
+    }
+  }
+
   const { data, error } = await supabase
     .from('documents')
     .insert({
@@ -263,7 +283,7 @@ export async function createDocumentRow(
       status: 'in_progress',
       current_step: 1,
       percent_complete: 0,
-      content: createEmptyWizardContent(),
+      content,
       last_saved_at: new Date().toISOString(),
     })
     .select(DOCUMENT_SELECT)
@@ -299,6 +319,28 @@ export async function updateDocumentContent(
     .from('documents')
     .update({ content, last_saved_at: new Date().toISOString() })
     .eq('id', documentId)
+}
+
+// ============================================================================
+// 회원별 기본 템플릿 — 위저드에서 "이 내용을 기본값으로 저장"을 누르면 그 시점의
+// WizardContent 전체를 저장해두고, 다음 문서 생성 시(또는 각 표의 "저장된 기본값
+// 불러오기" 버튼) 다시 불러와 채운다.
+// ============================================================================
+
+export async function getMyDocumentTemplate(memberId: string): Promise<WizardContent | null> {
+  const { data, error } = await supabase
+    .from('document_templates')
+    .select('content')
+    .eq('member_id', memberId)
+    .maybeSingle()
+  if (error) console.error('[getMyDocumentTemplate]', error)
+  return data ? (data.content as WizardContent) : null
+}
+
+export async function saveMyDocumentTemplate(memberId: string, content: WizardContent) {
+  return supabase
+    .from('document_templates')
+    .upsert({ member_id: memberId, content, updated_at: new Date().toISOString() })
 }
 
 // 작성자 본인이 내 문서함에서 직접 삭제 (RLS: auth.uid() = user_id 인 본인 문서만 삭제 가능)
@@ -717,6 +759,56 @@ export async function createInquiry(
       status: 'open',
     },
   ])
+}
+
+// ============================================================================
+// 사이트 페이지 (이용약관/개인정보처리방침/고객센터/환불규정) — 관리자가 /admin/site-pages에서
+// 편집하면 공개 페이지(/terms 등)에 즉시 반영된다. slug가 페이지 식별자.
+// ============================================================================
+
+export interface SitePage {
+  slug: string
+  title: string
+  content: string
+  updatedAt: string
+}
+
+interface SitePageRow {
+  slug: string
+  title: string
+  content: string
+  updated_at: string
+}
+
+function mapSitePage(row: SitePageRow): SitePage {
+  return { slug: row.slug, title: row.title, content: row.content, updatedAt: row.updated_at }
+}
+
+export async function getSitePage(slug: string): Promise<SitePage | null> {
+  const { data, error } = await supabase
+    .from('site_pages')
+    .select('slug, title, content, updated_at')
+    .eq('slug', slug)
+    .maybeSingle()
+  if (error) console.error('[getSitePage]', error)
+  return data ? mapSitePage(data as SitePageRow) : null
+}
+
+export async function getAllSitePages(): Promise<SitePage[]> {
+  const { data, error } = await supabase
+    .from('site_pages')
+    .select('slug, title, content, updated_at')
+    .order('slug', { ascending: true })
+  if (error) console.error('[getAllSitePages]', error)
+  if (error || !data) return []
+  return (data as SitePageRow[]).map(mapSitePage)
+}
+
+export async function updateSitePage(slug: string, title: string, content: string) {
+  return supabase
+    .from('site_pages')
+    .update({ title, content, updated_at: new Date().toISOString() })
+    .eq('slug', slug)
 }
 
 // Real-time subscriptions (Phase 2+)

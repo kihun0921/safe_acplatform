@@ -4,6 +4,7 @@ import { useAuth } from './hooks/useAuth'
 import Header from './components/common/Header'
 import Spinner from './components/common/Spinner/Spinner'
 import UnauthorizedGuard from './components/common/UnauthorizedGuard/UnauthorizedGuard'
+import AdminLayout from './components/common/AdminLayout/AdminLayout'
 import NotFoundPage from './pages/NotFoundPage'
 
 const LandingPage = lazy(() => import('./pages/LandingPage'))
@@ -20,6 +21,8 @@ const AdminMembersPage = lazy(() => import('./pages/AdminMembersPage'))
 const AdminSubscriptionsPage = lazy(() => import('./pages/AdminSubscriptionsPage'))
 const AdminCouponsPage = lazy(() => import('./pages/AdminCouponsPage'))
 const AdminApiSyncPage = lazy(() => import('./pages/AdminApiSyncPage'))
+const AdminSitePagesPage = lazy(() => import('./pages/AdminSitePagesPage'))
+const LegalPage = lazy(() => import('./pages/LegalPage'))
 const DesignSyncValidationPage = lazy(() => import('./pages/DesignSyncValidationPage'))
 
 function ProtectedRoute({
@@ -39,7 +42,8 @@ function AdminRoute({
   children: React.ReactNode
   role: string | null
 }): JSX.Element {
-  return role === 'admin' ? <>{children}</> : <UnauthorizedGuard />
+  if (role !== 'admin') return <UnauthorizedGuard />
+  return <AdminLayout>{children}</AdminLayout>
 }
 
 // 이미 로그인된 사용자가 /login, /signup에 진입하면(뒤로가기, 예전 링크, 직접 URL 입력 등)
@@ -85,6 +89,10 @@ function App(): JSX.Element {
         <Suspense fallback={<Spinner />}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/terms" element={<LegalPage slug="terms" />} />
+            <Route path="/privacy" element={<LegalPage slug="privacy" />} />
+            <Route path="/customer-service" element={<LegalPage slug="customer-service" />} />
+            <Route path="/refund-policy" element={<LegalPage slug="refund-policy" />} />
             <Route
               path="/login"
               element={
@@ -188,6 +196,14 @@ function App(): JSX.Element {
               element={
                 <AdminRoute role={role}>
                   <AdminApiSyncPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/site-pages"
+              element={
+                <AdminRoute role={role}>
+                  <AdminSitePagesPage />
                 </AdminRoute>
               }
             />

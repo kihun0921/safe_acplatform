@@ -47,7 +47,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   if (format === "docx") {
     const buffer = await generateWizardDocx(title, sections);
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "Content-Disposition": `attachment; filename="${filename}.docx"`,
@@ -57,7 +57,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   if (format === "hwpx") {
     const buffer = await generateWizardHwpx(title, sections);
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/hwp+zip",
         "Content-Disposition": `attachment; filename="${filename}.hwpx"`,
@@ -66,7 +66,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 
   const buffer = await generateWizardPdf(title, sections);
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${filename}.pdf"`,

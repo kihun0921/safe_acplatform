@@ -60,7 +60,7 @@ function findLabel($: cheerio.CheerioAPI, el: unknown): string {
   // 엉뚱한 형제 필드의 라벨을 집어올 수 있어(예: A필드의 값 옆에 B필드의 라벨이
   // 붙는 오분류), 반드시 "직계 자식"만 본다 — 그러면 이 입력 필드 자신의 래퍼
   // 안에 있는 라벨만 정확히 매칭된다.
-  let current = $(el as never);
+  let current: ReturnType<typeof $> = $(el as never);
   for (let depth = 0; depth < 4; depth++) {
     const parent = current.parent();
     if (!parent.length) break;
@@ -99,13 +99,17 @@ export function extractWizardSections(
       const headers: string[] = [];
       $table
         .find("thead th")
-        .each((_, th) => headers.push($(th).text().replace(/\s+/g, " ").trim()));
+        .each((_, th) => {
+          headers.push($(th).text().replace(/\s+/g, " ").trim());
+        });
       const rows: string[][] = [];
       $table.find("tbody tr").each((_, tr) => {
         const row: string[] = [];
         $(tr)
           .find("td")
-          .each((_, td) => row.push($(td).text().replace(/\s+/g, " ").trim()));
+          .each((_, td) => {
+            row.push($(td).text().replace(/\s+/g, " ").trim());
+          });
         if (row.length) rows.push(row);
       });
       table = { headers, rows };

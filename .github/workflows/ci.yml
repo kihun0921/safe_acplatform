@@ -1,0 +1,39 @@
+name: CI
+
+# NHN 서버는 회사 방화벽 정책상 외부에서 SSH 접속이 불가능해 이 워크플로우는
+# 자동 배포를 하지 않는다. push/PR마다 빌드가 깨지지 않는지만 검증한다.
+# 배포는 DEPLOY.md 절차대로 회사 네트워크에서 수동으로 진행한다.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          # 빌드 타임에만 필요한 더미 값 (실제 배포 값은 서버 .env.production에서 관리)
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder

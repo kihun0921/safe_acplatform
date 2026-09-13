@@ -1,23 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function CardSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <p className="text-sm text-slate-600">결제 승인 처리 중입니다...</p>
+        </div>
+      }
+    >
+      <CardSuccessContent />
+    </Suspense>
+  );
+}
+
+function CardSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<"confirming" | "done" | "error">("confirming");
-  const [message, setMessage] = useState("");
+  const paymentKey = searchParams.get("paymentKey");
+  const orderId = searchParams.get("orderId");
+  const amount = searchParams.get("amount");
+  const paramsValid = Boolean(paymentKey && orderId && amount);
+
+  const [status, setStatus] = useState<"confirming" | "done" | "error">(
+    paramsValid ? "confirming" : "error"
+  );
+  const [message, setMessage] = useState(paramsValid ? "" : "결제 정보가 올바르지 않습니다.");
 
   useEffect(() => {
-    const paymentKey = searchParams.get("paymentKey");
-    const orderId = searchParams.get("orderId");
-    const amount = searchParams.get("amount");
-    if (!paymentKey || !orderId || !amount) {
-      setStatus("error");
-      setMessage("결제 정보가 올바르지 않습니다.");
-      return;
-    }
+    if (!paramsValid) return;
 
     fetch("/api/subscriptions/toss/confirm", {
       method: "POST",

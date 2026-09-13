@@ -1,8 +1,17 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 export default function CardFailPage() {
+  return (
+    <Suspense fallback={null}>
+      <CardFailContent />
+    </Suspense>
+  );
+}
+
+function CardFailContent() {
   const searchParams = useSearchParams();
   const message = searchParams.get("message") ?? "결제가 취소되었거나 실패했습니다.";
 

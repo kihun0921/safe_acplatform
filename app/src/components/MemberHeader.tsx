@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "./LogoutButton";
+import Link from "next/link";
 
 export default async function MemberHeader({ active }: { active?: "announcements" | "documents" | "inquiries" }) {
   const supabase = await createClient();
@@ -31,13 +32,13 @@ export default async function MemberHeader({ active }: { active?: "announcements
     <header className="bg-white docked full-width top-0 sticky z-50 border-b border-neutral-200 shadow-sm transition duration-150 ease-in-out">
       <div className="w-full max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <a className="flex items-center gap-2.5 group" href="/">
+          <Link className="flex items-center gap-2.5 group" href="/">
             <img src="/logo.png" alt="올케어안전플랫폼 로고" className="w-9 h-9 object-contain" />
             <div className="flex flex-col">
               <span className="font-headline font-bold text-xl text-neutral-900 tracking-tight">올케어안전플랫폼</span>
               <span className="text-[10px] text-slate-500 font-medium tracking-wider -mt-1">ALLCARE SAFETY B2B</span>
             </div>
-          </a>
+          </Link>
           <nav className="hidden md:flex items-center space-x-6 text-sm">
             <a className={tabClass("announcements")} href="/announcements">
               <span className="material-symbols-outlined text-lg">search</span>

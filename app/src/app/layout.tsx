@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -77,8 +78,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
         />
-        <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries" />
-        <script dangerouslySetInnerHTML={{ __html: TAILWIND_CONFIG }} />
+        <Script src="https://cdn.tailwindcss.com?plugins=forms,container-queries" strategy="beforeInteractive" />
+        <Script id="tailwind-config" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: TAILWIND_CONFIG }} />
         <style>{`
           .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;

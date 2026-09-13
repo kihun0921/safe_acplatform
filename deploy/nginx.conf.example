@@ -1,0 +1,28 @@
+# NHN Cloud 서버용 Nginx 리버스 프록시 설정 예시.
+# /etc/nginx/sites-available/acplatform 로 저장 후
+# /etc/nginx/sites-enabled/ 에 심볼릭 링크 생성.
+#
+#   sudo ln -s /etc/nginx/sites-available/acplatform /etc/nginx/sites-enabled/acplatform
+#   sudo nginx -t && sudo systemctl reload nginx
+
+server {
+    listen 80;
+    server_name your-domain.co.kr;  # 실제 도메인 또는 서버 공인 IP로 교체
+
+    # Let's Encrypt 인증서 발급 성공 후 certbot이 아래 두 지시자를 자동으로 추가/수정한다
+    # (443 서버 블록 + http->https 리다이렉트). 최초에는 80만 열어둔다.
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    client_max_body_size 20m;  # 공고문 PDF 첨부 등 업로드 크기 고려
+}

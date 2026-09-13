@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import LegalTabs from "@/components/LegalTabs";
+import Link from "next/link";
 
 export default async function LegalPage({
   searchParams,
@@ -16,7 +17,7 @@ export default async function LegalPage({
     <div className="min-h-screen flex flex-col bg-[#f7f8fa]">
       <header className="bg-white sticky top-0 z-40 border-b border-slate-200 shadow-sm">
         <div className="flex justify-between items-center w-full px-6 md:px-8 max-w-7xl mx-auto h-16">
-          <a className="flex items-center gap-3 group" href="/">
+          <Link className="flex items-center gap-3 group" href="/">
             <img src="/logo.png" alt="올케어안전플랫폼 로고" className="w-10 h-10 object-contain" />
             <div className="flex flex-col">
               <span className="font-headline text-xl font-bold tracking-tight text-[#1e3a5f] leading-tight">
@@ -24,7 +25,7 @@ export default async function LegalPage({
               </span>
               <span className="text-[11px] font-medium text-slate-400 tracking-wide">공공입찰 안전 솔루션</span>
             </div>
-          </a>
+          </Link>
           <a
             className="inline-flex items-center justify-center px-4 py-2 text-xs md:text-sm font-semibold text-white bg-[#1e3a5f] hover:bg-[#16304d] rounded-lg shadow-sm transition-colors"
             href="/login"

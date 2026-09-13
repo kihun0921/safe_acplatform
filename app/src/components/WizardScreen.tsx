@@ -69,6 +69,15 @@ export default function WizardScreen({
       }
     });
 
+    const updateAttachmentsBadge = () => {
+      const badge = root.querySelector<HTMLElement>("#attachments-active-count");
+      const section = root.querySelector<HTMLElement>("#sec-attachments");
+      if (!badge || !section) return;
+      const checked = section.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:checked').length;
+      badge.textContent = `${checked}종 활성`;
+    };
+    updateAttachmentsBadge();
+
     const computePercent = () => {
       let filled = 0;
       fieldEls.forEach((el) => {
@@ -132,6 +141,7 @@ export default function WizardScreen({
       if (!key) return;
       if (el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio")) {
         fieldsRef.current[key] = el.checked;
+        if (el.closest("#sec-attachments")) updateAttachmentsBadge();
       } else {
         fieldsRef.current[key] = (el as HTMLInputElement).value;
       }

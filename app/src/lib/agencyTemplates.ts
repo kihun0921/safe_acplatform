@@ -16,7 +16,18 @@ export type AgencyTemplateRow = {
   agency: string;
   name: string;
   sections: AgencyTemplateSection[];
+  disabled_common_sections?: string[];
 };
+
+// 공통 6대 목차 — 각 항목의 실제 DOM id(sec-*)와 관리자 화면에 보여줄 한글 라벨.
+export const COMMON_SECTIONS: { key: string; label: string }[] = [
+  { key: "overview", label: "Ⅰ. 사업개요 및 기본정보" },
+  { key: "risk", label: "Ⅱ. 관리체계 및 위험성평가" },
+  { key: "execution", label: "Ⅲ. 현장 안전보건 실행계획" },
+  { key: "emergency", label: "Ⅳ. 현장 운영 및 비상대책" },
+  { key: "target", label: "Ⅴ. 재해예방 및 안전목표" },
+  { key: "attachments", label: "Ⅵ. 별첨 서류 및 증빙" },
+];
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -67,7 +78,7 @@ ${fieldsHtml}
     .join("\n");
 }
 
-export function buildTemplateTocHtml(sections: AgencyTemplateSection[]): string {
+export function buildTemplateTocHtml(sections: AgencyTemplateSection[], startIndex: number): string {
   if (!sections.length) return "";
   return sections
     .map(
@@ -76,7 +87,7 @@ export function buildTemplateTocHtml(sections: AgencyTemplateSection[]): string 
       )}">
 <div class="flex items-center gap-2">
 <span class="w-5 h-5 rounded-full bg-primary-soft text-primary flex items-center justify-center text-[10px] font-mono">
-                  ${(7 + i).toString().padStart(2, "0")}
+                  ${(startIndex + i).toString().padStart(2, "0")}
                 </span>
 <span class="group-hover:text-neutral-900">${escapeHtml(section.label)}</span>
 </div>
@@ -84,4 +95,27 @@ export function buildTemplateTocHtml(sections: AgencyTemplateSection[]): string 
 </a>`
     )
     .join("\n");
+}
+
+// 공통 6대 목차 중 이 발주처 서식에서 꺼진 섹션을 본문(<section id="sec-X">...</section>)과
+// 좌측 목차 링크(<a href="#sec-X">...</a>) 양쪽에서 통째로 제거한다. 두 태그 모두 이
+// 템플릿 안에서는 중첩되지 않으므로(섹션 안에 섹션, 링크 안에 링크가 없음) 여는 태그
+// 뒤에 처음 나오는 닫는 태그까지만 잘라내면 항상 정확히 그 블록만 제거된다.
+function removeBlock(html: string, openTagPattern: RegExp, closeTag: string): string {
+  const match = html.match(openTagPattern);
+  if (!match || match.index === undefined) return html;
+  const startIdx = match.index;
+  const closeIdx = html.indexOf(closeTag, startIdx);
+  if (closeIdx === -1) return html;
+  return html.slice(0, startIdx) + html.slice(closeIdx + closeTag.length);
+}
+
+export function removeDisabledCommonSections(html: string, disabledKeys: string[]): string {
+  let result = html;
+  for (const key of disabledKeys) {
+    const sectionId = `sec-${key}`;
+    result = removeBlock(result, new RegExp(`<section[^>]*id="${sectionId}"[^>]*>`), "</section>");
+    result = removeBlock(result, new RegExp(`<a[^>]*href="#${sectionId}"[^>]*>`), "</a>");
+  }
+  return result;
 }

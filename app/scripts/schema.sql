@@ -127,6 +127,9 @@ create table if not exists public.agency_templates (
 );
 
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
+-- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
+-- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).
+alter table public.agency_templates add column if not exists disabled_common_sections text[] not null default '{}';
 
 -- ============================================================================
 -- inquiries

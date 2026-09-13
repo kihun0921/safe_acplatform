@@ -20,14 +20,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { error: authError } = await requireAdmin(supabase);
   if (authError) return authError;
 
-  const { name, sections } = await request.json();
+  const { name, sections, disabledCommonSections } = await request.json();
   const update: Record<string, unknown> = {};
   if (typeof name === "string") update.name = name.trim();
   if (sections !== undefined) {
     if (!Array.isArray(sections)) {
-      return NextResponse.json({ error: "sections는 배열 형식(JSON)이어야 합니다." }, { status: 400 });
+      return NextResponse.json({ error: "sections는 배열 형식이어야 합니다." }, { status: 400 });
     }
     update.sections = sections;
+  }
+  if (disabledCommonSections !== undefined) {
+    if (!Array.isArray(disabledCommonSections)) {
+      return NextResponse.json({ error: "disabledCommonSections는 배열 형식이어야 합니다." }, { status: 400 });
+    }
+    update.disabled_common_sections = disabledCommonSections;
   }
 
   const { error } = await supabase.from("agency_templates").update(update).eq("id", id);

@@ -1,6 +1,11 @@
 import { classifyConstructionType, buildRiskRowsHtml, scaleFieldFor } from "@/lib/riskTemplates";
 import { pickAnnouncementPdf } from "@/lib/extractBusinessOverview";
-import { buildTemplateSectionsHtml, buildTemplateTocHtml, type AgencyTemplateRow } from "@/lib/agencyTemplates";
+import {
+  buildTemplateSectionsHtml,
+  buildTemplateTocHtml,
+  removeDisabledCommonSections,
+  type AgencyTemplateRow,
+} from "@/lib/agencyTemplates";
 
 // Shared between the wizard screen (src/app/documents/[id]/wizard/page.tsx) and the
 // document export routes (src/app/api/documents/[id]/export/*): both need the exact
@@ -187,7 +192,7 @@ __ANNOUNCEMENT_PDF_LINK__
                 </span>
 <span class="group-hover:text-neutral-900">Ⅵ. 별첨 서류 및 증빙</span>
 </div>
-<span class="text-[11px] px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 font-medium">3종 활성</span>
+<span id="attachments-active-count" class="text-[11px] px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 font-medium">3종 활성</span>
 </a>
 __TEMPLATE_TOC_ITEMS__
 </nav>
@@ -858,9 +863,14 @@ export function buildWizardHtml(
   // 목차 "뒤"에 이어붙여서, 기존 필드들의 DOM 순서(자동저장 인덱스 기준)가 절대
   // 바뀌지 않도록 한다.
   const templateSections = agencyTemplate?.sections ?? [];
+  const disabledCommonSections = agencyTemplate?.disabled_common_sections ?? [];
+  const visibleCommonCount = 6 - disabledCommonSections.length;
   const templateSectionsHtml = buildTemplateSectionsHtml(templateSections);
-  const templateTocHtml = buildTemplateTocHtml(templateSections);
-  const totalSectionCount = 6 + templateSections.length;
+  // 공통 6대 목차의 01~06 배지는 고정 텍스트라 일부를 꺼도 다시 매겨지지 않으므로,
+  // 추가 목차 번호는 (꺼진 개수와 무관하게) 항상 7부터 시작해 배지 번호가 절대
+  // 겹치지 않게 한다.
+  const templateTocHtml = buildTemplateTocHtml(templateSections, 7);
+  const totalSectionCount = visibleCommonCount + templateSections.length;
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -957,6 +967,10 @@ ${templateOptions
   if (riskTbodyStart !== -1 && riskTbodyEnd !== -1) {
     const openTag = '<tbody class="divide-y divide-neutral-200 font-normal">';
     html = html.slice(0, riskTbodyStart) + openTag + "\n" + riskRowsHtml + "\n" + html.slice(riskTbodyEnd);
+  }
+
+  if (disabledCommonSections.length > 0) {
+    html = removeDisabledCommonSections(html, disabledCommonSections);
   }
 
   return html;

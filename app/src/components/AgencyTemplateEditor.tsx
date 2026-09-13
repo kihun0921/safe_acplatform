@@ -2,35 +2,32 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import AgencyTemplateSectionsBuilder from "./AgencyTemplateSectionsBuilder";
+import type { AgencyTemplateSection } from "@/lib/agencyTemplates";
 
 type AgencyTemplate = {
   id: string;
   agency: string;
   name: string;
-  sections: unknown[];
+  sections: AgencyTemplateSection[];
+  disabled_common_sections: string[];
 };
 
 export default function AgencyTemplateEditor({ template }: { template: AgencyTemplate }) {
   const router = useRouter();
   const [name, setName] = useState(template.name);
-  const [sectionsText, setSectionsText] = useState(JSON.stringify(template.sections, null, 2));
+  const [sections, setSections] = useState(template.sections);
+  const [disabledCommon, setDisabledCommon] = useState(template.disabled_common_sections ?? []);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const save = async () => {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(sectionsText);
-    } catch {
-      alert("sections가 올바른 JSON 형식이 아닙니다.");
-      return;
-    }
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/agency-templates/${template.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, sections: parsed }),
+        body: JSON.stringify({ name, sections, disabledCommonSections: disabledCommon }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -70,22 +67,23 @@ export default function AgencyTemplateEditor({ template }: { template: AgencyTem
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold mb-3"
+        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold mb-4"
         placeholder="서식명 (예: 한국토지주택공사(LH) 표준 서식 2025)"
       />
-      <label className="block text-xs font-semibold text-slate-500 mb-1">
-        추가 목차(sections) — JSON 배열, 공통 6대 목차 뒤에 이어붙습니다
-      </label>
-      <textarea
-        value={sectionsText}
-        onChange={(e) => setSectionsText(e.target.value)}
-        rows={10}
-        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono leading-relaxed mb-3"
+
+      <AgencyTemplateSectionsBuilder
+        sections={sections}
+        disabledCommon={disabledCommon}
+        onChange={({ sections: s, disabledCommon: d }) => {
+          setSections(s);
+          setDisabledCommon(d);
+        }}
       />
+
       <button
         onClick={save}
         disabled={saving}
-        className="bg-[#1e3a5f] text-white text-sm font-bold px-4 py-2 rounded-lg disabled:opacity-60"
+        className="mt-5 bg-[#1e3a5f] text-white text-sm font-bold px-4 py-2 rounded-lg disabled:opacity-60"
       >
         {saving ? "저장 중..." : "저장"}
       </button>

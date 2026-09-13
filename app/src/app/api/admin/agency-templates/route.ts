@@ -11,17 +11,25 @@ export async function POST(request: Request) {
   const { data: me } = await supabase.from("members").select("role").eq("id", user.id).single();
   if (me?.role !== "admin") return NextResponse.json({ error: "관리자만 접근할 수 있습니다." }, { status: 403 });
 
-  const { agency, name, sections } = await request.json();
+  const { agency, name, sections, disabledCommonSections } = await request.json();
   if (!agency?.trim() || !name?.trim()) {
     return NextResponse.json({ error: "발주처명과 서식명을 입력해 주세요." }, { status: 400 });
   }
   if (!Array.isArray(sections)) {
-    return NextResponse.json({ error: "sections는 배열 형식(JSON)이어야 합니다." }, { status: 400 });
+    return NextResponse.json({ error: "sections는 배열 형식이어야 합니다." }, { status: 400 });
+  }
+  if (disabledCommonSections !== undefined && !Array.isArray(disabledCommonSections)) {
+    return NextResponse.json({ error: "disabledCommonSections는 배열 형식이어야 합니다." }, { status: 400 });
   }
 
   const { data, error } = await supabase
     .from("agency_templates")
-    .insert({ agency: agency.trim(), name: name.trim(), sections })
+    .insert({
+      agency: agency.trim(),
+      name: name.trim(),
+      sections,
+      disabled_common_sections: disabledCommonSections ?? [],
+    })
     .select("id")
     .single();
 

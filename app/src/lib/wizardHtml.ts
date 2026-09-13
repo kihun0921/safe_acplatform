@@ -142,25 +142,25 @@ __ADMIN_RETURN_LINK__
 <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600">6개 대분류</span>
 </div>
 <nav class="space-y-1">
-<!-- Ⅰ. 사업개요 -->
-<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-overview">
+<!-- Ⅰ. 사업개요 (기본 진입 시 첫 화면 — ACTIVE) -->
+<a class="flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold bg-primary-soft text-primary border-l-4 border-primary transition shadow-xs" href="#sec-overview">
 <div class="flex items-center gap-2">
 <span class="w-5 h-5 rounded-full bg-status-successSoft text-status-success flex items-center justify-center">
 <span class="material-symbols-outlined text-sm" data-icon="check">check</span>
 </span>
-<span class="group-hover:text-neutral-900 font-semibold">Ⅰ. 사업개요 및 기본정보</span>
+<span>Ⅰ. 사업개요 및 기본정보</span>
 </div>
-<span class="text-[11px] text-neutral-400 font-mono">100%</span>
+<span class="text-[11px] text-primary font-mono font-bold">100%</span>
 </a>
-<!-- Ⅱ. 안전보건관리체계 (ACTIVE) -->
-<a class="flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold bg-primary-soft text-primary border-l-4 border-primary transition shadow-xs" href="#sec-risk">
+<!-- Ⅱ. 안전보건관리체계 -->
+<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">
 <div class="flex items-center gap-2">
-<span class="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-mono">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
                   02
                 </span>
-<span>Ⅱ. 관리체계 및 위험성평가</span>
+<span class="group-hover:text-neutral-900 font-semibold">Ⅱ. 관리체계 및 위험성평가</span>
 </div>
-<span class="text-[11px] text-primary font-mono font-bold">85% 진행</span>
+<span class="text-[11px] text-neutral-400 font-mono">85% 진행</span>
 </a>
 <!-- Ⅲ. 현장 안전보건 실행계획 -->
 <a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-execution">

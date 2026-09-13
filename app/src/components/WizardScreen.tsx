@@ -166,6 +166,43 @@ export default function WizardScreen({
       target.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
+    // 좌측 목차(TOC)의 "현재 보고 있는 섹션" 강조 표시를, 실제 스크롤 위치에 맞춰
+    // 동적으로 갱신한다. 화면을 처음 열었을 때는 항상 맨 위(사업개요 및 기본정보)가
+    // 보이므로 자연히 그 항목이 강조되고, 스크롤하면 그때그때 보이는 섹션으로 이동한다.
+    const tocLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>('nav a[href^="#sec-"]'));
+    const sections = Array.from(root.querySelectorAll<HTMLElement>('section[id^="sec-"]'));
+    const setActiveSection = (id: string) => {
+      tocLinks.forEach((a) => {
+        const isActive = a.getAttribute("href") === `#${id}`;
+        a.classList.toggle("bg-primary-soft", isActive);
+        a.classList.toggle("text-primary", isActive);
+        a.classList.toggle("border-l-4", isActive);
+        a.classList.toggle("border-primary", isActive);
+        a.classList.toggle("shadow-xs", isActive);
+        a.classList.toggle("font-bold", isActive);
+        a.classList.toggle("py-2.5", isActive);
+        a.classList.toggle("py-2", !isActive);
+        a.classList.toggle("text-neutral-700", !isActive);
+        a.classList.toggle("font-medium", !isActive);
+        a.classList.toggle("hover:bg-neutral-100", !isActive);
+        a.classList.toggle("group", !isActive);
+      });
+    };
+
+    const visibleSections = new Set<string>();
+    const sectionObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) visibleSections.add(entry.target.id);
+          else visibleSections.delete(entry.target.id);
+        });
+        const topMost = sections.find((s) => visibleSections.has(s.id));
+        if (topMost) setActiveSection(topMost.id);
+      },
+      { rootMargin: "-190px 0px -65% 0px", threshold: 0 }
+    );
+    sections.forEach((s) => sectionObserver.observe(s));
+
     root.addEventListener("input", onFieldChange);
     root.addEventListener("change", onFieldChange);
     root.addEventListener("click", onClick);
@@ -175,6 +212,7 @@ export default function WizardScreen({
       root.removeEventListener("change", onFieldChange);
       root.removeEventListener("click", onClick);
       root.removeEventListener("click", onTocClick);
+      sectionObserver.disconnect();
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
   }, [documentId, downloadsLocked]);

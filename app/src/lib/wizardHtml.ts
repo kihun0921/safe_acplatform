@@ -1,5 +1,6 @@
 import { classifyConstructionType, buildRiskRowsHtml, scaleFieldFor } from "@/lib/riskTemplates";
 import { pickAnnouncementPdf } from "@/lib/extractBusinessOverview";
+import { buildTemplateSectionsHtml, buildTemplateTocHtml, type AgencyTemplateRow } from "@/lib/agencyTemplates";
 
 // Shared between the wizard screen (src/app/documents/[id]/wizard/page.tsx) and the
 // document export routes (src/app/api/documents/[id]/export/*): both need the exact
@@ -10,6 +11,7 @@ export type WizardDocRow = {
   title: string | null;
   agency: string | null;
   content: Record<string, unknown> | null;
+  template_id?: string | null;
 };
 
 export type WizardAnnouncementRow = {
@@ -84,10 +86,7 @@ __ADMIN_RETURN_LINK__
 </h1>
 </div>
 <div class="hidden lg:flex items-center pl-2 border-l border-neutral-200">
-<span aria-label="발주처 표준 서식" class="text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5">
-<span class="material-symbols-outlined text-sm text-neutral-400">description</span>
-한국토지주택공사(LH) 표준 서식 (2025 개정판)
-</span>
+__TEMPLATE_SELECT__
 </div>
 </div>
 <!-- Right: Primary Actions -->
@@ -190,6 +189,7 @@ __ANNOUNCEMENT_PDF_LINK__
 </div>
 <span class="text-[11px] px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 font-medium">3종 활성</span>
 </a>
+__TEMPLATE_TOC_ITEMS__
 </nav>
 </div>
 <!-- Progress and Compliance Score Card -->
@@ -735,6 +735,7 @@ __ANNOUNCEMENT_PDF_LINK__
 </div>
 </div>
 </section>
+__TEMPLATE_SECTIONS__
 <!-- Spacer for Floating Bar visibility -->
 <div class="h-20"></div>
 </div>
@@ -809,7 +810,9 @@ export function buildWizardHtml(
   announcement: WizardAnnouncementRow,
   pdfOverview: PdfOverview | undefined,
   member?: WizardMemberRow,
-  viewerIsAdmin?: boolean
+  viewerIsAdmin?: boolean,
+  agencyTemplate?: AgencyTemplateRow | null,
+  availableTemplates?: { id: string; name: string }[]
 ): string {
   // The wizard's raw HTML was originally a static Stitch mockup for one demo
   // project (LH / 화성태안3지구). Swap in this document's real title/agency, and
@@ -851,9 +854,39 @@ export function buildWizardHtml(
     ? `<a href="/admin" class="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full border border-indigo-200 transition-colors"><span class="material-symbols-outlined text-sm">admin_panel_settings</span>관리자 화면으로</a>`
     : "";
 
+  // 발주처 표준서식(agency_templates)에 정의된 추가 목차/입력항목 — 항상 공통 6대
+  // 목차 "뒤"에 이어붙여서, 기존 필드들의 DOM 순서(자동저장 인덱스 기준)가 절대
+  // 바뀌지 않도록 한다.
+  const templateSections = agencyTemplate?.sections ?? [];
+  const templateSectionsHtml = buildTemplateSectionsHtml(templateSections);
+  const templateTocHtml = buildTemplateTocHtml(templateSections);
+  const totalSectionCount = 6 + templateSections.length;
+
+  // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
+  // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
+  // 바꾸면 WizardScreen이 PATCH 후 새로고침해 여기서 만든 추가 섹션을 반영한다.
+  const templateOptions = availableTemplates ?? [];
+  const selectedTemplateId = doc.template_id ?? "";
+  const templateSelectHtml =
+    templateOptions.length > 0
+      ? `<select aria-label="발주처 표준 서식 선택" data-template-select class="text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-primary focus:border-primary">
+<option value=""${selectedTemplateId ? "" : " selected"}>${agencyName} 표준 서식 (공통)</option>
+${templateOptions
+  .map(
+    (t) =>
+      `<option value="${escapeHtml(t.id)}"${t.id === selectedTemplateId ? " selected" : ""}>${escapeHtml(t.name)}</option>`
+  )
+  .join("\n")}
+</select>`
+      : `<span aria-label="발주처 표준 서식" class="text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5"><span class="material-symbols-outlined text-sm text-neutral-400">description</span>${agencyName} 표준 서식</span>`;
+
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
     .replace("__ANNOUNCEMENT_PDF_LINK__", announcementPdfLinkHtml)
+    .replace("__TEMPLATE_SELECT__", templateSelectHtml)
+    .replace("__TEMPLATE_TOC_ITEMS__", templateTocHtml)
+    .replace("__TEMPLATE_SECTIONS__", templateSectionsHtml)
+    .replace("6개 대분류", `${totalSectionCount}개 대분류`)
     .replace(
       '<div class="w-8 h-8 rounded-full bg-primary-soft text-primary font-semibold text-xs flex items-center justify-center border border-primary/20" title="대한종합건설 홍길동 부장 프로필">\n            홍\n          </div>',
       `<div class="w-8 h-8 rounded-full bg-primary-soft text-primary font-semibold text-xs flex items-center justify-center border border-primary/20" title="${memberCompany} ${memberName} 프로필">${memberInitial}</div>`
@@ -871,7 +904,6 @@ export function buildWizardHtml(
       "[202502-89211] 화성태안3지구 복합커뮤니티센터 신축공사 안전보건관리계획서",
       `${projectTitle} 안전보건관리계획서`
     )
-    .replace("한국토지주택공사(LH) 표준 서식 (2025 개정판)", `${agencyName} 표준 서식`)
     .replace("LH 적격심사 가점 요건 충족", `${agencyName} 적격심사 가점 요건 충족`)
     .replace("발주처(LH) 안전관리 가이드라인 2025 개정판 연동 중:", `발주처(${agencyName}) 안전관리 가이드라인 연동 중:`)
     .replace('value="화성태안3지구 복합커뮤니티센터 신축공사"', `value="${projectTitle}"`)

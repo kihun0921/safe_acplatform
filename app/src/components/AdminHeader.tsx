@@ -8,6 +8,7 @@ const NAV = [
   { key: "payments", label: "결제관리", href: "/admin/payments" },
   { key: "coupons", label: "쿠폰관리", href: "/admin/coupons" },
   { key: "inquiries", label: "문의관리", href: "/admin/inquiries" },
+  { key: "agency-templates", label: "표준서식관리", href: "/admin/agency-templates" },
   { key: "site-pages", label: "사이트관리", href: "/admin/site-pages" },
 ] as const;
 

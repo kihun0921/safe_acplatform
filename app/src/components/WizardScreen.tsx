@@ -51,7 +51,7 @@ export default function WizardScreen({
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]), textarea, select"
+        "input:not([type=hidden]), textarea, select:not([data-template-select])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -97,8 +97,34 @@ export default function WizardScreen({
       else saveTimer.current = setTimeout(run, 15000);
     };
 
+    const onTemplateSelectChange = async (e: Event) => {
+      const el = e.target as HTMLSelectElement;
+      if (!el.matches("[data-template-select]")) return;
+      el.setAttribute("disabled", "true");
+      try {
+        const res = await fetch(`/api/documents/${documentId}/template`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ templateId: el.value || null }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          alert(`표준서식 변경 실패: ${data.error ?? "알 수 없는 오류"}`);
+          el.removeAttribute("disabled");
+          return;
+        }
+        // 선택한 표준서식의 추가 목차/입력항목을 반영하려면 화면 전체를 다시
+        // 렌더링해야 하므로(서버 컴포넌트가 만드는 HTML 자체가 바뀜) 새로고침한다.
+        window.location.reload();
+      } catch {
+        alert("표준서식 변경 중 오류가 발생했습니다.");
+        el.removeAttribute("disabled");
+      }
+    };
+
     const onFieldChange = (e: Event) => {
       const el = e.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+      if (el.matches("[data-template-select]")) return;
       const key = el.dataset.wizardKey;
       if (!key) return;
       if (el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio")) {
@@ -228,11 +254,13 @@ export default function WizardScreen({
 
     root.addEventListener("input", onFieldChange);
     root.addEventListener("change", onFieldChange);
+    root.addEventListener("change", onTemplateSelectChange);
     root.addEventListener("click", onClick);
     root.addEventListener("click", onTocClick);
     return () => {
       root.removeEventListener("input", onFieldChange);
       root.removeEventListener("change", onFieldChange);
+      root.removeEventListener("change", onTemplateSelectChange);
       root.removeEventListener("click", onClick);
       root.removeEventListener("click", onTocClick);
       sectionObserver.disconnect();

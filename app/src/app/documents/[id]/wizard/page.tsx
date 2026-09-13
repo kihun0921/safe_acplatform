@@ -34,6 +34,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   const initialFields = (doc.content?.fields ?? {}) as Record<string, string | boolean>;
 
+  // 발주처 표준서식(agency_templates): 이 문서의 발주처와 정확히 일치하는 표준서식만
+  // 선택지로 보여준다. 현재는 LH만 실제로 등록되어 있고, 나머지 발주처는 공통 서식만
+  // 노출된다(옵션이 없으면 드롭다운 대신 읽기 전용 배지로 표시).
+  const { data: availableTemplates } = doc.agency
+    ? await supabase.from("agency_templates").select("id, name").eq("agency", doc.agency)
+    : { data: null };
+  const { data: selectedTemplate } = doc.template_id
+    ? await supabase.from("agency_templates").select("*").eq("id", doc.template_id).maybeSingle()
+    : { data: null };
+
   const { data: announcement } = doc.announcement_id
     ? await supabase
         .from("announcements")
@@ -62,7 +72,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     }
   }
 
-  const html = buildWizardHtml(doc, announcement, pdfOverview, member, showAdminReturnLink);
+  const html = buildWizardHtml(
+    doc,
+    announcement,
+    pdfOverview,
+    member,
+    showAdminReturnLink,
+    selectedTemplate,
+    availableTemplates ?? []
+  );
 
   return (
     <>

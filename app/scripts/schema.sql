@@ -109,6 +109,26 @@ create index if not exists idx_documents_status on public.documents(status);
 alter table public.documents add column if not exists price bigint not null default 50000;
 
 -- ============================================================================
+-- agency_templates — 발주처별 표준서식(목차/입력항목 구성)
+-- ============================================================================
+-- sections: 공통 6대 목차(사업개요/위험성평가/실행계획/비상대책/안전목표/별첨) 외에
+-- 그 발주처만의 추가 목차를 정의한다. 셀 단위 상세 레이아웃(토글 스위치, 표 구조 등)은
+-- 공통 위저드 템플릿을 그대로 따르고, 여기서는 "어떤 섹션이 추가되고 그 안에 어떤
+-- 입력 필드가 있는지"만 다룬다.
+-- shape: [{ "id": "workforce", "label": "작업투입 인력 인적사항",
+--            "fields": [{ "key": "vulnerable_workers", "label": "안전취약근로자 현황", "type": "textarea" }, ...] }]
+create table if not exists public.agency_templates (
+  id uuid primary key default gen_random_uuid(),
+  agency text not null unique,
+  name text not null,
+  sections jsonb not null default '[]'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
+
+-- ============================================================================
 -- inquiries
 -- ============================================================================
 create table if not exists public.inquiries (
@@ -280,6 +300,7 @@ alter table public.coupons enable row level security;
 alter table public.api_credentials enable row level security;
 alter table public.sync_log enable row level security;
 alter table public.site_pages enable row level security;
+alter table public.agency_templates enable row level security;
 
 create or replace function public.is_admin()
 returns boolean as $$
@@ -347,3 +368,9 @@ drop policy if exists site_pages_public_read on public.site_pages;
 create policy site_pages_public_read on public.site_pages for select using (true);
 drop policy if exists site_pages_admin_write on public.site_pages;
 create policy site_pages_admin_write on public.site_pages for all using (public.is_admin()) with check (public.is_admin());
+
+-- agency_templates (모든 로그인 회원이 위저드에서 선택하려면 읽을 수 있어야 하고, 관리만 admin)
+drop policy if exists agency_templates_read_all on public.agency_templates;
+create policy agency_templates_read_all on public.agency_templates for select using (true);
+drop policy if exists agency_templates_admin_write on public.agency_templates;
+create policy agency_templates_admin_write on public.agency_templates for all using (public.is_admin()) with check (public.is_admin());

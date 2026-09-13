@@ -53,8 +53,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         .maybeSingle()
     : { data: null };
 
+  const { data: selectedTemplate } = doc.template_id
+    ? await supabase.from("agency_templates").select("*").eq("id", doc.template_id).maybeSingle()
+    : { data: null };
+
   const pdfOverview = doc.content?.pdfOverview as PdfOverview | undefined;
-  const html = buildWizardHtml(doc, announcement, pdfOverview, member);
+  const html = buildWizardHtml(doc, announcement, pdfOverview, member, false, selectedTemplate);
   const savedFields = (doc.content?.fields ?? {}) as Record<string, string | boolean>;
   const sections = extractWizardSections(html, savedFields);
 

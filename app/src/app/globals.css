@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+::selection {
+  background-color: rgba(37, 99, 235, 0.35);
+  color: inherit;
+}
+
+#cta-section ::selection {
+  background-color: rgba(255, 255, 255, 0.35);
+  color: inherit;
+}

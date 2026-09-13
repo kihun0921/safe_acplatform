@@ -1,0 +1,61 @@
+import { redirect, notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import WizardScreen from "@/components/WizardScreen";
+import { pickAnnouncementPdf, extractBusinessOverviewFromPdf } from "@/lib/extractBusinessOverview";
+import { buildWizardHtml, SCRIPT_documents_wizard, type PdfOverview } from "@/lib/wizardHtml";
+
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect(`/login?next=/documents/${id}/wizard`);
+
+  const { data: doc } = await supabase.from("documents").select("*").eq("id", id).single();
+  if (!doc) notFound();
+
+  const { data: member } = await supabase.from("members").select("name, company").eq("id", user.id).single();
+
+  const initialFields = (doc.content?.fields ?? {}) as Record<string, string | boolean>;
+
+  const { data: announcement } = doc.announcement_id
+    ? await supabase
+        .from("announcements")
+        .select("base_amount, winner_amount, awarded, site_region, attachments")
+        .eq("id", doc.announcement_id)
+        .maybeSingle()
+    : { data: null };
+
+  // 공고문 PDF 자동분석(공사기간/위치/공사내용): 문서를 만들 때 한 번만 다운로드·분석해서
+  // doc.content.pdfOverview에 캐싱해 둔다. (필드값 자동저장(fields)과는 별개 — 사용자가
+  // 나중에 이 필드들을 직접 수정하면 그 값은 일반 필드 자동저장 경로로 저장되어 항상
+  // 우선하지만, 이 캐시가 없다면 아직 손대지 않은 필드는 새로고침마다 빈 값으로
+  // 되돌아가 버린다.)
+  let pdfOverview = doc.content?.pdfOverview as PdfOverview | undefined;
+  if (!pdfOverview && announcement) {
+    const pdfUrl = pickAnnouncementPdf(announcement.attachments ?? null);
+    if (pdfUrl) {
+      const extracted = await extractBusinessOverviewFromPdf(pdfUrl).catch(() => null);
+      if (extracted) {
+        pdfOverview = extracted;
+        await supabase
+          .from("documents")
+          .update({ content: { ...doc.content, pdfOverview: extracted } })
+          .eq("id", id);
+      }
+    }
+  }
+
+  const html = buildWizardHtml(doc, announcement, pdfOverview, member);
+
+  return (
+    <WizardScreen
+      html={html}
+      script={SCRIPT_documents_wizard}
+      documentId={id}
+      initialFields={initialFields}
+      initialPercent={doc.percent_complete ?? 0}
+    />
+  );
+}

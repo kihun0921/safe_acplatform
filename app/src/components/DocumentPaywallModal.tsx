@@ -18,24 +18,26 @@ export default function DocumentPaywallModal({ documentId, price }: { documentId
     return () => window.removeEventListener(OPEN_PAYWALL_EVENT, onOpen);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) setOpen(false);
       }}
     >
-      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <button
-          onClick={() => setOpen(false)}
-          aria-label="닫기"
-          className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-slate-300 shadow-md flex items-center justify-center text-slate-500 hover:text-slate-900 z-10"
-        >
-          <span className="material-symbols-outlined text-lg">close</span>
-        </button>
-        <DocumentPaywall documentId={documentId} price={price} />
+      <div className="w-full max-w-md">
+        <DocumentPaywall documentId={documentId} price={price} onClose={() => setOpen(false)} />
       </div>
     </div>
   );

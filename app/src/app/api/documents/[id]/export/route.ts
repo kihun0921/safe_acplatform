@@ -14,6 +14,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (format !== "docx" && format !== "pdf" && format !== "hwpx") {
     return NextResponse.json({ error: "format은 docx, pdf, hwpx 중 하나여야 합니다." }, { status: 400 });
   }
+  // 미리보기(새 탭에서 바로 보기)는 강제 다운로드하지 않고 브라우저에서 바로
+  // 열리도록 Content-Disposition을 inline으로 내려준다.
+  const disposition = searchParams.get("preview") === "1" ? "inline" : "attachment";
 
   const supabase = await createClient();
   const {
@@ -63,7 +66,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${filename}.docx"`,
+        "Content-Disposition": `${disposition}; filename="${filename}.docx"`,
       },
     });
   }
@@ -73,7 +76,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/hwp+zip",
-        "Content-Disposition": `attachment; filename="${filename}.hwpx"`,
+        "Content-Disposition": `${disposition}; filename="${filename}.hwpx"`,
       },
     });
   }
@@ -82,7 +85,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}.pdf"`,
+      "Content-Disposition": `${disposition}; filename="${filename}.pdf"`,
     },
   });
 }

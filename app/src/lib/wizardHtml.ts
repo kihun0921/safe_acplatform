@@ -1,4 +1,5 @@
 import { classifyConstructionType, buildRiskRowsHtml, scaleFieldFor } from "@/lib/riskTemplates";
+import { pickAnnouncementPdf } from "@/lib/extractBusinessOverview";
 
 // Shared between the wizard screen (src/app/documents/[id]/wizard/page.tsx) and the
 // document export routes (src/app/api/documents/[id]/export/*): both need the exact
@@ -83,32 +84,19 @@ __ADMIN_RETURN_LINK__
 </h1>
 </div>
 <div class="hidden lg:flex items-center pl-2 border-l border-neutral-200">
-<select aria-label="발주처 표준 서식 선택" class="text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-primary focus:border-primary">
-<option selected="">한국토지주택공사(LH) 표준 서식 (2025 개정판)</option>
-<option>서울주택도시공사(SH) 안전보건관리계획서 표준안</option>
-<option>조달청(나라장터) 일반공공시설물 표준</option>
-<option>국토교통부 건설안전종합정보망(CSI) 연동서식</option>
-</select>
-</div>
-</div>
-<!-- Right: Sync Status & Primary Actions -->
-<div class="flex items-center gap-3">
-<!-- Live Cloud Sync Indicator -->
-<div class="flex items-center gap-1.5 text-xs text-neutral-500 font-medium mr-1">
-<span class="relative flex h-2 w-2">
-<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-success opacity-75"></span>
-<span class="relative inline-flex rounded-full h-2 w-2 bg-status-success"></span>
+<span aria-label="발주처 표준 서식" class="text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm text-neutral-400">description</span>
+한국토지주택공사(LH) 표준 서식 (2025 개정판)
 </span>
-<span>15초 전 클라우드 자동 저장됨</span>
 </div>
-<button class="hidden md:inline-flex items-center gap-1 text-xs font-semibold text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50 px-3 py-1.5 rounded-lg transition shadow-xs" type="button">
-<span class="material-symbols-outlined text-base text-neutral-500" data-icon="menu_book">menu_book</span>
-          서식 가이드 검토
-        </button>
-<button class="inline-flex items-center gap-1 text-xs font-semibold text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50 px-3 py-1.5 rounded-lg transition shadow-xs" type="button">
+</div>
+<!-- Right: Primary Actions -->
+<div class="flex items-center gap-3">
+__ANNOUNCEMENT_PDF_LINK__
+<button class="inline-flex items-center gap-1 text-xs font-semibold text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50 px-3 py-1.5 rounded-lg transition shadow-xs" data-preview-format="pdf" type="button">
 <span class="material-symbols-outlined text-base text-neutral-500" data-icon="visibility">visibility</span>
-          PDF 미리보기 <span class="text-[11px] text-neutral-400 font-normal">(2.4MB)</span>
-</button>
+          PDF 미리보기
+        </button>
 <button class="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-strong px-3.5 py-1.5 rounded-lg transition shadow-sm" data-export-format="hwpx" type="button">
 <span class="material-symbols-outlined text-base" data-icon="cloud_download">cloud_download</span>
 <span>HWPX 다운로드</span>
@@ -755,21 +743,16 @@ __ADMIN_RETURN_LINK__
 <!-- ================= FLOATING ACTION & PAGE GENERATION DOCK ================= -->
 <aside aria-label="문서 저장 및 생성 도크" class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-neutral-200 shadow-lg transition-transform">
 <div class="w-full max-w-7xl mx-auto px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-<!-- Left Info: Live Status & Page Estimate -->
+<!-- Left Info: Live Save Status (WizardScreen이 실시간으로 갱신) -->
 <div class="flex items-center gap-4 text-xs">
 <div class="flex items-center gap-2">
 <span class="w-2.5 h-2.5 rounded-full bg-status-success animate-pulse"></span>
-<span class="font-medium text-neutral-700">실시간 데이터 동기화 완료 <span class="font-mono text-neutral-400">(14:32:10)</span></span>
-</div>
-<div class="h-3.5 w-px bg-neutral-300 hidden sm:block"></div>
-<div class="hidden sm:flex items-center gap-1.5 text-neutral-600">
-<span class="material-symbols-outlined text-base text-neutral-400" data-icon="description">description</span>
-<span>현재 토글 옵션 적용 시: <strong class="text-neutral-900 font-bold font-mono">총 42페이지</strong> 분량 산출 예상</span>
+<span id="wizard-dock-save-status" class="font-medium text-neutral-700">자동 저장 대기 중</span>
 </div>
 </div>
 <!-- Right Action Group -->
 <div class="flex items-center gap-2.5">
-<button class="text-xs font-semibold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 px-3.5 py-2 rounded-lg transition shadow-xs flex items-center gap-1" type="button">
+<button class="text-xs font-semibold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 px-3.5 py-2 rounded-lg transition shadow-xs flex items-center gap-1" data-preview-format="pdf" type="button">
 <span class="material-symbols-outlined text-base" data-icon="preview">preview</span>
           미리보기 PDF
         </button>
@@ -852,6 +835,14 @@ export function buildWizardHtml(
   const contractPeriod = escapeHtml(pdfOverview?.period ?? "");
   const mainContent = escapeHtml(pdfOverview?.mainContent ?? "");
 
+  // "서식 가이드 검토" 버튼: 실제로는 나라장터 공고문 원문 PDF(발주처가 배포한 실
+  // 첨부파일)를 새 탭에서 열어준다. 공고 연동 문서가 아니거나 PDF 첨부가 없으면
+  // 버튼 자체를 표시하지 않는다(가짜로 눌리는 버튼을 두지 않기 위함).
+  const announcementPdfUrl = announcement ? pickAnnouncementPdf(announcement.attachments) : null;
+  const announcementPdfLinkHtml = announcementPdfUrl
+    ? `<a href="${escapeHtml(announcementPdfUrl)}" target="_blank" rel="noopener noreferrer" class="hidden md:inline-flex items-center gap-1 text-xs font-semibold text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50 px-3 py-1.5 rounded-lg transition shadow-xs"><span class="material-symbols-outlined text-base text-neutral-500">menu_book</span>공고문 원문 보기</a>`
+    : "";
+
   const constructionType = classifyConstructionType(doc.title ?? "");
   const scaleField = scaleFieldFor(constructionType);
   const riskRowsHtml = buildRiskRowsHtml(constructionType);
@@ -862,6 +853,7 @@ export function buildWizardHtml(
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
+    .replace("__ANNOUNCEMENT_PDF_LINK__", announcementPdfLinkHtml)
     .replace(
       '<div class="w-8 h-8 rounded-full bg-primary-soft text-primary font-semibold text-xs flex items-center justify-center border border-primary/20" title="대한종합건설 홍길동 부장 프로필">\n            홍\n          </div>',
       `<div class="w-8 h-8 rounded-full bg-primary-soft text-primary font-semibold text-xs flex items-center justify-center border border-primary/20" title="${memberCompany} ${memberName} 프로필">${memberInitial}</div>`

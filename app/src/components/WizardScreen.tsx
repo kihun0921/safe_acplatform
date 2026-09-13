@@ -27,6 +27,16 @@ export default function WizardScreen({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    const el = ref.current?.querySelector<HTMLElement>("#wizard-dock-save-status");
+    if (!el) return;
+    el.textContent = saving
+      ? "저장 중..."
+      : savedAt
+      ? `마지막 저장: ${savedAt.toLocaleTimeString("ko-KR")}`
+      : "자동 저장 대기 중";
+  }, [saving, savedAt]);
+
+  useEffect(() => {
     if (!script) return;
     try {
       new Function(script)();
@@ -104,13 +114,26 @@ export default function WizardScreen({
       if (!btn || !root.contains(btn)) return;
 
       const exportFormat = btn.getAttribute("data-export-format");
-      if (exportFormat) {
+      const previewFormat = btn.getAttribute("data-preview-format");
+      if (exportFormat || previewFormat) {
         e.preventDefault();
         if (downloadsLocked) {
           window.dispatchEvent(new CustomEvent(OPEN_PAYWALL_EVENT));
           return;
         }
-        void exportDocument(exportFormat, btn as HTMLButtonElement);
+        if (previewFormat) {
+          // 미리보기는 blob을 fetch해서 새 탭에 옮겨 붙이는 대신, 익스포트
+          // API로 직접 새 탭 네비게이션을 시킨다 — 브라우저 내장 PDF 뷰어가
+          // 그대로 열어서 보여준다. window.open은 클릭 핸들러 안에서
+          // "동기적으로" 호출해야 팝업 차단에 걸리지 않고, 최근 크롬은
+          // 다른 탭에서 만든 blob: URL로의 탭 간 이동 자체를 막기도 해서
+          // (안 그러면 새 탭이 about:blank로 멈춰버림) 이 방식이 더 안전하다.
+          window.open(`/api/documents/${documentId}/export?format=${previewFormat}&preview=1`, "_blank");
+          // 방금 수정한 내용이 미리보기에 반영되도록 저장은 백그라운드로 진행.
+          void doSave(true);
+          return;
+        }
+        void exportDocument(exportFormat!, btn as HTMLButtonElement);
         return;
       }
 

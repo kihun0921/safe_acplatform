@@ -58,6 +58,8 @@ const HTML_documents_wizard = `
 <div class="text-[11px] text-neutral-500 font-medium">안전보건총괄책임자</div>
 </div>
 </div>
+<!-- Admin return link (관리자가 다른 회원의 문서를 열람 중일 때만 표시) -->
+__ADMIN_RETURN_LINK__
 <!-- Logout Button -->
 <button class="text-xs font-medium text-neutral-500 hover:text-neutral-900 px-2.5 py-1.5 rounded border border-neutral-200 hover:bg-neutral-100 transition duration-150" type="button">
           로그아웃
@@ -823,7 +825,8 @@ export function buildWizardHtml(
   doc: WizardDocRow,
   announcement: WizardAnnouncementRow,
   pdfOverview: PdfOverview | undefined,
-  member?: WizardMemberRow
+  member?: WizardMemberRow,
+  viewerIsAdmin?: boolean
 ): string {
   // The wizard's raw HTML was originally a static Stitch mockup for one demo
   // project (LH / 화성태안3지구). Swap in this document's real title/agency, and
@@ -853,7 +856,12 @@ export function buildWizardHtml(
   const scaleField = scaleFieldFor(constructionType);
   const riskRowsHtml = buildRiskRowsHtml(constructionType);
 
+  const adminReturnLinkHtml = viewerIsAdmin
+    ? `<a href="/admin" class="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full border border-indigo-200 transition-colors"><span class="material-symbols-outlined text-sm">admin_panel_settings</span>관리자 화면으로</a>`
+    : "";
+
   let html = HTML_documents_wizard
+    .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
     .replace(
       '<div class="w-8 h-8 rounded-full bg-primary-soft text-primary font-semibold text-xs flex items-center justify-center border border-primary/20" title="대한종합건설 홍길동 부장 프로필">\n            홍\n          </div>',
       `<div class="w-8 h-8 rounded-full bg-primary-soft text-primary font-semibold text-xs flex items-center justify-center border border-primary/20" title="${memberCompany} ${memberName} 프로필">${memberInitial}</div>`

@@ -10,15 +10,17 @@ export default async function MemberHeader({ active }: { active?: "announcements
 
   let displayName = "게스트";
   let company = "";
+  let isAdmin = false;
   if (user) {
     const { data: member } = await supabase
       .from("members")
-      .select("name, company")
+      .select("name, company, role")
       .eq("id", user.id)
       .single();
     if (member) {
       displayName = member.name;
       company = member.company;
+      isAdmin = member.role === "admin";
     }
   }
   const initial = displayName.charAt(0);
@@ -55,6 +57,15 @@ export default async function MemberHeader({ active }: { active?: "announcements
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          {isAdmin && (
+            <a
+              href="/admin"
+              className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full border border-indigo-200 transition-colors"
+            >
+              <span className="material-symbols-outlined text-sm">admin_panel_settings</span>
+              관리자 화면으로
+            </a>
+          )}
           <div className="h-4 w-px bg-slate-200 hidden sm:block" />
           <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-slate-100/90 border border-slate-200">
             <div className="w-6 h-6 rounded-full bg-[#1e3a5f] text-white flex items-center justify-center text-xs font-bold font-display">

@@ -59,6 +59,8 @@ export async function proxy(request: NextRequest) {
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
+      url.search = "";
+      url.searchParams.set("next", pathname);
       return NextResponse.redirect(url);
     }
     const { data: member } = await supabase
@@ -69,6 +71,8 @@ export async function proxy(request: NextRequest) {
     if (member?.role !== "admin") {
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
+      url.search = "";
+      url.searchParams.set("next", pathname);
       return NextResponse.redirect(url);
     }
   }

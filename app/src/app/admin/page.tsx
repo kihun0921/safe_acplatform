@@ -180,9 +180,7 @@ export default async function AdminDashboardPage() {
             <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
                 <h2 className="font-headline text-sm font-bold text-slate-900">최근 작성 안전보건관리계획서</h2>
-                <a className="text-xs font-semibold text-blue-800 hover:underline" href="/documents">
-                  전체 문서함
-                </a>
+                <span className="text-[11px] text-slate-400">각 행의 &quot;열기&quot;로 실제 계획서를 바로 확인할 수 있습니다</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">

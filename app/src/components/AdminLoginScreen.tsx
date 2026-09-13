@@ -50,7 +50,8 @@ export default function AdminLoginScreen({ html, script }: { html: string; scrip
         return;
       }
 
-      router.push("/admin");
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.push(next && next.startsWith("/admin") ? next : "/admin");
       router.refresh();
     };
 

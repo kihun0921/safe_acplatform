@@ -15,7 +15,20 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { data: doc } = await supabase.from("documents").select("*").eq("id", id).single();
   if (!doc) notFound();
 
-  const { data: member } = await supabase.from("members").select("name, company").eq("id", user.id).single();
+  // 문서 헤더/시공사 필드에는 항상 "문서 소유 회원"의 정보를 써야 한다 — 로그인한
+  // 사람(user)이 아니라 doc.member_id 기준. 관리자가 다른 회원의 문서를 열람할 때
+  // user.id로 조회하면 관리자 본인 회사명이 잘못 찍히는 버그가 있었다.
+  const { data: member } = await supabase
+    .from("members")
+    .select("name, company")
+    .eq("id", doc.member_id)
+    .single();
+  const isOwner = doc.member_id === user.id;
+  let viewerIsAdmin = false;
+  if (!isOwner) {
+    const { data: viewer } = await supabase.from("members").select("role").eq("id", user.id).single();
+    viewerIsAdmin = viewer?.role === "admin";
+  }
 
   const initialFields = (doc.content?.fields ?? {}) as Record<string, string | boolean>;
 
@@ -47,7 +60,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     }
   }
 
-  const html = buildWizardHtml(doc, announcement, pdfOverview, member);
+  const html = buildWizardHtml(doc, announcement, pdfOverview, member, viewerIsAdmin);
 
   return (
     <WizardScreen

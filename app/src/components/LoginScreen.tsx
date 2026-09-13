@@ -41,7 +41,10 @@ export default function LoginScreen({ html, script }: { html: string; script?: s
         .eq("id", data.user.id)
         .single();
 
-      router.push(member?.role === "admin" ? "/admin" : "/announcements");
+      // 세션이 끊겨 보호된 페이지에서 이곳으로 튕겨온 경우, proxy.ts가 붙여준
+      // ?next=원래경로 를 우선 사용해 로그인 후 원래 보던 화면으로 되돌아가게 한다.
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.push(next || (member?.role === "admin" ? "/admin" : "/announcements"));
       router.refresh();
     };
 

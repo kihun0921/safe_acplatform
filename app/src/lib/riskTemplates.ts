@@ -161,33 +161,178 @@ export function suggestRiskLevel(hazard: string): "상" | "중" | "하" {
   return "하";
 }
 
-export function buildRiskRowsHtml(type: ConstructionType): string {
+// 실제로 편집·추가·삭제 가능한 위험성평가 행 하나의 구조. 문서마다 몇 개가
+// 있을지 알 수 없는 가변 길이 데이터라서, WizardScreen의 DOM 순서 기반
+// field-N 자동저장 체계에 태우지 않고 documents.content.riskRows에 배열
+// 그대로 저장한다(행 추가/삭제 시 뒤에 나오는 다른 필드들의 인덱스가
+// 밀려서 엉뚱한 값이 저장되는 사고를 원천 차단하기 위함).
+export type RiskLevel = "상" | "중" | "하";
+export type RiskStatus = "계획반영" | "조치중" | "조치완료";
+
+export type RiskRow = {
+  id: string;
+  process: string;
+  hazard: string;
+  level: RiskLevel;
+  countermeasure: string;
+  afterLevel: RiskLevel;
+  status: RiskStatus;
+};
+
+function makeRiskRowId(): string {
+  return `risk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// 문서를 처음 열었을 때(아직 riskRows가 저장되어 있지 않을 때) 보여줄 출발점
+// 데이터 — 공고 제목 기반 자동분류 공종의 표준 항목 3개를 실제 편집 가능한
+// 행으로 변환한다.
+export function buildInitialRiskRows(type: ConstructionType): RiskRow[] {
   const items = RISK_TEMPLATES[type] ?? RISK_TEMPLATES["일반공사"];
-  const LEVEL_STYLE: Record<"상" | "중" | "하", { cls: string; score: string }> = {
-    상: { cls: "bg-status-dangerSoft text-status-danger border border-status-danger/30", score: "4×4=16" },
-    중: { cls: "bg-status-warnSoft text-status-warn border border-status-warn/30", score: "3×3=9" },
-    하: { cls: "bg-status-successSoft text-status-success border border-status-success/30", score: "2×2=4" },
-  };
-  return items
-    .map((item, i) => {
-      const level = suggestRiskLevel(item.hazard);
-      const style = LEVEL_STYLE[level];
-      const no = String(i + 1).padStart(2, "0");
-      return `<tr class="hover:bg-neutral-50/80 transition">
-<td class="p-3 text-center font-mono text-neutral-500">${no}</td>
-<td class="p-3 font-semibold text-neutral-900">${item.process}</td>
-<td class="p-3 text-neutral-700 leading-relaxed">${item.hazard}</td>
-<td class="p-3 text-center">
-<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${style.cls}">${level} (${style.score})</span>
+  return items.map((item) => ({
+    id: makeRiskRowId(),
+    process: item.process,
+    hazard: item.hazard,
+    level: suggestRiskLevel(item.hazard),
+    countermeasure: item.countermeasure,
+    afterLevel: "하" as const,
+    status: "계획반영" as const,
+  }));
+}
+
+export function newBlankRiskRow(): RiskRow {
+  return { id: makeRiskRowId(), process: "", hazard: "", level: "하", countermeasure: "", afterLevel: "하", status: "계획반영" };
+}
+
+// 상단 "집중관리 대상공종" 필터 탭에 쓰일, 공정명 텍스트 기반의 간단한 분류.
+// 실제 데이터(공정명)에 어떤 키워드가 있는지로 판정하므로 발주처·공종과
+// 무관하게 항상 정직하게 동작한다 — 해당 안 되면 전부 "일반공사"로 묶인다.
+const RISK_CATEGORY_RULES: { category: string; keywords: string[] }[] = [
+  { category: "가설비계 및 흙막이", keywords: ["비계", "흙막이", "거푸집", "동바리", "가설"] },
+  { category: "타워크레인 양중", keywords: ["타워크레인", "크레인", "양중", "인양"] },
+  { category: "굴착 및 토공사", keywords: ["굴착", "토공", "흙", "터파기"] },
+];
+
+export function categorizeRiskProcess(process: string): string {
+  for (const rule of RISK_CATEGORY_RULES) {
+    if (rule.keywords.some((kw) => process.includes(kw))) return rule.category;
+  }
+  return "일반공사";
+}
+
+// "공공 표준 위험요인 DB 불러오기" 드롭다운에 채울 전체 목록 — 공종 구분 없이
+// RISK_TEMPLATES 전체를 평탄화한다(실제 발주처는 여러 공종이 혼재된 복합
+// 공사가 많아, 자동분류된 공종 하나의 항목만으로는 부족한 경우가 많다).
+export type RiskLibraryItem = { type: ConstructionType; process: string; hazard: string; countermeasure: string };
+
+export function buildRiskLibrary(): RiskLibraryItem[] {
+  return (Object.keys(RISK_TEMPLATES) as ConstructionType[]).flatMap((type) =>
+    RISK_TEMPLATES[type].map((item) => ({ type, ...item }))
+  );
+}
+
+const riskEscapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+const RISK_LEVEL_OPTIONS: RiskLevel[] = ["상", "중", "하"];
+const RISK_LEVEL_SCORE: Record<RiskLevel, string> = { 상: "4×4=16", 중: "3×3=9", 하: "2×2=4" };
+const RISK_STATUS_OPTIONS: RiskStatus[] = ["계획반영", "조치중", "조치완료"];
+
+function levelSelectHtml(field: "level" | "afterLevel", current: RiskLevel): string {
+  const options = RISK_LEVEL_OPTIONS.map(
+    (lv) =>
+      `<option value="${lv}"${lv === current ? " selected" : ""}>${lv} (${RISK_LEVEL_SCORE[lv]})</option>`
+  ).join("");
+  return `<select class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-risk-field="${field}">${options}</select>`;
+}
+
+function statusSelectHtml(current: RiskStatus): string {
+  const options = RISK_STATUS_OPTIONS.map(
+    (s) => `<option value="${s}"${s === current ? " selected" : ""}>${s}</option>`
+  ).join("");
+  return `<select class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-risk-field="status">${options}</select>`;
+}
+
+// 실제 편집 가능한 <tr> 하나를 만든다. rowIndex가 없으면(신규 행 템플릿용)
+// 번호란은 JS가 매 렌더 후 다시 매겨준다(data-risk-no).
+function buildRiskRowHtml(row: RiskRow, rowIndex: number | null): string {
+  const no = rowIndex === null ? "--" : String(rowIndex + 1).padStart(2, "0");
+  const category = riskEscapeHtml(categorizeRiskProcess(row.process));
+  return `<tr class="hover:bg-neutral-50/80 transition" data-risk-id="${riskEscapeHtml(row.id)}" data-risk-category="${category}">
+<td class="p-3 text-center font-mono text-neutral-500" data-risk-no>${no}</td>
+<td class="p-3">
+<input class="w-full text-xs font-semibold text-neutral-900 bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-risk-field="process" placeholder="공정 및 세부단위작업" type="text" value="${riskEscapeHtml(row.process)}"/>
 </td>
-<td class="p-3 text-neutral-700 leading-relaxed">${item.countermeasure}</td>
-<td class="p-3 text-center font-semibold text-neutral-600">
-<span class="px-2 py-0.5 rounded-full text-[11px] bg-status-successSoft text-status-success">하 (2×2=4)</span>
+<td class="p-3">
+<textarea class="w-full text-xs text-neutral-700 bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-risk-field="hazard" placeholder="주요 유해·위험요인" rows="2">${riskEscapeHtml(row.hazard)}</textarea>
 </td>
+<td class="p-3 text-center">${levelSelectHtml("level", row.level)}</td>
+<td class="p-3">
+<textarea class="w-full text-xs text-neutral-700 bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-risk-field="countermeasure" placeholder="발주처 권장 저감대책 및 개선조치" rows="2">${riskEscapeHtml(row.countermeasure)}</textarea>
+</td>
+<td class="p-3 text-center">${levelSelectHtml("afterLevel", row.afterLevel)}</td>
+<td class="p-3 text-center">${statusSelectHtml(row.status)}</td>
 <td class="p-3 text-center">
-<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-neutral-100 text-neutral-800">계획반영</span>
+<button class="text-neutral-400 hover:text-status-danger transition" data-risk-delete type="button" title="행 삭제">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
 </td>
 </tr>`;
+}
+
+export function buildRiskRowsHtml(rows: RiskRow[]): string {
+  return rows.map((row, i) => buildRiskRowHtml(row, i)).join("\n");
+}
+
+// WizardScreen이 "행 추가" 클릭 시 그대로 복제해 새 행을 만들 수 있도록,
+// 빈 행 템플릿 하나를 <template> 태그로 감싸 심어둔다. rowIndex=null이라
+// 번호란에는 "--"가 들어가고, WizardScreen이 삽입 직후 실제 위치에 맞게
+// 번호를 다시 매긴다.
+export function buildRiskRowTemplateHtml(): string {
+  const blank = newBlankRiskRow();
+  return `<template id="risk-row-template">${buildRiskRowHtml(blank, null)}</template>`;
+}
+
+// "공공 표준 위험요인 DB 불러오기" 드롭다운 — 선택한 항목의 실제 데이터를
+// data-* 속성에 그대로 실어 보내서, 클라이언트 JS가 별도 데이터 없이도
+// DOM만 읽어 새 행을 만들 수 있게 한다.
+export function buildRiskLibrarySelectHtml(): string {
+  const byType = new Map<ConstructionType, RiskLibraryItem[]>();
+  for (const item of buildRiskLibrary()) {
+    const list = byType.get(item.type) ?? [];
+    list.push(item);
+    byType.set(item.type, list);
+  }
+  const optgroups = Array.from(byType.entries())
+    .map(([type, items]) => {
+      const options = items
+        .map(
+          (item) =>
+            `<option data-process="${riskEscapeHtml(item.process)}" data-hazard="${riskEscapeHtml(item.hazard)}" data-countermeasure="${riskEscapeHtml(item.countermeasure)}" value="${riskEscapeHtml(item.process)}">${riskEscapeHtml(item.process)}</option>`
+        )
+        .join("");
+      return `<optgroup label="${riskEscapeHtml(type)}">${options}</optgroup>`;
     })
+    .join("");
+  return `<select class="text-xs font-semibold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 px-2 py-1.5 rounded-lg transition border-none" data-risk-db-select>
+<option value="">+ 공공 표준 위험요인 DB 불러오기</option>
+${optgroups}
+</select>`;
+}
+
+// 상단 "집중관리 대상공종" 필터 탭 — 실제로 이 문서의 행들에 존재하는 분류만
+// 탭으로 보여준다(존재하지도 않는 공종 탭을 항상 고정으로 띄우지 않기 위함).
+const CATEGORY_ORDER = ["가설비계 및 흙막이", "타워크레인 양중", "굴착 및 토공사", "일반공사"];
+
+export function buildRiskFilterTabsHtml(rows: RiskRow[]): string {
+  const present = new Set(rows.map((r) => categorizeRiskProcess(r.process)));
+  const categories = CATEGORY_ORDER.filter((c) => present.has(c));
+  if (categories.length === 0) categories.push("일반공사");
+  const tabs = categories
+    .map(
+      (c, i) =>
+        `<button class="${i === 0 ? "bg-white text-neutral-900 shadow-xs font-semibold" : "text-neutral-600 hover:text-neutral-900"} px-3 py-1 rounded" data-risk-tab="${riskEscapeHtml(c)}" type="button">${riskEscapeHtml(c)}</button>`
+    )
     .join("\n");
+  return `${tabs}
+<button class="text-neutral-600 hover:text-neutral-900 px-3 py-1 rounded" data-risk-tab="전체보기" type="button">전체보기</button>`;
 }

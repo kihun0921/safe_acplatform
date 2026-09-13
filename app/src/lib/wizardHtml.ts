@@ -1,4 +1,13 @@
-import { classifyConstructionType, buildRiskRowsHtml, scaleFieldFor } from "@/lib/riskTemplates";
+import {
+  classifyConstructionType,
+  buildRiskRowsHtml,
+  buildRiskRowTemplateHtml,
+  buildRiskLibrarySelectHtml,
+  buildRiskFilterTabsHtml,
+  buildInitialRiskRows,
+  scaleFieldFor,
+  type RiskRow,
+} from "@/lib/riskTemplates";
 import { pickAnnouncementPdf } from "@/lib/extractBusinessOverview";
 import {
   buildTemplateSectionsHtml,
@@ -331,9 +340,9 @@ __TEMPLATE_TOC_ITEMS__
 </div>
 </div>
 <div class="flex items-center gap-2">
-<button class="inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-white border border-primary/30 hover:bg-primary-soft px-3 py-1.5 rounded-lg shadow-xs transition" type="button">
-<span class="material-symbols-outlined text-base text-primary" data-icon="auto_awesome">auto_awesome</span>
-<span>첨부도면/시방서 기반 AI 위험성 자동 추출</span>
+<button class="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-400 bg-neutral-100 border border-neutral-200 px-3 py-1.5 rounded-lg cursor-not-allowed" disabled title="AI 기반 자동 추출은 준비 중입니다" type="button">
+<span class="material-symbols-outlined text-base" data-icon="auto_awesome">auto_awesome</span>
+<span>첨부도면/시방서 기반 AI 위험성 자동 추출 (준비 중)</span>
 </button>
 </div>
 </div>
@@ -342,19 +351,13 @@ __TEMPLATE_TOC_ITEMS__
 <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-neutral-100">
 <div class="flex items-center gap-2">
 <span class="text-xs font-bold text-neutral-700">집중관리 대상공종:</span>
-<div class="inline-flex rounded-lg border border-neutral-300 bg-neutral-100 p-0.5 text-xs font-medium">
-<button class="bg-white text-neutral-900 px-3 py-1 rounded shadow-xs font-semibold" type="button">골조·철근콘크리트</button>
-<button class="text-neutral-600 px-3 py-1 hover:text-neutral-900" type="button">가설비계 및 흙막이</button>
-<button class="text-neutral-600 px-3 py-1 hover:text-neutral-900" type="button">타워크레인 양중</button>
-<button class="text-neutral-600 px-3 py-1 hover:text-neutral-900" type="button">전체보기</button>
+<div class="inline-flex rounded-lg border border-neutral-300 bg-neutral-100 p-0.5 text-xs font-medium" data-risk-tabs>
+__RISK_FILTER_TABS__
 </div>
 </div>
 <div class="flex items-center gap-2">
-<button class="text-xs font-semibold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1" type="button">
-<span class="material-symbols-outlined text-sm" data-icon="database">database</span>
-                  공공 표준 위험요인 DB 불러오기
-                </button>
-<button class="text-xs font-semibold text-primary bg-primary-soft hover:bg-primary/10 px-3 py-1.5 rounded-lg transition flex items-center gap-1 border border-primary/20" type="button">
+__RISK_DB_SELECT__
+<button class="text-xs font-semibold text-primary bg-primary-soft hover:bg-primary/10 px-3 py-1.5 rounded-lg transition flex items-center gap-1 border border-primary/20" data-risk-add type="button">
 <span class="material-symbols-outlined text-sm" data-icon="add">add</span>
                   위험성평가 행 추가
                 </button>
@@ -362,7 +365,7 @@ __TEMPLATE_TOC_ITEMS__
 </div>
 <!-- Risk Matrix 5x4 Table -->
 <div class="overflow-x-auto border border-neutral-200 rounded-lg">
-<table class="w-full text-left text-xs border-collapse">
+<table class="w-full text-left text-xs border-collapse" data-risk-table>
 <thead>
 <tr class="bg-neutral-100 text-neutral-700 border-b border-neutral-200 font-semibold">
 <th class="p-3 w-12 text-center">No</th>
@@ -372,92 +375,15 @@ __TEMPLATE_TOC_ITEMS__
 <th class="p-3 min-w-[240px]">발주처 권장 저감대책 및 개선조치</th>
 <th class="p-3 w-24 text-center">개선 후 위험도</th>
 <th class="p-3 w-24 text-center">조치현황</th>
+<th class="p-3 w-12 text-center">관리</th>
 </tr>
 </thead>
 <tbody class="divide-y divide-neutral-200 font-normal">
-<!-- Row 1: High Risk -->
-<tr class="hover:bg-neutral-50/80 transition">
-<td class="p-3 text-center font-mono text-neutral-500">01</td>
-<td class="p-3 font-semibold text-neutral-900">
-                      가설공사<br/>
-<span class="text-neutral-500 font-normal text-[11px]">강관비계 상부 작업발판 설치</span>
-</td>
-<td class="p-3 text-neutral-700 leading-relaxed">
-                      작업발판 미고정 또는 안전난간 미설치 상태에서 이동 중 지상 바닥으로 <strong class="text-status-danger">추락(떨어짐) 위험</strong>
-</td>
-<td class="p-3 text-center">
-<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-status-dangerSoft text-status-danger border border-status-danger/30">
-                        상 (4×4=16)
-                      </span>
-</td>
-<td class="p-3 text-neutral-700 leading-relaxed">
-                      1. 시스템 비계 일체형 선행안전난간대 의무화<br/>
-                      2. 안전대 부착설비(수평로프) 설치 후 2인 1조 작업<br/>
-                      3. 풍속 10m/s 이상 시 고소작업 즉각 중지
-                    </td>
-<td class="p-3 text-center font-semibold text-neutral-600">
-<span class="px-2 py-0.5 rounded-full text-[11px] bg-status-successSoft text-status-success">하 (2×2=4)</span>
-</td>
-<td class="p-3 text-center">
-<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-neutral-100 text-neutral-800">계획반영</span>
-</td>
-</tr>
-<!-- Row 2: Medium Risk -->
-<tr class="hover:bg-neutral-50/80 transition">
-<td class="p-3 text-center font-mono text-neutral-500">02</td>
-<td class="p-3 font-semibold text-neutral-900">
-                      철근콘크리트공사<br/>
-<span class="text-neutral-500 font-normal text-[11px]">타워크레인 자재 인양작업</span>
-</td>
-<td class="p-3 text-neutral-700 leading-relaxed">
-                      슬링벨트 결속 불량 및 강풍으로 인하여 인양 중 자재가 하부 작업자 머리로 <strong class="text-status-warn">낙하·비래 위험</strong>
-</td>
-<td class="p-3 text-center">
-<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-status-warnSoft text-status-warn border border-status-warn/30">
-                        중 (3×3=9)
-                      </span>
-</td>
-<td class="p-3 text-neutral-700 leading-relaxed">
-                      1. 2줄 걸이 2개소 체결 원칙 준수<br/>
-                      2. 인양반경 내 하부출입통제선(폴리스라인) 및 신호수 전담 배치<br/>
-                      3. 무선통신 전용채널 지정 운영
-                    </td>
-<td class="p-3 text-center font-semibold text-neutral-600">
-<span class="px-2 py-0.5 rounded-full text-[11px] bg-status-successSoft text-status-success">하 (2×2=4)</span>
-</td>
-<td class="p-3 text-center">
-<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-neutral-100 text-neutral-800">계획반영</span>
-</td>
-</tr>
-<!-- Row 3: Medium Risk -->
-<tr class="hover:bg-neutral-50/80 transition">
-<td class="p-3 text-center font-mono text-neutral-500">03</td>
-<td class="p-3 font-semibold text-neutral-900">
-                      토공 및 흙막이<br/>
-<span class="text-neutral-500 font-normal text-[11px]">굴착배면 지하수 유출 관리</span>
-</td>
-<td class="p-3 text-neutral-700 leading-relaxed">
-                      집중호우 시 토압 증가 및 토사 유실로 인한 <strong class="text-status-warn">흙막이 가시설 붕괴 위험</strong>
-</td>
-<td class="p-3 text-center">
-<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-status-warnSoft text-status-warn border border-status-warn/30">
-                        중 (3×4=12)
-                      </span>
-</td>
-<td class="p-3 text-neutral-700 leading-relaxed">
-                      1. 자동계측기(경사계, 수위계) 매일 모니터링<br/>
-                      2. 배면 배수로 정비 및 비상 집수정 수중펌프 2기 상시대기
-                    </td>
-<td class="p-3 text-center font-semibold text-neutral-600">
-<span class="px-2 py-0.5 rounded-full text-[11px] bg-status-successSoft text-status-success">하 (1×3=3)</span>
-</td>
-<td class="p-3 text-center">
-<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-neutral-100 text-neutral-800">계획반영</span>
-</td>
-</tr>
+__RISK_ROWS__
 </tbody>
 </table>
 </div>
+__RISK_ROW_TEMPLATE__
 <!-- Bottom Toggle for Sub-clause Inclusion -->
 <div class="p-3 bg-neutral-50 rounded-lg flex items-center justify-between border border-neutral-200">
 <div class="flex items-center gap-2">
@@ -853,7 +779,14 @@ export function buildWizardHtml(
 
   const constructionType = classifyConstructionType(doc.title ?? "");
   const scaleField = scaleFieldFor(constructionType);
-  const riskRowsHtml = buildRiskRowsHtml(constructionType);
+  // 위험성평가 행은 실제로 추가·삭제·수정 가능한 데이터라서 documents.content.riskRows에
+  // 저장된 실제 값을 사용한다(없으면 자동분류 공종의 표준 3항목을 출발점으로 보여줌 —
+  // wizard/page.tsx가 첫 로드 시 이 출발점 값을 그대로 content에 저장해 둔다).
+  const riskRows = ((doc.content?.riskRows as RiskRow[] | undefined) ?? buildInitialRiskRows(constructionType));
+  const riskRowsHtml = buildRiskRowsHtml(riskRows);
+  const riskRowTemplateHtml = buildRiskRowTemplateHtml();
+  const riskDbSelectHtml = buildRiskLibrarySelectHtml();
+  const riskFilterTabsHtml = buildRiskFilterTabsHtml(riskRows);
 
   const adminReturnLinkHtml = viewerIsAdmin
     ? `<a href="/admin" class="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full border border-indigo-200 transition-colors"><span class="material-symbols-outlined text-sm">admin_panel_settings</span>관리자 화면으로</a>`
@@ -959,15 +892,11 @@ ${templateOptions
       .replace('value="142,105,000 원 (계상)"', 'value="" placeholder="자동 계상 대기중"');
   }
 
-  html = html.replace("골조·철근콘크리트", constructionType);
-
-  // 위험성평가 표: 공고 제목 기반으로 자동분류한 공종(constructionType)의 표준 항목으로 교체.
-  const riskTbodyStart = html.indexOf('<tbody class="divide-y divide-neutral-200 font-normal">');
-  const riskTbodyEnd = html.indexOf("</tbody>", riskTbodyStart);
-  if (riskTbodyStart !== -1 && riskTbodyEnd !== -1) {
-    const openTag = '<tbody class="divide-y divide-neutral-200 font-normal">';
-    html = html.slice(0, riskTbodyStart) + openTag + "\n" + riskRowsHtml + "\n" + html.slice(riskTbodyEnd);
-  }
+  html = html
+    .replace("__RISK_FILTER_TABS__", riskFilterTabsHtml)
+    .replace("__RISK_DB_SELECT__", riskDbSelectHtml)
+    .replace("__RISK_ROWS__", riskRowsHtml)
+    .replace("__RISK_ROW_TEMPLATE__", riskRowTemplateHtml);
 
   if (disabledCommonSections.length > 0) {
     html = removeDisabledCommonSections(html, disabledCommonSections);

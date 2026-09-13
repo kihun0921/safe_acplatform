@@ -26,6 +26,7 @@ export default function WizardScreen({
   const router = useRouter();
   const fieldsRef = useRef<Record<string, FieldValue>>({ ...initialFields });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const riskSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -54,7 +55,7 @@ export default function WizardScreen({
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]), textarea, select:not([data-template-select])"
+        "input:not([type=hidden]):not([data-risk-field]), textarea:not([data-risk-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -109,6 +110,117 @@ export default function WizardScreen({
       else saveTimer.current = setTimeout(run, 15000);
     };
 
+    // ── 위험성평가 표(Ⅱ. sec-risk): 행 추가/삭제/DB 불러오기/공종 필터, 그리고
+    // 행 자체의 실제 자동저장. 행 개수가 언제든 바뀔 수 있어 일반 field-N 자동저장
+    // 체계(DOM 순서 기반)에 태우면 다른 필드들의 인덱스가 밀리는 사고가 나므로,
+    // documents.content.riskRows에 별도로 통째 저장한다.
+    const riskTable = root.querySelector<HTMLTableElement>("table[data-risk-table]");
+    const riskTbody = riskTable?.querySelector("tbody") ?? null;
+    const riskTemplate = root.querySelector<HTMLTemplateElement>("#risk-row-template");
+
+    const renumberRiskRows = () => {
+      if (!riskTbody) return;
+      Array.from(riskTbody.querySelectorAll<HTMLElement>("tr[data-risk-id]")).forEach((tr, i) => {
+        const noCell = tr.querySelector<HTMLElement>("[data-risk-no]");
+        if (noCell) noCell.textContent = String(i + 1).padStart(2, "0");
+      });
+    };
+
+    const serializeRiskRows = () => {
+      if (!riskTbody) return [] as Record<string, string>[];
+      return Array.from(riskTbody.querySelectorAll<HTMLElement>("tr[data-risk-id]")).map((tr) => {
+        const row: Record<string, string> = { id: tr.dataset.riskId ?? "" };
+        tr.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("[data-risk-field]").forEach(
+          (el) => {
+            const key = el.dataset.riskField;
+            if (key) row[key] = el.value;
+          }
+        );
+        return row;
+      });
+    };
+
+    const saveRiskRows = (immediate = false): Promise<void> => {
+      if (riskSaveTimer.current) clearTimeout(riskSaveTimer.current);
+      const run = async () => {
+        setSaving(true);
+        try {
+          await fetch(`/api/documents/${documentId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ riskRows: serializeRiskRows() }),
+          });
+          setSavedAt(new Date());
+        } finally {
+          setSaving(false);
+        }
+      };
+      if (immediate) return run();
+      riskSaveTimer.current = setTimeout(run, 15000);
+      return Promise.resolve();
+    };
+
+    // src/lib/riskTemplates.ts의 categorizeRiskProcess()와 반드시 같은 규칙을 유지할 것 —
+    // 서버가 초기 렌더링 시 매기는 분류와 클라이언트에서 새로 추가한 행의 분류가
+    // 어긋나면 필터 탭에서 새 행이 엉뚱하게(혹은 전혀 안) 걸러진다.
+    const categorizeRiskProcess = (process: string): string => {
+      if (/비계|흙막이|거푸집|동바리|가설/.test(process)) return "가설비계 및 흙막이";
+      if (/타워크레인|크레인|양중|인양/.test(process)) return "타워크레인 양중";
+      if (/굴착|토공|흙|터파기/.test(process)) return "굴착 및 토공사";
+      return "일반공사";
+    };
+
+    const appendRiskRow = (fill?: { process?: string; hazard?: string; countermeasure?: string }) => {
+      if (!riskTbody || !riskTemplate) return;
+      const fragment = riskTemplate.content.cloneNode(true) as DocumentFragment;
+      const tr = fragment.querySelector("tr");
+      if (!tr) return;
+      tr.dataset.riskId = `risk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      if (fill) {
+        const setVal = (field: string, value: string) => {
+          const el = tr.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-risk-field="${field}"]`);
+          if (el) el.value = value;
+        };
+        if (fill.process) setVal("process", fill.process);
+        if (fill.hazard) setVal("hazard", fill.hazard);
+        if (fill.countermeasure) setVal("countermeasure", fill.countermeasure);
+        tr.dataset.riskCategory = categorizeRiskProcess(fill.process ?? "");
+      }
+      riskTbody.appendChild(tr);
+      renumberRiskRows();
+      saveRiskRows(true);
+    };
+
+    const onRiskDbSelectChange = (e: Event) => {
+      const select = e.target as HTMLSelectElement;
+      if (!select.matches("[data-risk-db-select]")) return;
+      const option = select.selectedOptions[0];
+      if (!option || !option.value) return;
+      appendRiskRow({
+        process: option.dataset.process,
+        hazard: option.dataset.hazard,
+        countermeasure: option.dataset.countermeasure,
+      });
+      select.value = "";
+    };
+
+    const onRiskTabClick = (tab: HTMLElement) => {
+      const category = tab.dataset.riskTab ?? "전체보기";
+      const tabs = Array.from(root.querySelectorAll<HTMLElement>("[data-risk-tab]"));
+      tabs.forEach((t) => {
+        const active = t === tab;
+        t.classList.toggle("bg-white", active);
+        t.classList.toggle("text-neutral-900", active);
+        t.classList.toggle("shadow-xs", active);
+        t.classList.toggle("font-semibold", active);
+        t.classList.toggle("text-neutral-600", !active);
+      });
+      if (!riskTbody) return;
+      Array.from(riskTbody.querySelectorAll<HTMLElement>("tr[data-risk-id]")).forEach((tr) => {
+        tr.hidden = category !== "전체보기" && tr.dataset.riskCategory !== category;
+      });
+    };
+
     const onTemplateSelectChange = async (e: Event) => {
       const el = e.target as HTMLSelectElement;
       if (!el.matches("[data-template-select]")) return;
@@ -136,6 +248,10 @@ export default function WizardScreen({
 
     const onFieldChange = (e: Event) => {
       const el = e.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+      if (el.matches("[data-risk-field]")) {
+        saveRiskRows(false);
+        return;
+      }
       if (el.matches("[data-template-select]")) return;
       const key = el.dataset.wizardKey;
       if (!key) return;
@@ -151,6 +267,27 @@ export default function WizardScreen({
     const onClick = (e: MouseEvent) => {
       const btn = (e.target as HTMLElement)?.closest("button");
       if (!btn || !root.contains(btn)) return;
+
+      if (btn.hasAttribute("data-risk-add")) {
+        e.preventDefault();
+        appendRiskRow();
+        return;
+      }
+      if (btn.hasAttribute("data-risk-delete")) {
+        e.preventDefault();
+        const tr = btn.closest<HTMLElement>("tr[data-risk-id]");
+        if (tr && confirm("이 위험성평가 행을 삭제하시겠습니까?")) {
+          tr.remove();
+          renumberRiskRows();
+          saveRiskRows(true);
+        }
+        return;
+      }
+      if (btn.hasAttribute("data-risk-tab")) {
+        e.preventDefault();
+        onRiskTabClick(btn);
+        return;
+      }
 
       if (btn.hasAttribute("data-logout")) {
         e.preventDefault();
@@ -180,6 +317,7 @@ export default function WizardScreen({
           window.open(`/api/documents/${documentId}/export?format=${previewFormat}&preview=1`, "_blank");
           // 방금 수정한 내용이 미리보기에 반영되도록 저장은 백그라운드로 진행.
           void doSave(true);
+          saveRiskRows(true);
           return;
         }
         void exportDocument(exportFormat!, btn as HTMLButtonElement);
@@ -189,6 +327,7 @@ export default function WizardScreen({
       const text = (btn.textContent || "").replace(/\s+/g, "");
       if (text.includes("임시저장") || text.includes("최종계획서생성")) {
         doSave(true);
+        saveRiskRows(true);
       }
     };
 
@@ -198,6 +337,7 @@ export default function WizardScreen({
       btn.innerHTML = `<span>생성 중...</span>`;
       try {
         await doSave(true);
+        await saveRiskRows(true);
         const res = await fetch(`/api/documents/${documentId}/export?format=${format}`);
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -278,16 +418,19 @@ export default function WizardScreen({
     root.addEventListener("input", onFieldChange);
     root.addEventListener("change", onFieldChange);
     root.addEventListener("change", onTemplateSelectChange);
+    root.addEventListener("change", onRiskDbSelectChange);
     root.addEventListener("click", onClick);
     root.addEventListener("click", onTocClick);
     return () => {
       root.removeEventListener("input", onFieldChange);
       root.removeEventListener("change", onFieldChange);
       root.removeEventListener("change", onTemplateSelectChange);
+      root.removeEventListener("change", onRiskDbSelectChange);
       root.removeEventListener("click", onClick);
       root.removeEventListener("click", onTocClick);
       sectionObserver.disconnect();
       if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (riskSaveTimer.current) clearTimeout(riskSaveTimer.current);
     };
   }, [documentId, downloadsLocked, router]);
 

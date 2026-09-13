@@ -6,6 +6,7 @@ import DocumentPriceEditor from "@/components/DocumentPriceEditor";
 import { pickAnnouncementPdf, extractBusinessOverviewFromPdf } from "@/lib/extractBusinessOverview";
 import { buildWizardHtml, SCRIPT_documents_wizard, type PdfOverview } from "@/lib/wizardHtml";
 import { isDocumentUnlocked } from "@/lib/documentAccess";
+import { classifyConstructionType, buildInitialRiskRows, type RiskRow } from "@/lib/riskTemplates";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -70,6 +71,19 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           .eq("id", id);
       }
     }
+  }
+
+  // 위험성평가 행(sec-risk 표)도 pdfOverview와 같은 방식으로 최초 1회만 자동
+  // 생성해서 캐싱한다 — 이후에는 사용자가 실제로 추가·삭제·수정한 값이 항상
+  // 우선한다.
+  let riskRows = doc.content?.riskRows as RiskRow[] | undefined;
+  if (!riskRows) {
+    riskRows = buildInitialRiskRows(classifyConstructionType(doc.title ?? ""));
+    await supabase
+      .from("documents")
+      .update({ content: { ...doc.content, riskRows } })
+      .eq("id", id);
+    doc.content = { ...doc.content, riskRows };
   }
 
   const html = buildWizardHtml(

@@ -96,11 +96,14 @@ export function extractWizardSections(
     let table: { headers: string[]; rows: string[][] } | undefined;
     const $table = $section.find("table").first();
     if ($table.length) {
+      // "관리"(행 삭제 버튼) 열은 편집용 UI일 뿐 문서 내용이 아니므로 출력물에서
+      // 헤더/셀 모두 제외한다(포함하면 아이콘 폰트 리거처 이름이 텍스트로 새어나감).
       const headers: string[] = [];
       $table
         .find("thead th")
         .each((_, th) => {
-          headers.push($(th).text().replace(/\s+/g, " ").trim());
+          const text = $(th).text().replace(/\s+/g, " ").trim();
+          if (text !== "관리") headers.push(text);
         });
       const rows: string[][] = [];
       $table.find("tbody tr").each((_, tr) => {
@@ -108,7 +111,13 @@ export function extractWizardSections(
         $(tr)
           .find("td")
           .each((_, td) => {
-            row.push($(td).text().replace(/\s+/g, " ").trim());
+            const $td = $(td);
+            if ($td.find("[data-risk-delete]").length) return;
+            // 위험성평가 표처럼 셀 안에 실제 입력요소(input/textarea/select)가 있으면
+            // 그 값을 읽고, 아니면(정적 텍스트 셀) 기존처럼 텍스트를 읽는다.
+            const control = $td.find("input, textarea, select").first();
+            const text = control.length ? fieldValue($, control.get(0)) : $td.text().replace(/\s+/g, " ").trim();
+            row.push(text);
           });
         if (row.length) rows.push(row);
       });

@@ -9,6 +9,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
+  const { data: me } = await supabase.from("members").select("role").eq("id", user.id).single();
+  if (me?.role !== "admin") return NextResponse.json({ error: "관리자만 접근할 수 있습니다." }, { status: 403 });
+
   const { response } = await request.json();
   if (!response?.trim()) {
     return NextResponse.json({ error: "답변 내용을 입력해 주세요." }, { status: 400 });

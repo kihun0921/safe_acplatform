@@ -64,7 +64,7 @@ const HTML_documents_wizard = `
 <!-- Admin return link (관리자가 다른 회원의 문서를 열람 중일 때만 표시) -->
 __ADMIN_RETURN_LINK__
 <!-- Logout Button -->
-<button class="text-xs font-medium text-neutral-500 hover:text-neutral-900 px-2.5 py-1.5 rounded border border-neutral-200 hover:bg-neutral-100 transition duration-150" type="button">
+<button class="text-xs font-medium text-neutral-500 hover:text-neutral-900 px-2.5 py-1.5 rounded border border-neutral-200 hover:bg-neutral-100 transition duration-150" data-logout type="button">
           로그아웃
         </button>
 </div>

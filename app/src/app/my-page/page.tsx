@@ -1,63 +1,7 @@
 import StitchScreen from "@/components/StitchScreen";
+import MemberHeader from "@/components/MemberHeader";
 
 const HTML_my_page = `
-<!-- ==================== TOP NAVIGATION BAR ==================== -->
-<!-- Shared Component: TopNavBar (Web Header) conforming to JSON definition & styling -->
-<header class="sticky top-0 z-50 w-full bg-surface dark:bg-surface border-b border-border dark:border-border shadow-sm">
-<div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-<!-- Brand & Left Navigation -->
-<div class="flex items-center space-x-10">
-<!-- Logo -->
-<a class="flex items-center space-x-2.5 font-headline text-lg font-bold text-primary dark:text-primary tracking-tight" href="/">
-<img src="/logo.png" alt="올케어안전플랫폼 로고" class="w-8 h-8 object-contain"/>
-<span class="text-primary font-bold text-lg tracking-tight">올케어안전플랫폼</span>
-</a>
-<!-- Main Navigation Links from JSON -->
-<nav class="hidden md:flex items-center space-x-7 font-body text-sm font-medium tracking-normal">
-<a class="text-text-secondary dark:text-text-secondary hover:text-text dark:hover:text-text transition-colors duration-150 py-1" href="/announcements">공고 검색</a>
-<a class="text-text-secondary dark:text-text-secondary hover:text-text dark:hover:text-text transition-colors duration-150 py-1" href="#">계획서 작성</a>
-<a class="text-text-secondary dark:text-text-secondary hover:text-text dark:hover:text-text transition-colors duration-150 py-1" href="/documents">내 문서함</a>
-<a class="text-text-secondary dark:text-text-secondary hover:text-text dark:hover:text-text transition-colors duration-150 py-1" href="/legal">고객지원</a>
-</nav>
-</div>
-<!-- Right Action & Member Profile Area -->
-<div class="flex items-center space-x-4">
-<!-- Primary Action Button (from JSON: trailing_primary_action) -->
-<a class="hidden sm:inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded text-xs font-semibold bg-primary text-white hover:bg-primary-hover active:scale-[0.98] transition-all shadow-xs" href="#">
-<span class="material-symbols-outlined text-sm">edit_document</span>
-<span>새 계획서 작성</span>
-</a>
-<!-- Notifications Action (from JSON: trailing_icon_actions) -->
-<button aria-label="알림" class="relative p-2 text-text-secondary hover:text-text hover:bg-primary-soft rounded-full transition-colors" type="button">
-<span class="material-symbols-outlined text-[22px]">notifications</span>
-<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-status-danger ring-2 ring-white"></span>
-</button>
-<div class="h-5 w-[1px] bg-border mx-1"></div>
-<!-- Authenticated User Profile Information -->
-<div class="flex items-center space-x-3">
-<div class="text-right hidden lg:block">
-<div class="text-xs font-bold text-text flex items-center justify-end space-x-1.5">
-<span class="text-text-secondary font-normal">(주)대한종합건설</span>
-<span class="text-text font-semibold">홍길동 부장</span>
-</div>
-<div class="text-[11px] text-text-muted flex items-center justify-end space-x-1">
-<span class="inline-block w-1.5 h-1.5 rounded-full bg-status-success"></span>
-<span>안전보건총괄책임</span>
-</div>
-</div>
-<!-- User Avatar with Initials -->
-<div class="w-9 h-9 rounded-full bg-primary-soft text-primary font-bold flex items-center justify-center text-sm border border-primary/20 ring-1 ring-border">
-            홍
-          </div>
-<!-- Logout Button -->
-<button class="text-xs text-text-muted hover:text-text p-1.5 hover:bg-slate-100 rounded transition-colors flex items-center space-x-0.5" title="로그아웃" type="button">
-<span class="material-symbols-outlined text-lg">logout</span>
-<span class="hidden sm:inline text-xs">로그아웃</span>
-</button>
-</div>
-</div>
-</div>
-</header>
 <!-- ==================== SUB-HEADER & BREADCRUMB ==================== -->
 <section class="bg-surface border-b border-border">
 <div class="max-w-7xl mx-auto px-6 py-6">
@@ -514,6 +458,11 @@ const SCRIPT_my_page = `
   
 `;
 
-export default function Page() {
-  return <StitchScreen html={HTML_my_page} script={SCRIPT_my_page} />;
+export default async function Page() {
+  return (
+    <>
+      <MemberHeader />
+      <StitchScreen html={HTML_my_page} script={SCRIPT_my_page} />
+    </>
+  );
 }

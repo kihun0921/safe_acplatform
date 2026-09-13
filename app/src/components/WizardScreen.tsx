@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { OPEN_PAYWALL_EVENT } from "./DocumentPaywallModal";
 
 type FieldValue = string | boolean;
@@ -21,6 +23,7 @@ export default function WizardScreen({
   downloadsLocked?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const fieldsRef = useRef<Record<string, FieldValue>>({ ...initialFields });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -138,6 +141,16 @@ export default function WizardScreen({
     const onClick = (e: MouseEvent) => {
       const btn = (e.target as HTMLElement)?.closest("button");
       if (!btn || !root.contains(btn)) return;
+
+      if (btn.hasAttribute("data-logout")) {
+        e.preventDefault();
+        const supabase = createClient();
+        void supabase.auth.signOut().then(() => {
+          router.push("/");
+          router.refresh();
+        });
+        return;
+      }
 
       const exportFormat = btn.getAttribute("data-export-format");
       const previewFormat = btn.getAttribute("data-preview-format");
@@ -266,7 +279,7 @@ export default function WizardScreen({
       sectionObserver.disconnect();
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [documentId, downloadsLocked]);
+  }, [documentId, downloadsLocked, router]);
 
   return (
     <div>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isDocumentUnlocked } from "@/lib/documentAccess";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -11,6 +12,12 @@ export async function POST(request: Request) {
   const { code, documentId } = await request.json();
   if (!code?.trim() || !documentId) {
     return NextResponse.json({ error: "쿠폰 코드를 입력해 주세요." }, { status: 400 });
+  }
+
+  // 이미 결제/쿠폰으로 잠금해제된 문서에 또 쿠폰을 쓰지 않도록 미리 막는다
+  // (회원의 쿠폰을 낭비하지 않기 위함 — 어차피 이미 다운로드 가능한 상태).
+  if (await isDocumentUnlocked(supabase, documentId)) {
+    return NextResponse.json({ error: "이미 다운로드 가능한 문서입니다." }, { status: 400 });
   }
 
   const { error } = await supabase.rpc("redeem_coupon", {

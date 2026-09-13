@@ -5,6 +5,7 @@ import { extractWizardSections } from "@/lib/wizardExport";
 import { generateWizardDocx } from "@/lib/generateDocx";
 import { generateWizardPdf } from "@/lib/generatePdf";
 import { generateWizardHwpx } from "@/lib/generateHwpx";
+import { isDocumentUnlocked } from "@/lib/documentAccess";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,9 +23,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const { data: doc } = await supabase.from("documents").select("*").eq("id", id).single();
   if (!doc) return NextResponse.json({ error: "문서를 찾을 수 없습니다." }, { status: 404 });
-  if (doc.member_id !== user.id) {
-    const { data: me } = await supabase.from("members").select("role").eq("id", user.id).single();
-    if (me?.role !== "admin") return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+  const { data: me } = await supabase.from("members").select("role").eq("id", user.id).single();
+  const isAdmin = me?.role === "admin";
+  if (doc.member_id !== user.id && !isAdmin) {
+    return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+  }
+
+  // 건당결제 모델: 쿠폰 등록 또는 결제 완료 전에는 다운로드를 막는다(관리자는 예외).
+  if (!isAdmin) {
+    const unlocked = await isDocumentUnlocked(supabase, id);
+    if (!unlocked) {
+      return NextResponse.json(
+        { error: "다운로드하려면 쿠폰 등록 또는 결제(건당 " + doc.price.toLocaleString("ko-KR") + "원)가 필요합니다." },
+        { status: 402 }
+      );
+    }
   }
 
   const { data: member } = await supabase.from("members").select("name, company").eq("id", doc.member_id).single();

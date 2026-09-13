@@ -6,7 +6,7 @@ export default async function AdminPaymentsPage() {
   const supabase = await createClient();
   const { data: payments } = await supabase
     .from("payments")
-    .select("*, members!payments_member_id_fkey(name, company)")
+    .select("*, members!payments_member_id_fkey(name, company), documents(title)")
     .order("created_at", { ascending: false });
 
   return (
@@ -20,6 +20,7 @@ export default async function AdminPaymentsPage() {
             <thead className="bg-slate-50 text-xs text-slate-500">
               <tr>
                 <th className="text-left px-4 py-3">회원</th>
+                <th className="text-left px-4 py-3">구분</th>
                 <th className="text-left px-4 py-3">금액</th>
                 <th className="text-left px-4 py-3">수단</th>
                 <th className="text-left px-4 py-3">입금자명</th>
@@ -33,6 +34,13 @@ export default async function AdminPaymentsPage() {
                 <tr key={p.id} className="border-t border-slate-100">
                   <td className="px-4 py-3">
                     {p.members?.company} · {p.members?.name}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {p.documents?.title ? (
+                      <span className="text-xs">건당결제 · {p.documents.title}</span>
+                    ) : (
+                      <span className="text-xs text-slate-400">월간 구독</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">{p.amount.toLocaleString()}원</td>
                   <td className="px-4 py-3">{p.method === "card" ? "카드" : "무통장입금"}</td>
@@ -56,7 +64,7 @@ export default async function AdminPaymentsPage() {
               ))}
               {(payments ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-16 text-slate-400 text-sm">
+                  <td colSpan={8} className="text-center py-16 text-slate-400 text-sm">
                     결제 내역이 없습니다.
                   </td>
                 </tr>

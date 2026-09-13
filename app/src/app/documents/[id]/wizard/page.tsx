@@ -1,8 +1,11 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import WizardScreen from "@/components/WizardScreen";
+import DocumentPaywall from "@/components/DocumentPaywall";
+import DocumentPriceEditor from "@/components/DocumentPriceEditor";
 import { pickAnnouncementPdf, extractBusinessOverviewFromPdf } from "@/lib/extractBusinessOverview";
 import { buildWizardHtml, SCRIPT_documents_wizard, type PdfOverview } from "@/lib/wizardHtml";
+import { isDocumentUnlocked } from "@/lib/documentAccess";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,11 +27,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     .eq("id", doc.member_id)
     .single();
   const isOwner = doc.member_id === user.id;
-  let viewerIsAdmin = false;
-  if (!isOwner) {
-    const { data: viewer } = await supabase.from("members").select("role").eq("id", user.id).single();
-    viewerIsAdmin = viewer?.role === "admin";
-  }
+  const { data: viewer } = await supabase.from("members").select("role").eq("id", user.id).single();
+  const isAdmin = viewer?.role === "admin";
+  const showAdminReturnLink = isAdmin && !isOwner;
+  const unlocked = isAdmin || (await isDocumentUnlocked(supabase, id));
 
   const initialFields = (doc.content?.fields ?? {}) as Record<string, string | boolean>;
 
@@ -60,15 +62,22 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     }
   }
 
-  const html = buildWizardHtml(doc, announcement, pdfOverview, member, viewerIsAdmin);
+  const html = buildWizardHtml(doc, announcement, pdfOverview, member, showAdminReturnLink);
 
   return (
-    <WizardScreen
-      html={html}
-      script={SCRIPT_documents_wizard}
-      documentId={id}
-      initialFields={initialFields}
-      initialPercent={doc.percent_complete ?? 0}
-    />
+    <>
+      <div className="max-w-7xl mx-auto px-6 pt-6">
+        {isAdmin && <DocumentPriceEditor documentId={id} price={doc.price} />}
+        {!unlocked && <DocumentPaywall documentId={id} price={doc.price} />}
+      </div>
+      <WizardScreen
+        html={html}
+        script={SCRIPT_documents_wizard}
+        documentId={id}
+        initialFields={initialFields}
+        initialPercent={doc.percent_complete ?? 0}
+        downloadsLocked={!unlocked}
+      />
+    </>
   );
 }

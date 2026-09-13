@@ -10,12 +10,14 @@ export default function WizardScreen({
   documentId,
   initialFields,
   initialPercent,
+  downloadsLocked,
 }: {
   html: string;
   script?: string;
   documentId: string;
   initialFields: Record<string, FieldValue>;
   initialPercent: number;
+  downloadsLocked?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const fieldsRef = useRef<Record<string, FieldValue>>({ ...initialFields });
@@ -35,6 +37,15 @@ export default function WizardScreen({
   useEffect(() => {
     const root = ref.current;
     if (!root) return;
+
+    if (downloadsLocked) {
+      root.querySelectorAll<HTMLButtonElement>("[data-export-format]").forEach((btn) => {
+        btn.classList.add("opacity-50", "cursor-not-allowed");
+        btn.title = "다운로드하려면 결제 또는 쿠폰 등록이 필요합니다";
+        const icon = btn.querySelector(".material-symbols-outlined");
+        if (icon) icon.textContent = "lock";
+      });
+    }
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
@@ -103,6 +114,10 @@ export default function WizardScreen({
       const exportFormat = btn.getAttribute("data-export-format");
       if (exportFormat) {
         e.preventDefault();
+        if (downloadsLocked) {
+          document.getElementById("document-paywall")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
         void exportDocument(exportFormat, btn as HTMLButtonElement);
         return;
       }
@@ -122,7 +137,12 @@ export default function WizardScreen({
         const res = await fetch(`/api/documents/${documentId}/export?format=${format}`);
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          alert(`문서 생성에 실패했습니다: ${data.error ?? "알 수 없는 오류"}`);
+          if (res.status === 402) {
+            alert(data.error ?? "다운로드하려면 결제 또는 쿠폰 등록이 필요합니다.");
+            document.getElementById("document-paywall")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          } else {
+            alert(`문서 생성에 실패했습니다: ${data.error ?? "알 수 없는 오류"}`);
+          }
           return;
         }
         const blob = await res.blob();
@@ -166,7 +186,7 @@ export default function WizardScreen({
       root.removeEventListener("click", onTocClick);
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [documentId]);
+  }, [documentId, downloadsLocked]);
 
   return (
     <div>

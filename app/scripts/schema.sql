@@ -104,6 +104,9 @@ create table if not exists public.documents (
 );
 create index if not exists idx_documents_member on public.documents(member_id);
 create index if not exists idx_documents_status on public.documents(status);
+-- 문서 1건 다운로드 잠금해제 가격(건당결제 기준). 기본 5만원, LH처럼 서식이 복잡한
+-- 발주처는 관리자가 개별적으로 최대 50만원 등으로 직접 조정한다(/admin 문서 상세).
+alter table public.documents add column if not exists price bigint not null default 50000;
 
 -- ============================================================================
 -- inquiries
@@ -159,6 +162,9 @@ create table if not exists public.payments (
   updated_at timestamptz default now()
 );
 create index if not exists idx_payments_member on public.payments(member_id);
+-- 건당결제(문서 1건 다운로드 잠금해제): subscription_id 대신 document_id가 채워진다.
+alter table public.payments add column if not exists document_id uuid references public.documents(id) on delete cascade;
+create index if not exists idx_payments_document on public.payments(document_id);
 
 -- ============================================================================
 -- coupons (Appendix B §3)
@@ -294,7 +300,7 @@ create policy announcements_admin_write on public.announcements for all using (p
 
 -- documents
 drop policy if exists documents_owner_all on public.documents;
-create policy documents_owner_all on public.documents for all using (auth.uid() = member_id or public.is_admin()) with check (auth.uid() = member_id);
+create policy documents_owner_all on public.documents for all using (auth.uid() = member_id or public.is_admin()) with check (auth.uid() = member_id or public.is_admin());
 
 -- inquiries
 drop policy if exists inquiries_owner_select on public.inquiries;

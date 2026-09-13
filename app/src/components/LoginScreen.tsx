@@ -29,12 +29,19 @@ export default function LoginScreen({ html, script }: { html: string; script?: s
       const password = form.querySelector<HTMLInputElement>("#password")?.value ?? "";
       if (!email || !password) return;
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         alert(`로그인에 실패했습니다: ${error.message}`);
         return;
       }
-      router.push("/announcements");
+
+      const { data: member } = await supabase
+        .from("members")
+        .select("role")
+        .eq("id", data.user.id)
+        .single();
+
+      router.push(member?.role === "admin" ? "/admin" : "/announcements");
       router.refresh();
     };
 

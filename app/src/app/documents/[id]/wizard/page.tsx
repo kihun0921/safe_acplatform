@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import WizardScreen from "@/components/WizardScreen";
-import DocumentPaywall from "@/components/DocumentPaywall";
+import DocumentPaywallModal from "@/components/DocumentPaywallModal";
 import DocumentPriceEditor from "@/components/DocumentPriceEditor";
 import { pickAnnouncementPdf, extractBusinessOverviewFromPdf } from "@/lib/extractBusinessOverview";
 import { buildWizardHtml, SCRIPT_documents_wizard, type PdfOverview } from "@/lib/wizardHtml";
@@ -66,10 +66,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   return (
     <>
-      <div className="max-w-7xl mx-auto px-6 pt-6">
-        {isAdmin && <DocumentPriceEditor documentId={id} price={doc.price} />}
-        {!unlocked && <DocumentPaywall documentId={id} price={doc.price} />}
-      </div>
+      {isAdmin && (
+        <div className="max-w-7xl mx-auto px-6 pt-6">
+          <DocumentPriceEditor documentId={id} price={doc.price} />
+        </div>
+      )}
       <WizardScreen
         html={html}
         script={SCRIPT_documents_wizard}
@@ -78,6 +79,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         initialPercent={doc.percent_complete ?? 0}
         downloadsLocked={!unlocked}
       />
+      {!unlocked && <DocumentPaywallModal documentId={id} price={doc.price} />}
     </>
   );
 }

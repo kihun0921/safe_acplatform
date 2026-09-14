@@ -1,7 +1,7 @@
 import path from "path";
 import type { ReactElement } from "react";
-import { renderToBuffer, Document, Page, View, Text, Image, StyleSheet, Font } from "@react-pdf/renderer";
-import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData } from "./wizardExport";
+import { renderToBuffer, Document, Page, View, Text, Image, Svg, Rect, Line, StyleSheet, Font } from "@react-pdf/renderer";
+import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData, OrgChartData, OrgChartNode } from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
 
@@ -314,6 +314,73 @@ function ManagementPolicyStandardPage({ data }: { data: ManagementPolicyData }) 
   );
 }
 
+// "안전보건관리 조직구성"을 실제 조직도 다이어그램(박스+연결선)으로 그린다.
+// react-pdf의 Svg 프리미티브(Rect/Line/Text)로 직접 벡터 도형을 그리므로 별도
+// 이미지 파일 없이도 항상 선명하게 출력된다.
+const ORG_BOX_W = 170;
+const ORG_BOX_H = 46;
+function OrgChartBox({ x, y, node }: { x: number; y: number; node: OrgChartNode }) {
+  const cx = x + ORG_BOX_W / 2;
+  return (
+    <>
+      <Rect x={x} y={y} width={ORG_BOX_W} height={ORG_BOX_H} fill="#ffffff" stroke="#1e3a5f" strokeWidth={1.2} rx={4} />
+      {/* react-pdf의 SVG Text는 Page에 지정한 fontFamily를 상속하지 않고 기본
+          내장 폰트(한글 글리프 없음)로 떨어지므로, 매번 명시적으로 NotoSansKR을
+          지정해야 한다(빠뜨리면 한글이 깨진 글리프로 출력됨 — 실제로 겪은 문제).
+          fontSize/fontWeight/fontFamily는 공식 타입(SVGPresentationAttributes)에는
+          없지만 런타임에서는 지원되는 값이라 캐스팅이 필요하다. */}
+      <Text
+        x={cx}
+        y={y + 17}
+        textAnchor="middle"
+        style={{ fontSize: 9, fontWeight: "bold", fontFamily: "NotoSansKR" } as never}
+        fill="#1e3a5f"
+      >
+        {node.role}
+      </Text>
+      <Text x={cx} y={y + 30} textAnchor="middle" style={{ fontSize: 8, fontFamily: "NotoSansKR" } as never} fill="#374151">
+        {node.name || "(미입력)"}
+      </Text>
+      <Text x={cx} y={y + 41} textAnchor="middle" style={{ fontSize: 7, fontFamily: "NotoSansKR" } as never} fill="#6b7280">
+        {node.contact || "(미입력)"}
+      </Text>
+    </>
+  );
+}
+
+function OrgChartPage({ data }: { data: OrgChartData }) {
+  const topY = 20;
+  const midY = 110;
+  const botY = 200;
+  const leftX = 30;
+  const rightX = 300;
+  const centerX = 165;
+  const topLeftCx = leftX + ORG_BOX_W / 2;
+  const topRightCx = rightX + ORG_BOX_W / 2;
+  const midCx = centerX + ORG_BOX_W / 2;
+  const botLeftCx = leftX + ORG_BOX_W / 2;
+  const botRightCx = rightX + ORG_BOX_W / 2;
+
+  return (
+    <Page size="A4" style={styles.policyPage}>
+      <Text style={styles.policyTitle}>안전보건관리 조직구성</Text>
+      <Text style={[styles.policySubTitle, { marginBottom: 16 }]}>나. 현장 사업소 조직도(임무 및 비상연락망 포함)</Text>
+      <Svg width="100%" height={260} viewBox="0 0 500 260">
+        <Line x1={topLeftCx} y1={topY + ORG_BOX_H} x2={midCx} y2={midY} stroke="#9ca3af" strokeWidth={1} />
+        <Line x1={topRightCx} y1={topY + ORG_BOX_H} x2={midCx} y2={midY} stroke="#9ca3af" strokeWidth={1} />
+        <Line x1={midCx} y1={midY + ORG_BOX_H} x2={botLeftCx} y2={botY} stroke="#9ca3af" strokeWidth={1} />
+        <Line x1={midCx} y1={midY + ORG_BOX_H} x2={botRightCx} y2={botY} stroke="#9ca3af" strokeWidth={1} />
+        <OrgChartBox x={leftX} y={topY} node={data.siteManager} />
+        <OrgChartBox x={rightX} y={topY} node={data.safetyManager} />
+        <OrgChartBox x={centerX} y={midY} node={data.supervisor} />
+        <OrgChartBox x={leftX} y={botY} node={data.team1} />
+        <OrgChartBox x={rightX} y={botY} node={data.team2} />
+      </Svg>
+      <Text style={{ fontSize: 8, color: "#9ca3af", marginTop: 12 }}>※ 위 선임 기술인력은 변경될 수 있습니다.</Text>
+    </Page>
+  );
+}
+
 export async function generateWizardPdf(
   title: string,
   sections: WizardSection[],
@@ -322,7 +389,8 @@ export async function generateWizardPdf(
   overviewPage?: OverviewPageData,
   overviewPageStyle?: string | null,
   managementPolicy?: ManagementPolicyData,
-  managementPolicyImage?: Buffer | null
+  managementPolicyImage?: Buffer | null,
+  orgChart?: OrgChartData
 ): Promise<Buffer> {
   ensureFontsRegistered();
 
@@ -339,6 +407,7 @@ export async function generateWizardPdf(
       {managementPolicy && !(managementPolicy.mode === "image" && managementPolicyImage) && (
         <ManagementPolicyStandardPage data={managementPolicy} />
       )}
+      {orgChart && <OrgChartPage data={orgChart} />}
       {sections.map((section, i) => (
         <Page key={section.id} size="A4" style={styles.page}>
           {i === 0 && <Text style={styles.title}>{title}</Text>}

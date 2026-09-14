@@ -204,6 +204,50 @@ export function extractManagementPolicyData(
   };
 }
 
+// "안전보건관리 조직구성"을 실제 조직도 다이어그램(박스+연결선)으로 그리기 위한
+// 데이터. 직책은 wizardHtml.ts의 ORG_CHART_ROLES와 동일한 고정값이고, 성명·
+// 연락처만 wizard-field-org-* 고정 id로 읽어온다.
+export interface OrgChartNode {
+  role: string;
+  name: string;
+  contact: string;
+}
+export interface OrgChartData {
+  siteManager: OrgChartNode;
+  safetyManager: OrgChartNode;
+  supervisor: OrgChartNode;
+  team1: OrgChartNode;
+  team2: OrgChartNode;
+}
+
+const ORG_CHART_ROLE_LABELS = {
+  siteManager: "안전보건관리책임자(현장소장)",
+  safetyManager: "안전관리자(안전담당자)",
+  supervisor: "관리감독자",
+  team1: "작업 1팀장",
+  team2: "작업 2팀장",
+} as const;
+
+export function extractOrgChartData(html: string, savedFields: Record<string, string | boolean>): OrgChartData {
+  const $ = cheerio.load(html);
+  applySavedFields($, savedFields);
+  const byId = (id: string) => $(`#${id}`).attr("value")?.trim() ?? "";
+
+  const node = (key: string, role: string): OrgChartNode => ({
+    role,
+    name: byId(`wizard-field-org-${key}-name`),
+    contact: byId(`wizard-field-org-${key}-contact`),
+  });
+
+  return {
+    siteManager: node("site-manager", ORG_CHART_ROLE_LABELS.siteManager),
+    safetyManager: node("safety-manager", ORG_CHART_ROLE_LABELS.safetyManager),
+    supervisor: node("supervisor", ORG_CHART_ROLE_LABELS.supervisor),
+    team1: node("team1", ORG_CHART_ROLE_LABELS.team1),
+    team2: node("team2", ORG_CHART_ROLE_LABELS.team2),
+  };
+}
+
 export function extractWizardSections(
   html: string,
   savedFields: Record<string, string | boolean>,

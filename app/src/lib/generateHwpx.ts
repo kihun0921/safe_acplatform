@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import JSZip from "jszip";
-import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData } from "./wizardExport";
+import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData, OrgChartData } from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 
 // HWPX(.hwpx)는 한글과컴퓨터의 개방형 문서 표준(OWPML, KS X 6101)으로, ZIP 컨테이너 안에
@@ -185,6 +185,32 @@ function buildManagementPolicyParagraphs(data: ManagementPolicyData, hasImage: b
   return paragraphs;
 }
 
+// "안전보건관리 조직구성"을 실제 조직도 다이어그램으로 그린다. 이 생성기는 순수
+// 텍스트 XML 조립 방식이라 도형/연결선을 그릴 수 없으므로, 유니코드 트리 문자로
+// 같은 위계 구조(책임자·안전관리자 → 관리감독자 → 작업팀장)를 표현한다.
+function nodeLine(node: { role: string; name: string; contact: string }): string {
+  return `${node.role} — ${node.name || "(미입력)"} / 연락처: ${node.contact || "(미입력)"}`;
+}
+
+function buildOrgChartParagraphs(data: OrgChartData): string[] {
+  return [
+    textParagraph("안전보건관리 조직구성", "5", false),
+    emptyParagraph(),
+    textParagraph("나. 현장 사업소 조직도(임무 및 비상연락망 포함)", "0", false),
+    emptyParagraph(),
+    textParagraph(nodeLine(data.siteManager), "0", false),
+    textParagraph(nodeLine(data.safetyManager), "0", false),
+    textParagraph("  │", "0", false),
+    textParagraph(`  └─ ${nodeLine(data.supervisor)}`, "0", false),
+    textParagraph("      │", "0", false),
+    textParagraph(`      ├─ ${nodeLine(data.team1)}`, "0", false),
+    textParagraph(`      └─ ${nodeLine(data.team2)}`, "0", false),
+    emptyParagraph(),
+    textParagraph("※ 위 선임 기술인력은 변경될 수 있습니다.", "0", false),
+    emptyParagraph(),
+  ];
+}
+
 function buildSection0Xml(
   title: string,
   sections: WizardSection[],
@@ -193,7 +219,8 @@ function buildSection0Xml(
   overviewPage?: OverviewPageData,
   overviewPageStyle?: string | null,
   managementPolicy?: ManagementPolicyData,
-  hasManagementPolicyImage?: boolean
+  hasManagementPolicyImage?: boolean,
+  orgChart?: OrgChartData
 ): string {
   const baseSection0 = fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "section0.xml"), "utf8");
   // 템플릿의 첫 <hp:p>(secPr가 들어있는, 페이지 크기/여백을 정의하는 문단)는 그대로 두고,
@@ -232,7 +259,21 @@ function buildSection0Xml(
     paragraphs.push(...policyParagraphs);
     managementPolicyInserted = true;
   }
-  paragraphs.push(textParagraph(title, "5", Boolean(cover) || overviewPageInserted || managementPolicyInserted));
+  let orgChartInserted = false;
+  if (orgChart) {
+    const orgParagraphs = buildOrgChartParagraphs(orgChart);
+    if (orgParagraphs.length) {
+      orgParagraphs[0] = orgParagraphs[0].replace(
+        'pageBreak="0"',
+        `pageBreak="${cover || overviewPageInserted || managementPolicyInserted ? 1 : 0}"`
+      );
+    }
+    paragraphs.push(...orgParagraphs);
+    orgChartInserted = true;
+  }
+  paragraphs.push(
+    textParagraph(title, "5", Boolean(cover) || overviewPageInserted || managementPolicyInserted || orgChartInserted)
+  );
   paragraphs.push(emptyParagraph());
 
   sections.forEach((section, i) => {
@@ -264,7 +305,8 @@ export async function generateWizardHwpx(
   overviewPage?: OverviewPageData,
   overviewPageStyle?: string | null,
   managementPolicy?: ManagementPolicyData,
-  managementPolicyImage?: Buffer | null
+  managementPolicyImage?: Buffer | null,
+  orgChart?: OrgChartData
 ): Promise<Buffer> {
   const zip = new JSZip();
 
@@ -285,7 +327,8 @@ export async function generateWizardHwpx(
       overviewPage,
       overviewPageStyle,
       managementPolicy,
-      Boolean(managementPolicyImage)
+      Boolean(managementPolicyImage),
+      orgChart
     )
   );
   zip.file("META-INF/container.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "container.xml")));

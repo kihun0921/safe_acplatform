@@ -14,7 +14,7 @@ import {
   BorderStyle,
   VerticalAlign,
 } from "docx";
-import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData } from "./wizardExport";
+import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData, OrgChartData, OrgChartNode } from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
 
@@ -356,6 +356,76 @@ function buildManagementPolicyStandardPage(data: ManagementPolicyData): (Paragra
   ];
 }
 
+// "안전보건관리 조직구성"을 실제 조직도 다이어그램으로 그린다. docx 라이브러리는
+// 임의의 도형·연결선을 지원하지 않으므로, 테두리 있는 표 칸을 박스처럼 쓰고
+// 그 사이에 화살표 문단을 둬 위계(상급자 → 하급자)를 시각적으로 표현한다.
+function orgChartBoxCell(node: OrgChartNode, columnSpan?: number): TableCell {
+  return new TableCell({
+    columnSpan,
+    verticalAlign: VerticalAlign.CENTER,
+    borders: CELL_BORDERS,
+    margins: { top: 150, bottom: 150 },
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: node.role, bold: true, size: 18, font: FONT, color: "1e3a5f" })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 40 },
+        children: [new TextRun({ text: node.name || "(미입력)", size: 18, font: FONT })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: node.contact || "(미입력)", size: 16, font: FONT, color: "6b7280" })],
+      }),
+    ],
+  });
+}
+
+function orgChartArrowRow(): Paragraph {
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 60, after: 60 },
+    children: [new TextRun({ text: "↓", size: 22, font: FONT, color: "9ca3af" })],
+  });
+}
+
+function buildOrgChartPage(data: OrgChartData): (Paragraph | Table)[] {
+  return [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 },
+      children: [new TextRun({ text: "안전보건관리 조직구성", bold: true, size: 28, font: FONT })],
+    }),
+    new Paragraph({
+      spacing: { after: 200 },
+      children: [
+        new TextRun({ text: "나. 현장 사업소 조직도(임무 및 비상연락망 포함)", bold: true, size: 20, font: FONT }),
+      ],
+    }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [new TableRow({ children: [orgChartBoxCell(data.siteManager), orgChartBoxCell(data.safetyManager)] })],
+    }),
+    orgChartArrowRow(),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [new TableRow({ children: [orgChartBoxCell(data.supervisor, 2)] })],
+    }),
+    orgChartArrowRow(),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [new TableRow({ children: [orgChartBoxCell(data.team1), orgChartBoxCell(data.team2)] })],
+    }),
+    new Paragraph({
+      spacing: { before: 200 },
+      children: [new TextRun({ text: "※ 위 선임 기술인력은 변경될 수 있습니다.", size: 16, font: FONT, color: "9ca3af" })],
+    }),
+    new Paragraph({ children: [new PageBreak()] }),
+  ];
+}
+
 export async function generateWizardDocx(
   title: string,
   sections: WizardSection[],
@@ -364,7 +434,8 @@ export async function generateWizardDocx(
   overviewPage?: OverviewPageData,
   overviewPageStyle?: string | null,
   managementPolicy?: ManagementPolicyData,
-  managementPolicyImage?: Buffer | null
+  managementPolicyImage?: Buffer | null,
+  orgChart?: OrgChartData
 ): Promise<Buffer> {
   const children: (Paragraph | Table)[] = [];
 
@@ -384,6 +455,10 @@ export async function generateWizardDocx(
     } else {
       children.push(...buildManagementPolicyStandardPage(managementPolicy));
     }
+  }
+
+  if (orgChart) {
+    children.push(...buildOrgChartPage(orgChart));
   }
 
   children.push(

@@ -6,6 +6,7 @@ import {
   extractCoverPageData,
   extractOverviewPageData,
   extractManagementPolicyData,
+  extractOrgChartData,
 } from "@/lib/wizardExport";
 import { generateWizardDocx } from "@/lib/generateDocx";
 import { generateWizardPdf } from "@/lib/generatePdf";
@@ -91,12 +92,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const savedFields = (doc.content?.fields ?? {}) as Record<string, string | boolean>;
   const overviewPageStyle = (selectedTemplate?.overview_page_style as string | null | undefined) ?? null;
   const showManagementPolicy = Boolean(selectedTemplate?.show_management_policy);
+  const showOrgChart = Boolean(selectedTemplate?.show_org_chart);
   // overview_page_style이 켜진 발주처는 사업개요를, show_management_policy가 켜진
-  // 발주처는 안전보건 경영방침을 각각 정형 페이지가 전담하므로, 일반 섹션 목록에서는
-  // 빼서 같은 내용이 두 번 나가지 않게 한다.
+  // 발주처는 안전보건 경영방침을, show_org_chart가 켜진 발주처는 조직도를 각각
+  // 정형 페이지가 전담하므로, 일반 섹션 목록에서는 빼서 같은 내용이 두 번
+  // 나가지 않게 한다.
   const excludeIds = [
     ...(overviewPageStyle ? ["sec-overview"] : []),
     ...(showManagementPolicy ? ["sec-management-policy"] : []),
+    ...(showOrgChart ? ["sec-org_chart"] : []),
   ];
   const sections = extractWizardSections(html, savedFields, excludeIds);
   const cover = extractCoverPageData(html, savedFields, member?.company ?? "", member?.name ?? "");
@@ -122,13 +126,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
   }
 
+  const orgChart = showOrgChart ? extractOrgChartData(html, savedFields) : undefined;
+
   const title = (doc.title ?? "안전보건관리계획서").replace(/\s*계획서$/, "") + " 안전보건관리계획서";
   const filename = encodeURIComponent(title);
 
   try {
     if (format === "docx") {
       const buffer = await withTimeout(
-        generateWizardDocx(title, sections, cover, coverStyle, overviewPage, overviewPageStyle, managementPolicy, managementPolicyImage),
+        generateWizardDocx(
+          title,
+          sections,
+          cover,
+          coverStyle,
+          overviewPage,
+          overviewPageStyle,
+          managementPolicy,
+          managementPolicyImage,
+          orgChart
+        ),
         45000
       );
       return new NextResponse(new Uint8Array(buffer), {
@@ -141,7 +157,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     if (format === "hwpx") {
       const buffer = await withTimeout(
-        generateWizardHwpx(title, sections, cover, coverStyle, overviewPage, overviewPageStyle, managementPolicy, managementPolicyImage),
+        generateWizardHwpx(
+          title,
+          sections,
+          cover,
+          coverStyle,
+          overviewPage,
+          overviewPageStyle,
+          managementPolicy,
+          managementPolicyImage,
+          orgChart
+        ),
         45000
       );
       return new NextResponse(new Uint8Array(buffer), {
@@ -153,7 +179,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const buffer = await withTimeout(
-      generateWizardPdf(title, sections, cover, coverStyle, overviewPage, overviewPageStyle, managementPolicy, managementPolicyImage),
+      generateWizardPdf(
+        title,
+        sections,
+        cover,
+        coverStyle,
+        overviewPage,
+        overviewPageStyle,
+        managementPolicy,
+        managementPolicyImage,
+        orgChart
+      ),
       45000
     );
     return new NextResponse(new Uint8Array(buffer), {

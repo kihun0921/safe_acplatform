@@ -27,6 +27,12 @@ const TEMPLATES = [
     agency: "한국토지주택공사(LH)",
     name: "한국토지주택공사(LH) 표준 서식 (2025 개정판)",
     cover_style: "lh_standard",
+    // 실제 LH 안전보건관리계획서 샘플(화성동탄(2) 근린공원31호 지하주차장 설치공사)의
+    // 목차는 "표지"(제출문 포함) 다음 "Ⅰ. 안전보건관리 체계"로 시작하고, 그 1절이
+    // 우리 시스템의 "사업개요"에 해당한다. 입력 필드 구성은 그대로 두고 제목만
+    // 실제 목차에 맞춰 바꾼다.
+    overview_label: "안전보건관리 체계",
+    show_cover_nav: true,
     disabled_common_sections: [],
     sections: [
       {
@@ -358,6 +364,8 @@ for (const t of TEMPLATES) {
     .maybeSingle();
 
   const coverStyle = t.cover_style ?? "generic";
+  const overviewLabel = t.overview_label ?? null;
+  const showCoverNav = t.show_cover_nav ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -366,6 +374,8 @@ for (const t of TEMPLATES) {
         sections: t.sections,
         disabled_common_sections: t.disabled_common_sections,
         cover_style: coverStyle,
+        overview_label: overviewLabel,
+        show_cover_nav: showCoverNav,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -379,6 +389,8 @@ for (const t of TEMPLATES) {
         sections: t.sections,
         disabled_common_sections: t.disabled_common_sections,
         cover_style: coverStyle,
+        overview_label: overviewLabel,
+        show_cover_nav: showCoverNav,
       })
       .select("id")
       .single();

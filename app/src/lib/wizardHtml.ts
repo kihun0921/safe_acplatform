@@ -13,6 +13,8 @@ import {
   buildTemplateSectionsHtml,
   buildTemplateTocHtml,
   removeDisabledCommonSections,
+  applyOverviewLabel,
+  insertCoverNavAndSection,
   type AgencyTemplateRow,
 } from "@/lib/agencyTemplates";
 
@@ -900,6 +902,11 @@ ${templateOptions
 
   if (disabledCommonSections.length > 0) {
     html = removeDisabledCommonSections(html, disabledCommonSections);
+  }
+
+  html = applyOverviewLabel(html, agencyTemplate?.overview_label);
+  if (agencyTemplate?.show_cover_nav) {
+    html = insertCoverNavAndSection(html);
   }
 
   return html;

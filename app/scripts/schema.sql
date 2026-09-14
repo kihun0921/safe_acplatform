@@ -135,6 +135,16 @@ create table if not exists public.agency_templates (
 -- COVER_STYLES 참고).
 alter table public.agency_templates add column if not exists cover_style text not null default 'generic';
 
+-- 공통 6대 목차 중 "Ⅰ. 사업개요 및 기본정보"의 표시 제목을 이 발주처 실제 서식에
+-- 맞게 바꿔야 할 때 쓴다(예: LH 실제 목차는 "Ⅰ. 안전보건관리 체계"). null이면
+-- 원래 기본 제목을 그대로 쓴다. 입력 필드 구성 자체는 바뀌지 않고 화면/출력물에
+-- 보이는 제목 텍스트만 바뀐다.
+alter table public.agency_templates add column if not exists overview_label text;
+-- 좌측 목차 맨 위(Ⅰ장보다 위)에 "표지" 항목을 보여줄지 여부. 실제 표지는 별도
+-- 입력 없이 Ⅰ장에 이미 입력된 값(공사명/발주기관/공사기간/도급금액)과 회원정보로
+-- 다운로드 시 자동 생성되므로, 이 항목은 그 사실을 안내하는 정보성 섹션이다.
+alter table public.agency_templates add column if not exists show_cover_nav boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

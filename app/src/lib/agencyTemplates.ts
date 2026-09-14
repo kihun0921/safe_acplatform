@@ -23,6 +23,11 @@ export type AgencyTemplateRow = {
   sections: AgencyTemplateSection[];
   disabled_common_sections?: string[];
   cover_style?: CoverStyle;
+  // "Ⅰ. 사업개요 및 기본정보" 제목을 이 발주처 실제 서식 목차대로 바꿔야 할 때만
+  // 채운다(예: LH 실제 목차는 "Ⅰ. 안전보건관리 체계"). 입력 필드 자체는 그대로다.
+  overview_label?: string | null;
+  // 좌측 목차 맨 위(Ⅰ장보다 위)에 "표지" 안내 항목을 보여줄지 여부.
+  show_cover_nav?: boolean;
 };
 
 // 다운로드 문서(DOCX/PDF/HWPX) 맨 앞에 붙는 표지 레이아웃 종류. 표지 데이터
@@ -136,6 +141,59 @@ export function removeDisabledCommonSections(html: string, disabledKeys: string[
     const sectionId = `sec-${key}`;
     result = removeBlock(result, new RegExp(`<section[^>]*id="${sectionId}"[^>]*>`), "</section>");
     result = removeBlock(result, new RegExp(`<a[^>]*href="#${sectionId}"[^>]*>`), "</a>");
+  }
+  return result;
+}
+
+// "Ⅰ. 사업개요 및 기본정보" 좌측 목차 라벨과 본문 h2 제목을 이 발주처 실제 서식의
+// 제목으로 바꾼다(예: LH → "안전보건관리 체계"). Ⅰ 뱃지·입력 필드 구성은 그대로
+// 두고 보이는 텍스트만 바뀐다.
+export function applyOverviewLabel(html: string, overviewLabel: string | null | undefined): string {
+  if (!overviewLabel?.trim()) return html;
+  const label = escapeHtml(overviewLabel.trim());
+  return html
+    .replace("Ⅰ. 사업개요 및 기본정보", `Ⅰ. ${label}`)
+    .replace(">사업개요 및 기본 정보<", `>${label}<`);
+}
+
+// 좌측 목차 맨 위(Ⅰ장보다 위)에 "표지" 안내 항목을 추가한다. 실제 표지는 별도
+// 입력 없이 Ⅰ장에 이미 입력된 값(공사명/발주기관/공사기간/도급금액)과 회원정보로
+// 다운로드 시 자동 생성되므로, 여기서는 그 사실을 안내하는 정보성 섹션만 둔다
+// (입력요소가 없어 field-N 자동저장 인덱스에 영향을 주지 않고, 다운로드 문서
+// 본문에도 중복 출력되지 않도록 wizardExport.ts에서 sec-cover는 별도 제외한다).
+export function insertCoverNavAndSection(html: string): string {
+  const navItem = `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-cover">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm" data-icon="description">description</span>
+</span>
+<span class="group-hover:text-neutral-900 font-semibold">표지</span>
+</div>
+<span class="text-[11px] text-neutral-400 font-medium">자동 생성</span>
+</a>
+`;
+  const section = `<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-cover">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-neutral-400 text-white text-xs font-bold flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">description</span>
+</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">표지</h2>
+</div>
+<div class="p-6 text-xs text-neutral-600 leading-relaxed">
+표지는 별도로 입력하지 않아도, 아래 입력하시는 공사명·발주기관·공사기간·도급금액과 회원정보(회사명·작성자)를 그대로 반영해 다운로드하시는 문서(DOCX/PDF/HWPX) 맨 앞장에 발주처 표준 양식으로 자동 생성됩니다.
+</div>
+</section>
+`;
+
+  const navAnchor = '<a class="flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold bg-primary-soft text-primary border-l-4 border-primary transition shadow-xs" href="#sec-overview">';
+  const sectionAnchor = '<!-- ════════ SECTION Ⅰ: 사업개요 및 기본 정보 ════════ -->';
+
+  let result = html;
+  if (result.includes(navAnchor)) {
+    result = result.replace(navAnchor, navItem + navAnchor);
+  }
+  if (result.includes(sectionAnchor)) {
+    result = result.replace(sectionAnchor, section + sectionAnchor);
   }
   return result;
 }

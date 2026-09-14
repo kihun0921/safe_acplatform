@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AgencyTemplateSectionsBuilder from "./AgencyTemplateSectionsBuilder";
 import CoverStyleSelect from "./CoverStyleSelect";
+import OverviewLabelFields from "./OverviewLabelFields";
 import type { AgencyTemplateSection } from "@/lib/agencyTemplates";
 
 type AgencyTemplate = {
@@ -13,6 +14,8 @@ type AgencyTemplate = {
   sections: AgencyTemplateSection[];
   disabled_common_sections: string[];
   cover_style?: string;
+  overview_label?: string | null;
+  show_cover_nav?: boolean;
 };
 
 export default function AgencyTemplateEditor({ template }: { template: AgencyTemplate }) {
@@ -21,6 +24,8 @@ export default function AgencyTemplateEditor({ template }: { template: AgencyTem
   const [sections, setSections] = useState(template.sections);
   const [disabledCommon, setDisabledCommon] = useState(template.disabled_common_sections ?? []);
   const [coverStyle, setCoverStyle] = useState(template.cover_style ?? "generic");
+  const [overviewLabel, setOverviewLabel] = useState(template.overview_label ?? "");
+  const [showCoverNav, setShowCoverNav] = useState(template.show_cover_nav ?? false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -30,7 +35,14 @@ export default function AgencyTemplateEditor({ template }: { template: AgencyTem
       const res = await fetch(`/api/admin/agency-templates/${template.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, sections, disabledCommonSections: disabledCommon, coverStyle }),
+        body: JSON.stringify({
+          name,
+          sections,
+          disabledCommonSections: disabledCommon,
+          coverStyle,
+          overviewLabel,
+          showCoverNav,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -76,6 +88,15 @@ export default function AgencyTemplateEditor({ template }: { template: AgencyTem
 
       <div className="mb-4">
         <CoverStyleSelect value={coverStyle} onChange={setCoverStyle} />
+      </div>
+
+      <div className="mb-4">
+        <OverviewLabelFields
+          overviewLabel={overviewLabel}
+          onOverviewLabelChange={setOverviewLabel}
+          showCoverNav={showCoverNav}
+          onShowCoverNavChange={setShowCoverNav}
+        />
       </div>
 
       <AgencyTemplateSectionsBuilder

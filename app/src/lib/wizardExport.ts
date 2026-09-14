@@ -129,7 +129,10 @@ export function extractWizardSections(
   applySavedFields($, savedFields);
 
   const sections: WizardSection[] = [];
-  $("section[id^='sec-']").each((_, sectionEl) => {
+  // sec-cover는 위저드 화면에서만 보여주는 안내용 섹션(표지는 다운로드 시
+  // extractCoverPageData()가 별도로 만드는 실제 표지 페이지가 담당)이라 본문
+  // 섹션 목록에서는 제외한다 — 포함하면 표지 내용이 문서에 중복 출력된다.
+  $("section[id^='sec-']:not([id='sec-cover'])").each((_, sectionEl) => {
     const $section = $(sectionEl);
     const id = $section.attr("id") ?? "";
     const heading = $section.find("h2").first().text().trim();

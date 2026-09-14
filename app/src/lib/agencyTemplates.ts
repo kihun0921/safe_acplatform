@@ -22,7 +22,20 @@ export type AgencyTemplateRow = {
   name: string;
   sections: AgencyTemplateSection[];
   disabled_common_sections?: string[];
+  cover_style?: CoverStyle;
 };
+
+// 다운로드 문서(DOCX/PDF/HWPX) 맨 앞에 붙는 표지 레이아웃 종류. 표지 데이터
+// (공사명/공사기간/도급금액/작성자 등)는 발주처와 무관하게 항상 동일하고,
+// 발주처마다 다른 건 그 데이터를 배치하는 레이아웃뿐이라 발주처별로 실제
+// 표지 샘플을 확인한 뒤에만 전용 스타일을 추가한다(generateDocx.ts /
+// generatePdf.tsx / generateHwpx.ts에 각각 렌더러가 있어야 함). 그 전까지는
+// 모든 발주처가 범용 표지(generic)를 쓴다.
+export const COVER_STYLES: { value: string; label: string }[] = [
+  { value: "generic", label: "범용 표지 (기본)" },
+  { value: "lh_standard", label: "한국토지주택공사(LH) 표준 표지" },
+];
+export type CoverStyle = "generic" | "lh_standard";
 
 // 공통 6대 목차 — 각 항목의 실제 DOM id(sec-*)와 관리자 화면에 보여줄 한글 라벨.
 export const COMMON_SECTIONS: { key: string; label: string }[] = [

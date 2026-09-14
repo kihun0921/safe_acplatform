@@ -6,6 +6,7 @@ import { generateWizardDocx } from "@/lib/generateDocx";
 import { generateWizardPdf } from "@/lib/generatePdf";
 import { generateWizardHwpx } from "@/lib/generateHwpx";
 import { isDocumentUnlocked } from "@/lib/documentAccess";
+import type { CoverStyle } from "@/lib/agencyTemplates";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -62,12 +63,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const savedFields = (doc.content?.fields ?? {}) as Record<string, string | boolean>;
   const sections = extractWizardSections(html, savedFields);
   const cover = extractCoverPageData(html, savedFields, member?.company ?? "", member?.name ?? "");
+  const coverStyle = (selectedTemplate?.cover_style as CoverStyle | undefined) ?? "generic";
 
   const title = (doc.title ?? "안전보건관리계획서").replace(/\s*계획서$/, "") + " 안전보건관리계획서";
   const filename = encodeURIComponent(title);
 
   if (format === "docx") {
-    const buffer = await generateWizardDocx(title, sections, cover);
+    const buffer = await generateWizardDocx(title, sections, cover, coverStyle);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -77,7 +79,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 
   if (format === "hwpx") {
-    const buffer = await generateWizardHwpx(title, sections, cover);
+    const buffer = await generateWizardHwpx(title, sections, cover, coverStyle);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/hwp+zip",
@@ -86,7 +88,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     });
   }
 
-  const buffer = await generateWizardPdf(title, sections, cover);
+  const buffer = await generateWizardPdf(title, sections, cover, coverStyle);
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",

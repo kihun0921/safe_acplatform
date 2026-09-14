@@ -26,6 +26,7 @@ const TEMPLATES = [
   {
     agency: "한국토지주택공사(LH)",
     name: "한국토지주택공사(LH) 표준 서식 (2025 개정판)",
+    cover_style: "lh_standard",
     disabled_common_sections: [],
     sections: [
       {
@@ -356,10 +357,16 @@ for (const t of TEMPLATES) {
     .eq("agency", t.agency)
     .maybeSingle();
 
+  const coverStyle = t.cover_style ?? "generic";
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
-      .update({ name: t.name, sections: t.sections, disabled_common_sections: t.disabled_common_sections })
+      .update({
+        name: t.name,
+        sections: t.sections,
+        disabled_common_sections: t.disabled_common_sections,
+        cover_style: coverStyle,
+      })
       .eq("id", existing.id);
     if (error) throw error;
     console.log(`${t.agency} 표준서식 업데이트 완료:`, existing.id);
@@ -371,6 +378,7 @@ for (const t of TEMPLATES) {
         name: t.name,
         sections: t.sections,
         disabled_common_sections: t.disabled_common_sections,
+        cover_style: coverStyle,
       })
       .select("id")
       .single();

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AgencyTemplateSectionsBuilder from "./AgencyTemplateSectionsBuilder";
+import CoverStyleSelect from "./CoverStyleSelect";
 import type { AgencyTemplateSection } from "@/lib/agencyTemplates";
 
 export default function CreateAgencyTemplateForm() {
@@ -12,6 +13,7 @@ export default function CreateAgencyTemplateForm() {
   const [name, setName] = useState("");
   const [sections, setSections] = useState<AgencyTemplateSection[]>([]);
   const [disabledCommon, setDisabledCommon] = useState<string[]>([]);
+  const [coverStyle, setCoverStyle] = useState("generic");
   const [loading, setLoading] = useState(false);
 
   const reset = () => {
@@ -19,6 +21,7 @@ export default function CreateAgencyTemplateForm() {
     setName("");
     setSections([]);
     setDisabledCommon([]);
+    setCoverStyle("generic");
   };
 
   const submit = async () => {
@@ -31,7 +34,7 @@ export default function CreateAgencyTemplateForm() {
       const res = await fetch("/api/admin/agency-templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agency, name, sections, disabledCommonSections: disabledCommon }),
+        body: JSON.stringify({ agency, name, sections, disabledCommonSections: disabledCommon, coverStyle }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -81,6 +84,10 @@ export default function CreateAgencyTemplateForm() {
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
           />
         </div>
+      </div>
+
+      <div className="mb-4">
+        <CoverStyleSelect value={coverStyle} onChange={setCoverStyle} />
       </div>
 
       <AgencyTemplateSectionsBuilder

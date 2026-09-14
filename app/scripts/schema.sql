@@ -126,6 +126,15 @@ create table if not exists public.agency_templates (
   updated_at timestamptz default now()
 );
 
+-- cover_style: 다운로드 문서(DOCX/PDF/HWPX) 맨 앞에 붙는 표지의 레이아웃을 고른다.
+-- 표지에 들어가는 데이터(공사명/공사기간/도급금액/작성자 등)는 발주처와 무관하게
+-- 항상 동일한 CoverPageData 하나로 통일되어 있고, 발주처마다 실제로 다른 것은
+-- "그 데이터를 어떤 표/글자배치로 보여주는가"뿐이라 별도 필드 목록이 아니라 코드
+-- 하나만 저장한다. 새 발주처 표지 샘플을 받으면 generateDocx.ts 등에 렌더러 함수를
+-- 하나 추가하고 여기 값만 그 코드로 바꾸면 된다(lib/agencyTemplates.ts의
+-- COVER_STYLES 참고).
+alter table public.agency_templates add column if not exists cover_style text not null default 'generic';
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

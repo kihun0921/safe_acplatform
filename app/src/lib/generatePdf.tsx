@@ -1,6 +1,8 @@
 import path from "path";
+import type { ReactElement } from "react";
 import { renderToBuffer, Document, Page, View, Text, StyleSheet, Font } from "@react-pdf/renderer";
 import type { WizardSection, CoverPageData } from "./wizardExport";
+import type { CoverStyle } from "./agencyTemplates";
 
 // Noto Sans KR (SIL Open Font License — free to embed/redistribute), downloaded once
 // from Google Fonts' static TTF endpoint. @react-pdf/renderer's default fonts
@@ -66,9 +68,46 @@ const styles = StyleSheet.create({
     borderRight: "1pt solid #999",
   },
   approvalCell: { flex: 1, padding: 8, textAlign: "center", borderRight: "1pt solid #999", minHeight: 26 },
+  genericTitle: { fontSize: 26, fontWeight: "bold", textAlign: "center", marginBottom: 40 },
+  genericInfoLine: { textAlign: "center", marginBottom: 10 },
 });
 
-function CoverPage({ cover }: { cover: CoverPageData }) {
+// 결재란(작성/검토/승인)은 발주처와 무관하게 공공 제출서식 어디서나 쓰이는
+// 공통 요소라 스타일 구분 없이 재사용한다.
+function ApprovalTable({ cover }: { cover: CoverPageData }) {
+  return (
+    <View style={styles.approvalTable}>
+      <View style={styles.approvalRow}>
+        <Text style={styles.approvalHeaderCell}>구 분</Text>
+        <Text style={styles.approvalHeaderCell}>작성자</Text>
+        <Text style={styles.approvalHeaderCell}>검토자</Text>
+        <Text style={[styles.approvalHeaderCell, { borderRight: "none" }]}>승인자</Text>
+      </View>
+      <View style={styles.approvalRow}>
+        <Text style={styles.approvalHeaderCell}>직 책</Text>
+        <Text style={styles.approvalCell}></Text>
+        <Text style={styles.approvalCell}></Text>
+        <Text style={[styles.approvalCell, { borderRight: "none" }]}></Text>
+      </View>
+      <View style={styles.approvalRow}>
+        <Text style={styles.approvalHeaderCell}>성 명</Text>
+        <Text style={styles.approvalCell}>{cover.writerName}</Text>
+        <Text style={styles.approvalCell}></Text>
+        <Text style={[styles.approvalCell, { borderRight: "none" }]}></Text>
+      </View>
+      <View style={{ flexDirection: "row" }}>
+        <Text style={styles.approvalHeaderCell}>서 명</Text>
+        <Text style={styles.approvalCell}></Text>
+        <Text style={styles.approvalCell}></Text>
+        <Text style={[styles.approvalCell, { borderRight: "none" }]}></Text>
+      </View>
+    </View>
+  );
+}
+
+// LH가 실제로 요구하는 표준 표지. 다른 발주처의 실제 표지 샘플이 확보되면
+// 이 컴포넌트 옆에 XxxCoverPage를 추가하고 COVER_PAGE_COMPONENTS에 등록한다.
+function LhStandardCoverPage({ cover }: { cover: CoverPageData }) {
   return (
     <Page size="A4" style={styles.coverPage}>
       <View style={styles.coverTitleBox}>
@@ -97,46 +136,50 @@ function CoverPage({ cover }: { cover: CoverPageData }) {
       <Text style={styles.coverDate}>{cover.submitDate}</Text>
       <Text style={styles.coverAgency}>{cover.agency || "발주기관"} 귀하</Text>
       <Text style={styles.coverCompany}>{cover.companyName || "(미입력)"}</Text>
-      <View style={styles.approvalTable}>
-        <View style={styles.approvalRow}>
-          <Text style={styles.approvalHeaderCell}>구 분</Text>
-          <Text style={styles.approvalHeaderCell}>작성자</Text>
-          <Text style={styles.approvalHeaderCell}>검토자</Text>
-          <Text style={[styles.approvalHeaderCell, { borderRight: "none" }]}>승인자</Text>
-        </View>
-        <View style={styles.approvalRow}>
-          <Text style={styles.approvalHeaderCell}>직 책</Text>
-          <Text style={styles.approvalCell}></Text>
-          <Text style={styles.approvalCell}></Text>
-          <Text style={[styles.approvalCell, { borderRight: "none" }]}></Text>
-        </View>
-        <View style={styles.approvalRow}>
-          <Text style={styles.approvalHeaderCell}>성 명</Text>
-          <Text style={styles.approvalCell}>{cover.writerName}</Text>
-          <Text style={styles.approvalCell}></Text>
-          <Text style={[styles.approvalCell, { borderRight: "none" }]}></Text>
-        </View>
-        <View style={{ flexDirection: "row" }}>
-          <Text style={styles.approvalHeaderCell}>서 명</Text>
-          <Text style={styles.approvalCell}></Text>
-          <Text style={styles.approvalCell}></Text>
-          <Text style={[styles.approvalCell, { borderRight: "none" }]}></Text>
-        </View>
-      </View>
+      <ApprovalTable cover={cover} />
     </Page>
   );
 }
 
+// 아직 실제 표지 샘플을 확보하지 못한 발주처를 위한 범용 표지. 제목 박스나
+// 표 테두리 같은 발주처 고유 장식 없이, 표지에 반드시 있어야 하는 정보만
+// 담백하게 배치한다.
+function GenericCoverPage({ cover }: { cover: CoverPageData }) {
+  return (
+    <Page size="A4" style={styles.coverPage}>
+      <Text style={styles.genericTitle}>안전보건관리계획서</Text>
+      <Text style={styles.genericInfoLine}>공사(용역)명 : {cover.projectName || "(미입력)"}</Text>
+      <Text style={styles.genericInfoLine}>공사기간 : {cover.period || "(미입력)"}</Text>
+      <Text style={styles.genericInfoLine}>
+        도급금액 : {cover.contractAmount ? `${cover.contractAmount} (부가세 포함)` : "(미입력)"}
+      </Text>
+      <Text style={[styles.genericInfoLine, { marginBottom: 40 }]}>계상된 안전관리비 : {cover.safetyBudget || "(미입력)"}</Text>
+      <Text style={styles.coverDate}>{cover.submitDate}</Text>
+      <Text style={styles.coverAgency}>{cover.agency || "발주기관"} 귀하</Text>
+      <Text style={styles.coverCompany}>{cover.companyName || "(미입력)"}</Text>
+      <ApprovalTable cover={cover} />
+    </Page>
+  );
+}
+
+const COVER_PAGE_COMPONENTS: Record<CoverStyle, (props: { cover: CoverPageData }) => ReactElement> = {
+  lh_standard: LhStandardCoverPage,
+  generic: GenericCoverPage,
+};
+
 export async function generateWizardPdf(
   title: string,
   sections: WizardSection[],
-  cover?: CoverPageData
+  cover?: CoverPageData,
+  coverStyle: CoverStyle = "generic"
 ): Promise<Buffer> {
   ensureFontsRegistered();
 
+  const CoverPageComponent = COVER_PAGE_COMPONENTS[coverStyle] ?? GenericCoverPage;
+
   const doc = (
     <Document>
-      {cover && <CoverPage cover={cover} />}
+      {cover && <CoverPageComponent cover={cover} />}
       {sections.map((section, i) => (
         <Page key={section.id} size="A4" style={styles.page}>
           {i === 0 && <Text style={styles.title}>{title}</Text>}

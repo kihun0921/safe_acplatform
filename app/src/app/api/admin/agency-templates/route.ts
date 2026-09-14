@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   const { data: me } = await supabase.from("members").select("role").eq("id", user.id).single();
   if (me?.role !== "admin") return NextResponse.json({ error: "관리자만 접근할 수 있습니다." }, { status: 403 });
 
-  const { agency, name, sections, disabledCommonSections } = await request.json();
+  const { agency, name, sections, disabledCommonSections, coverStyle } = await request.json();
   if (!agency?.trim() || !name?.trim()) {
     return NextResponse.json({ error: "발주처명과 서식명을 입력해 주세요." }, { status: 400 });
   }
@@ -29,6 +29,7 @@ export async function POST(request: Request) {
       name: name.trim(),
       sections,
       disabled_common_sections: disabledCommonSections ?? [],
+      cover_style: coverStyle ?? "generic",
     })
     .select("id")
     .single();

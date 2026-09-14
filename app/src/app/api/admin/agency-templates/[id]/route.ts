@@ -20,7 +20,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { error: authError } = await requireAdmin(supabase);
   if (authError) return authError;
 
-  const { name, sections, disabledCommonSections } = await request.json();
+  const { name, sections, disabledCommonSections, coverStyle } = await request.json();
   const update: Record<string, unknown> = {};
   if (typeof name === "string") update.name = name.trim();
   if (sections !== undefined) {
@@ -35,6 +35,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     update.disabled_common_sections = disabledCommonSections;
   }
+  if (typeof coverStyle === "string") update.cover_style = coverStyle;
 
   const { error } = await supabase.from("agency_templates").update(update).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

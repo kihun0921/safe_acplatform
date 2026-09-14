@@ -14,6 +14,7 @@ import {
   VerticalAlign,
 } from "docx";
 import type { WizardSection, CoverPageData } from "./wizardExport";
+import type { CoverStyle } from "./agencyTemplates";
 
 const FONT = "맑은 고딕";
 
@@ -63,9 +64,35 @@ function approvalCell(text: string, bold = false): TableCell {
   });
 }
 
-// LH 등 공공발주처가 실제로 요구하는 표준 표지(제목 박스, 공사명/공사기간/도급금액/
-// 계상 안전관리비 표, 제출문, 작성·검토·승인 결재란)를 첫 페이지로 렌더링한다.
-function buildCoverPageChildren(cover: CoverPageData): (Paragraph | Table)[] {
+// 결재란(작성/검토/승인)은 발주처와 무관하게 공공 제출서식 어디서나 쓰이는
+// 공통 요소라 스타일 구분 없이 재사용한다.
+function buildApprovalTable(cover: CoverPageData): Table {
+  return new Table({
+    width: { size: 90, type: WidthType.PERCENTAGE },
+    alignment: AlignmentType.CENTER,
+    rows: [
+      new TableRow({
+        children: [
+          approvalCell("구 분", true),
+          approvalCell("작성자", true),
+          approvalCell("검토자", true),
+          approvalCell("승인자", true),
+        ],
+      }),
+      new TableRow({ children: [approvalCell("직 책", true), approvalCell(""), approvalCell(""), approvalCell("")] }),
+      new TableRow({
+        children: [approvalCell("성 명", true), approvalCell(cover.writerName), approvalCell(""), approvalCell("")],
+      }),
+      new TableRow({ children: [approvalCell("서 명", true), approvalCell(""), approvalCell(""), approvalCell("")] }),
+    ],
+  });
+}
+
+// LH가 실제로 요구하는 표준 표지(제목 박스, 공사명/공사기간/도급금액/계상
+// 안전관리비 표, 제출문, 작성·검토·승인 결재란)를 첫 페이지로 렌더링한다.
+// 다른 발주처의 실제 표지 샘플이 확보되면 이 함수 옆에 buildXxxCover()를
+// 추가하고 generateWizardDocx()의 분기에 등록한다.
+function buildLhStandardCover(cover: CoverPageData): (Paragraph | Table)[] {
   const spacedTitle = "안 전 보 건 관 리 계 획 서";
   return [
     new Paragraph({ spacing: { after: 600 }, children: [] }),
@@ -112,38 +139,68 @@ function buildCoverPageChildren(cover: CoverPageData): (Paragraph | Table)[] {
       alignment: AlignmentType.CENTER,
       children: [new TextRun({ text: cover.companyName || "(미입력)", bold: true, size: 24, font: FONT })],
     }),
-    new Table({
-      width: { size: 90, type: WidthType.PERCENTAGE },
-      alignment: AlignmentType.CENTER,
-      rows: [
-        new TableRow({
-          children: [
-            approvalCell("구 분", true),
-            approvalCell("작성자", true),
-            approvalCell("검토자", true),
-            approvalCell("승인자", true),
-          ],
-        }),
-        new TableRow({ children: [approvalCell("직 책", true), approvalCell(""), approvalCell(""), approvalCell("")] }),
-        new TableRow({
-          children: [approvalCell("성 명", true), approvalCell(cover.writerName), approvalCell(""), approvalCell("")],
-        }),
-        new TableRow({ children: [approvalCell("서 명", true), approvalCell(""), approvalCell(""), approvalCell("")] }),
-      ],
-    }),
+    buildApprovalTable(cover),
     new Paragraph({ children: [new PageBreak()] }),
   ];
 }
 
+// 아직 실제 표지 샘플을 확보하지 못한 발주처를 위한 범용 표지. 제목 박스나
+// 표 테두리 같은 발주처 고유 장식 없이, 표지에 반드시 있어야 하는 정보
+// (공사명/기간/금액/제출문/결재란)만 담백하게 배치한다.
+function buildGenericCover(cover: CoverPageData): (Paragraph | Table)[] {
+  const infoLine = (label: string, value: string) =>
+    new Paragraph({
+      spacing: { after: 160 },
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({ text: `${label} : `, bold: true, size: 22, font: FONT }),
+        new TextRun({ text: value || "(미입력)", size: 22, font: FONT }),
+      ],
+    });
+
+  return [
+    new Paragraph({ spacing: { after: 800 }, children: [] }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 700 },
+      children: [new TextRun({ text: "안전보건관리계획서", bold: true, size: 40, font: FONT })],
+    }),
+    infoLine("공사(용역)명", cover.projectName),
+    infoLine("공사기간", cover.period),
+    infoLine("도급금액", cover.contractAmount ? `${cover.contractAmount} (부가세 포함)` : ""),
+    infoLine("계상된 안전관리비", cover.safetyBudget),
+    new Paragraph({ spacing: { before: 700 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: cover.submitDate, size: 22, font: FONT })] }),
+    new Paragraph({
+      spacing: { before: 500, after: 500 },
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: `${cover.agency || "발주기관"} 귀하`, bold: true, size: 26, font: FONT })],
+    }),
+    new Paragraph({
+      spacing: { after: 500 },
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: cover.companyName || "(미입력)", bold: true, size: 24, font: FONT })],
+    }),
+    buildApprovalTable(cover),
+    new Paragraph({ children: [new PageBreak()] }),
+  ];
+}
+
+const COVER_RENDERERS: Record<CoverStyle, (cover: CoverPageData) => (Paragraph | Table)[]> = {
+  lh_standard: buildLhStandardCover,
+  generic: buildGenericCover,
+};
+
 export async function generateWizardDocx(
   title: string,
   sections: WizardSection[],
-  cover?: CoverPageData
+  cover?: CoverPageData,
+  coverStyle: CoverStyle = "generic"
 ): Promise<Buffer> {
   const children: (Paragraph | Table)[] = [];
 
   if (cover) {
-    children.push(...buildCoverPageChildren(cover));
+    const render = COVER_RENDERERS[coverStyle] ?? buildGenericCover;
+    children.push(...render(cover));
   }
 
   children.push(

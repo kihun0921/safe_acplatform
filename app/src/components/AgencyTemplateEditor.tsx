@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AgencyTemplateSectionsBuilder from "./AgencyTemplateSectionsBuilder";
+import CoverStyleSelect from "./CoverStyleSelect";
 import type { AgencyTemplateSection } from "@/lib/agencyTemplates";
 
 type AgencyTemplate = {
@@ -11,6 +12,7 @@ type AgencyTemplate = {
   name: string;
   sections: AgencyTemplateSection[];
   disabled_common_sections: string[];
+  cover_style?: string;
 };
 
 export default function AgencyTemplateEditor({ template }: { template: AgencyTemplate }) {
@@ -18,6 +20,7 @@ export default function AgencyTemplateEditor({ template }: { template: AgencyTem
   const [name, setName] = useState(template.name);
   const [sections, setSections] = useState(template.sections);
   const [disabledCommon, setDisabledCommon] = useState(template.disabled_common_sections ?? []);
+  const [coverStyle, setCoverStyle] = useState(template.cover_style ?? "generic");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -27,7 +30,7 @@ export default function AgencyTemplateEditor({ template }: { template: AgencyTem
       const res = await fetch(`/api/admin/agency-templates/${template.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, sections, disabledCommonSections: disabledCommon }),
+        body: JSON.stringify({ name, sections, disabledCommonSections: disabledCommon, coverStyle }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -70,6 +73,10 @@ export default function AgencyTemplateEditor({ template }: { template: AgencyTem
         className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold mb-4"
         placeholder="서식명 (예: 한국토지주택공사(LH) 표준 서식 2025)"
       />
+
+      <div className="mb-4">
+        <CoverStyleSelect value={coverStyle} onChange={setCoverStyle} />
+      </div>
 
       <AgencyTemplateSectionsBuilder
         sections={sections}

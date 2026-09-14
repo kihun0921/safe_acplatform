@@ -81,6 +81,46 @@ function findLabel($: cheerio.CheerioAPI, el: unknown): string {
   return "";
 }
 
+// LH 등 공공발주처가 실제로 요구하는 표준 표지(공사명/공사기간/도급금액/계상
+// 안전관리비 표, 제출문, 작성·검토·승인 결재란)를 출력물 맨 앞에 붙이기 위한 데이터.
+// wizardHtml.ts의 Ⅰ.사업개요 섹션에 심어둔 고정 id(wizard-field-*)로 값을 읽으므로,
+// 사용자가 실제로 입력·수정한 값이 그대로 반영된다(별도로 다시 계산하지 않음).
+export interface CoverPageData {
+  projectName: string;
+  agency: string;
+  period: string;
+  contractAmount: string;
+  safetyBudget: string;
+  submitDate: string;
+  companyName: string;
+  writerName: string;
+}
+
+export function extractCoverPageData(
+  html: string,
+  savedFields: Record<string, string | boolean>,
+  companyName: string,
+  writerName: string
+): CoverPageData {
+  const $ = cheerio.load(html);
+  applySavedFields($, savedFields);
+
+  const byId = (id: string) => $(`#${id}`).attr("value")?.trim() ?? "";
+  const today = new Date();
+  const submitDate = `${today.getFullYear()}. ${today.getMonth() + 1}. ${today.getDate()}.`;
+
+  return {
+    projectName: byId("wizard-field-project-name"),
+    agency: byId("wizard-field-agency"),
+    period: byId("wizard-field-period"),
+    contractAmount: byId("wizard-field-contract-amount"),
+    safetyBudget: byId("wizard-field-safety-budget"),
+    submitDate,
+    companyName,
+    writerName,
+  };
+}
+
 export function extractWizardSections(
   html: string,
   savedFields: Record<string, string | boolean>

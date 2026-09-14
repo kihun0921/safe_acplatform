@@ -279,13 +279,13 @@ __TEMPLATE_TOC_ITEMS__
 <!-- 공사명 -->
 <div class="md:col-span-2">
 <label class="block text-xs font-bold text-neutral-700 mb-1">사업장명 (공사명)</label>
-<input class="w-full text-xs bg-neutral-100/70 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 font-semibold focus:outline-none cursor-default" readonly="" type="text" value="화성태안3지구 복합커뮤니티센터 신축공사"/>
+<input id="wizard-field-project-name" class="w-full text-xs bg-neutral-100/70 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 font-semibold focus:outline-none cursor-default" readonly="" type="text" value="화성태안3지구 복합커뮤니티센터 신축공사"/>
 </div>
 <!-- 발주기관 -->
 <div>
 <label class="block text-xs font-bold text-neutral-700 mb-1">발주기관 (공공기관/지자체)</label>
 <div class="relative">
-<input class="w-full text-xs bg-neutral-100/70 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 focus:outline-none cursor-default" readonly="" type="text" value="한국토지주택공사 화성사업본부"/>
+<input id="wizard-field-agency" class="w-full text-xs bg-neutral-100/70 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 focus:outline-none cursor-default" readonly="" type="text" value="한국토지주택공사 화성사업본부"/>
 <span class="absolute right-2.5 top-2 text-[10px] bg-status-successSoft text-status-success px-1.5 py-0.5 rounded font-medium border border-status-success/20">G2B 연동</span>
 </div>
 </div>
@@ -298,9 +298,9 @@ __TEMPLATE_TOC_ITEMS__
 <div>
 <label class="block text-xs font-bold text-neutral-700 mb-1">공사기간 (착공 ~ 준공예정)</label>
 <div class="flex items-center gap-2">
-<input class="text-xs bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 text-neutral-800 flex-1" type="date" value="2025-04-01"/>
+<input id="wizard-field-period-start" class="text-xs bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 text-neutral-800 flex-1" type="date" value="2025-04-01"/>
 <span class="text-neutral-400 text-xs">~</span>
-<input class="text-xs bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 text-neutral-800 flex-1" type="date" value="2026-09-30"/>
+<input id="wizard-field-period-end" class="text-xs bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 text-neutral-800 flex-1" type="date" value="2026-09-30"/>
 <span class="text-[11px] text-neutral-500 whitespace-nowrap font-medium">(18개월)</span>
 </div>
 </div>
@@ -311,8 +311,8 @@ __TEMPLATE_TOC_ITEMS__
 <span class="text-[11px] text-primary font-medium">요율 2.93% 자동산출 적용</span>
 </div>
 <div class="grid grid-cols-2 gap-2">
-<input class="text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 font-mono text-neutral-900" type="text" value="4,850,000,000 원"/>
-<input class="text-xs bg-neutral-100 border border-neutral-300 rounded-lg px-3 py-2 font-mono text-neutral-800 font-semibold" readonly="" type="text" value="142,105,000 원 (계상)"/>
+<input id="wizard-field-contract-amount" class="text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 font-mono text-neutral-900" type="text" value="4,850,000,000 원"/>
+<input id="wizard-field-safety-budget" class="text-xs bg-neutral-100 border border-neutral-300 rounded-lg px-3 py-2 font-mono text-neutral-800 font-semibold" readonly="" type="text" value="142,105,000 원 (계상)"/>
 </div>
 </div>
 <!-- 대지위치 및 연면적 -->
@@ -856,8 +856,8 @@ ${templateOptions
     // 대부분이라(정확한 시작/종료일이 별도 필드로 나오지 않음), 두 개의 date input을
     // 하나의 텍스트 입력으로 바꿔 공고문 PDF에서 뽑은 원문 그대로 보여준다.
     .replace(
-      '<input class="text-xs bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 text-neutral-800 flex-1" type="date" value="2025-04-01"/>\n<span class="text-neutral-400 text-xs">~</span>\n<input class="text-xs bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 text-neutral-800 flex-1" type="date" value="2026-09-30"/>\n<span class="text-[11px] text-neutral-500 whitespace-nowrap font-medium">(18개월)</span>',
-      `<input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900" type="text" value="${contractPeriod}" placeholder="공고문 자동분석 결과가 없어 직접 입력이 필요합니다"/>`
+      '<input id="wizard-field-period-start" class="text-xs bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 text-neutral-800 flex-1" type="date" value="2025-04-01"/>\n<span class="text-neutral-400 text-xs">~</span>\n<input id="wizard-field-period-end" class="text-xs bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 text-neutral-800 flex-1" type="date" value="2026-09-30"/>\n<span class="text-[11px] text-neutral-500 whitespace-nowrap font-medium">(18개월)</span>',
+      `<input id="wizard-field-period" class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900" type="text" value="${contractPeriod}" placeholder="공고문 자동분석 결과가 없어 직접 입력이 필요합니다"/>`
     )
     .replace(
       'value="경기도 화성시 안녕동 160-2 일원 (태안3지구 근린공원 내)"',

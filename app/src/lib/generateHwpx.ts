@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import JSZip from "jszip";
-import type { WizardSection } from "./wizardExport";
+import type { WizardSection, CoverPageData } from "./wizardExport";
 
 // HWPX(.hwpx)는 한글과컴퓨터의 개방형 문서 표준(OWPML, KS X 6101)으로, ZIP 컨테이너 안에
 // XML 파일들이 들어있는 구조다(DOCX/OOXML과 비슷한 개념). 다만 header.xml에는 문서 전체의
@@ -43,7 +43,44 @@ function emptyParagraph(): string {
 </hp:p>`;
 }
 
-function buildSection0Xml(title: string, sections: WizardSection[]): string {
+// LH 등 공공발주처가 실제로 요구하는 표준 표지 내용을, 이 생성기가 이미 쓰고 있는
+// "문단 텍스트 + 다음 문단부터 페이지 나눔" 관례로 구성한다(HWPX 표 XML을 새로
+// 만들지 않고, 기존 표 출력 방식(" | "로 구분된 한 줄)과 통일된 형태를 유지).
+function buildCoverParagraphs(cover: CoverPageData): string[] {
+  const paragraphs: string[] = [];
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(textParagraph("안 전 보 건 관 리 계 획 서", "5", false));
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(textParagraph(`공 사(용 역) 명 : ${cover.projectName || "(미입력)"}`, "0", false));
+  paragraphs.push(textParagraph(`공 사 기 간 : ${cover.period || "(미입력)"}`, "0", false));
+  paragraphs.push(
+    textParagraph(
+      `도 급 금 액 : ${cover.contractAmount ? `${cover.contractAmount} (부가세 포함)` : "(미입력)"}`,
+      "0",
+      false
+    )
+  );
+  paragraphs.push(textParagraph(`계상된 안전관리비 : ${cover.safetyBudget || "(미입력)"}`, "0", false));
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(textParagraph(cover.submitDate, "0", false));
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(textParagraph(`${cover.agency || "발주기관"} 귀하`, "5", false));
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(textParagraph(cover.companyName || "(미입력)", "5", false));
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(textParagraph("구분 | 작성자 | 검토자 | 승인자", "0", false));
+  paragraphs.push(textParagraph(`직책 |  |  | `, "0", false));
+  paragraphs.push(textParagraph(`성명 | ${cover.writerName} |  | `, "0", false));
+  paragraphs.push(textParagraph(`서명 |  |  | `, "0", false));
+  paragraphs.push(emptyParagraph());
+  return paragraphs;
+}
+
+function buildSection0Xml(title: string, sections: WizardSection[], cover?: CoverPageData): string {
   const baseSection0 = fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "section0.xml"), "utf8");
   // 템플릿의 첫 <hp:p>(secPr가 들어있는, 페이지 크기/여백을 정의하는 문단)는 그대로 두고,
   // 그 뒤에 우리 본문 문단들을 추가한다.
@@ -51,7 +88,10 @@ function buildSection0Xml(title: string, sections: WizardSection[]): string {
   const withoutClose = baseSection0.slice(0, baseSection0.indexOf(closeTag));
 
   const paragraphs: string[] = [];
-  paragraphs.push(textParagraph(title, "5", false));
+  if (cover) {
+    paragraphs.push(...buildCoverParagraphs(cover));
+  }
+  paragraphs.push(textParagraph(title, "5", Boolean(cover)));
   paragraphs.push(emptyParagraph());
 
   sections.forEach((section, i) => {
@@ -75,7 +115,11 @@ function buildSection0Xml(title: string, sections: WizardSection[]): string {
   return withoutClose + paragraphs.join("\n") + "\n" + closeTag + "\n";
 }
 
-export async function generateWizardHwpx(title: string, sections: WizardSection[]): Promise<Buffer> {
+export async function generateWizardHwpx(
+  title: string,
+  sections: WizardSection[],
+  cover?: CoverPageData
+): Promise<Buffer> {
   const zip = new JSZip();
 
   // mimetype은 반드시 첫 번째 엔트리이며 압축하지 않아야 한다(ODF/OWPML 컨테이너 규약).
@@ -85,7 +129,7 @@ export async function generateWizardHwpx(title: string, sections: WizardSection[
   zip.file("settings.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "settings.xml")));
   zip.file("Contents/header.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "header.xml")));
   zip.file("Contents/content.hpf", fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "content.hpf")));
-  zip.file("Contents/section0.xml", buildSection0Xml(title, sections));
+  zip.file("Contents/section0.xml", buildSection0Xml(title, sections, cover));
   zip.file("META-INF/container.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "container.xml")));
   zip.file("META-INF/container.rdf", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "container.rdf")));
   zip.file("META-INF/manifest.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "manifest.xml")));

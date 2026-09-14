@@ -54,6 +54,101 @@ const TEMPLATES = [
         ],
       },
       {
+        // 경쟁 툴("(공공입찰) 안전보건관리 계획서" 좌측 메뉴 "1. 인력운용")과 비교해
+        // 빠져있던 항목 — 안전보건관리책임자/안전관리자/관리감독자 명단 및 조직도.
+        id: "org_chart",
+        label: "안전보건관리 조직구성",
+        fields: [
+          {
+            key: "hq_site_org",
+            label: "본사·현장 조직도 및 비상연락망",
+            type: "textarea",
+            placeholder: "본사 조직도(대표이사-안전보건관리부서 등)와 현장 조직도(안전보건관리책임자/안전보건총괄책임자-안전관리자-관리감독자-협력업체)를 부서·직책·성명 단위로 입력하세요",
+          },
+          {
+            key: "key_personnel",
+            label: "안전보건관리책임자·안전관리자·관리감독자 명단",
+            type: "textarea",
+            placeholder: "직책/성명/자격(산업안전기사 등)/휴대전화번호를 인원별로 입력하세요 — 안전보건관리책임자(현장소장), 안전관리자, 공종별 관리감독자 순",
+          },
+        ],
+      },
+      {
+        // 경쟁 툴 "안전보건관리 협의체 구성"(인력운용)과 "안전보건 협의체 회의 계획"
+        // (기타 안전관리)을 하나의 섹션으로 합쳐 반영 — 둘 다 같은 협의체에 대한
+        // 내용(구성원 명단 vs 실제 운영 계획)이라 분리보다 한 화면이 관리에 유리하다.
+        id: "safety_council",
+        label: "안전보건관리 협의체 구성 및 운영",
+        fields: [
+          {
+            key: "council_members",
+            label: "협의체 구성원 명단",
+            type: "textarea",
+            placeholder: "현장소장/관리감독자/작업반장/협력업체 현장소장 및 관리감독자/근로자대표를 성명·소속·연락처와 함께 입력하세요",
+          },
+          {
+            key: "council_meeting_plan",
+            label: "협의체 회의 계획 (실시시기·참석대상·회의내용)",
+            type: "textarea",
+            placeholder: "정기 간담회(예: 매월 2회 이상)·수시 간담회 구분, 참석대상, 주요 안건(안전보건경영방침 달성 모니터링/유해위험요인 제거대책/법령 준수여부 등)을 입력하세요",
+          },
+        ],
+      },
+      {
+        id: "education_plan",
+        label: "안전보건교육 계획",
+        fields: [
+          {
+            key: "education_schedule",
+            label: "교육 종류별 대상·시기·시간 계획",
+            type: "textarea",
+            placeholder: "안전보건관리책임자 직무교육/관리감독자 교육/기초안전보건교육(신규채용)/정기교육/특별교육/TBM(일일교육) 등 종류별 대상·시기·시간을 입력하세요",
+          },
+          {
+            key: "education_tracking",
+            label: "교육 이수현황 관리 및 성과분석 방법",
+            type: "textarea",
+            placeholder: "교육 이수자/미이수자 명단 관리, 이수증 보관 방법, 교육 성과지표(재해율 등) 분석 및 차기 계획 반영 방법을 입력하세요",
+          },
+        ],
+      },
+      {
+        id: "protection_equipment",
+        label: "보호구 지급 현황",
+        fields: [
+          {
+            key: "ppe_list",
+            label: "품목별 지급 예정수량 및 지급 대상",
+            type: "textarea",
+            placeholder: "안전모/안전대/안전화/보안경/방진마스크 등 품목별 지급수량과 지급 대상(전 근로자/특정 공종)을 입력하세요",
+          },
+          {
+            key: "ppe_management",
+            label: "지급·착용확인 및 유지관리 절차",
+            type: "textarea",
+            placeholder: "지급대장 관리, 작업 전·중 착용상태 확인 절차, 훼손·노후 보호구 폐기 및 재지급 기준을 입력하세요",
+          },
+        ],
+      },
+      {
+        id: "accident_procedure",
+        label: "산업재해 사고처리 절차",
+        fields: [
+          {
+            key: "response_steps",
+            label: "사고발생 시 조치 순서",
+            type: "textarea",
+            placeholder: "① 응급조치(119 신고·구호) → ② 작업중지 및 대피 → ③ 관계기관(발주처·고용노동청 등) 신고 → ④ 현장보존 및 원인조사 → ⑤ 재발방지대책 수립 순으로 절차를 입력하세요",
+          },
+          {
+            key: "report_chain",
+            label: "보고체계 및 관계기관 연락처",
+            type: "textarea",
+            placeholder: "발주처 담당자/관할 지방고용노동청/경찰서/소방서/지정 응급의료기관의 연락처와 보고 순서·기한을 입력하세요",
+          },
+        ],
+      },
+      {
         id: "misc_admin",
         label: "기타사항 (청렴서약·적격업체 선정·정기 위험성평가)",
         fields: [
@@ -74,6 +169,12 @@ const TEMPLATES = [
             label: "정기 위험성평가 실시계획 (도급기간 1년 이상 시)",
             type: "textarea",
             placeholder: "최초 위험성평가 이후 매년 1회 이상 재평가 계획(실시주기, 담당자, 재평가 대상 공종)을 입력하세요",
+          },
+          {
+            key: "safety_info_utilization",
+            label: "안전보건정보 활용결과",
+            type: "textarea",
+            placeholder: "안전보건공단·고용노동부 등이 제공하는 재해사례·위험성평가 자료·안전작업지침 등을 어떻게 확보하고 계획서·교육에 반영했는지를 입력하세요",
           },
         ],
       },

@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import JSZip from "jszip";
-import type { WizardSection, CoverPageData } from "./wizardExport";
+import type { WizardSection, CoverPageData, OverviewPageData } from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 
 // HWPX(.hwpx)는 한글과컴퓨터의 개방형 문서 표준(OWPML, KS X 6101)으로, ZIP 컨테이너 안에
@@ -121,11 +121,41 @@ const COVER_PARAGRAPH_BUILDERS: Record<CoverStyle, (cover: CoverPageData) => str
   generic: buildGenericCoverParagraphs,
 };
 
+// LH가 실제로 요구하는 "Ⅰ.안전보건관리체계 / 1.사업개요" 정형 페이지를, 이
+// 생성기의 "문단 텍스트 + 다음 문단부터 페이지 나눔" 관례로 재현한다.
+function buildLhOverviewPageParagraphs(data: OverviewPageData): string[] {
+  const paragraphs: string[] = [];
+  paragraphs.push(textParagraph(data.chapterTitle, "5", false));
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(textParagraph("1. 사업개요", "5", false));
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(textParagraph(`□ 사 업 명 : ${data.projectName || "(미입력)"}`, "0", false));
+  paragraphs.push(textParagraph(`□ 사업기간 : ${data.period || "(미입력)"}`, "0", false));
+  paragraphs.push(textParagraph(`□ 사업금액 : ${data.contractAmount || "(미입력)"}`, "0", false));
+  paragraphs.push(textParagraph(`□ 위    치 : ${data.location || "(미입력)"}`, "0", false));
+  paragraphs.push(textParagraph("□ 주요내용 :", "0", false));
+  if (data.mainContentLines.length) {
+    for (const line of data.mainContentLines) {
+      paragraphs.push(textParagraph(`     -. ${line}`, "0", false));
+    }
+  } else {
+    paragraphs.push(textParagraph("     -. (미입력)", "0", false));
+  }
+  paragraphs.push(emptyParagraph());
+  return paragraphs;
+}
+
+const OVERVIEW_PAGE_PARAGRAPH_BUILDERS: Record<string, (data: OverviewPageData) => string[]> = {
+  lh_standard: buildLhOverviewPageParagraphs,
+};
+
 function buildSection0Xml(
   title: string,
   sections: WizardSection[],
   cover?: CoverPageData,
-  coverStyle: CoverStyle = "generic"
+  coverStyle: CoverStyle = "generic",
+  overviewPage?: OverviewPageData,
+  overviewPageStyle?: string | null
 ): string {
   const baseSection0 = fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "section0.xml"), "utf8");
   // 템플릿의 첫 <hp:p>(secPr가 들어있는, 페이지 크기/여백을 정의하는 문단)는 그대로 두고,
@@ -138,7 +168,21 @@ function buildSection0Xml(
     const build = COVER_PARAGRAPH_BUILDERS[coverStyle] ?? buildGenericCoverParagraphs;
     paragraphs.push(...build(cover));
   }
-  paragraphs.push(textParagraph(title, "5", Boolean(cover)));
+  let overviewPageInserted = false;
+  if (overviewPage && overviewPageStyle) {
+    const build = OVERVIEW_PAGE_PARAGRAPH_BUILDERS[overviewPageStyle];
+    if (build) {
+      const overviewParagraphs = build(overviewPage);
+      // 첫 문단은 표지 뒤 새 페이지에서 시작해야 하므로 pageBreak를 준다(표지가 없으면
+      // 문서 맨 앞 페이지가 되므로 줄바꿈 없이 시작).
+      if (overviewParagraphs.length) {
+        overviewParagraphs[0] = overviewParagraphs[0].replace('pageBreak="0"', `pageBreak="${cover ? 1 : 0}"`);
+      }
+      paragraphs.push(...overviewParagraphs);
+      overviewPageInserted = true;
+    }
+  }
+  paragraphs.push(textParagraph(title, "5", Boolean(cover) || overviewPageInserted));
   paragraphs.push(emptyParagraph());
 
   sections.forEach((section, i) => {
@@ -166,7 +210,9 @@ export async function generateWizardHwpx(
   title: string,
   sections: WizardSection[],
   cover?: CoverPageData,
-  coverStyle: CoverStyle = "generic"
+  coverStyle: CoverStyle = "generic",
+  overviewPage?: OverviewPageData,
+  overviewPageStyle?: string | null
 ): Promise<Buffer> {
   const zip = new JSZip();
 
@@ -177,7 +223,10 @@ export async function generateWizardHwpx(
   zip.file("settings.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "settings.xml")));
   zip.file("Contents/header.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "header.xml")));
   zip.file("Contents/content.hpf", fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "content.hpf")));
-  zip.file("Contents/section0.xml", buildSection0Xml(title, sections, cover, coverStyle));
+  zip.file(
+    "Contents/section0.xml",
+    buildSection0Xml(title, sections, cover, coverStyle, overviewPage, overviewPageStyle)
+  );
   zip.file("META-INF/container.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "container.xml")));
   zip.file("META-INF/container.rdf", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "container.rdf")));
   zip.file("META-INF/manifest.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "manifest.xml")));

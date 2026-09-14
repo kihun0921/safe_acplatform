@@ -151,6 +151,13 @@ alter table public.agency_templates add column if not exists show_cover_nav bool
 -- 비어 있으면([]) 항상 원래 순서(공통 6개 그대로 + 발주처 전용 항목은 뒤에 이어붙임)를 쓴다.
 alter table public.agency_templates add column if not exists section_order jsonb not null default '[]'::jsonb;
 
+-- overview_page_style: "Ⅰ장 1.사업개요"를 발주처가 실제로 요구하는 완전 정형화된
+-- 서식(글꼴·위치·□ 체크박스 불릿 등)으로, 다운로드 문서에서 별도 페이지로 렌더링
+-- 한다. null이면 기존처럼 일반 "라벨: 값" 목록으로 나간다. 이 스타일이 켜지면
+-- 그 정형 페이지가 사업개요 정보를 전담하므로, 일반 섹션 목록에서는 sec-overview를
+-- 제외해 같은 내용이 두 번 나가지 않게 한다(표지와 동일한 원리).
+alter table public.agency_templates add column if not exists overview_page_style text;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

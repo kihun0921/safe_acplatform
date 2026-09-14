@@ -33,6 +33,10 @@ const TEMPLATES = [
     // 실제 목차에 맞춰 바꾼다.
     overview_label: "안전보건관리 체계",
     show_cover_nav: true,
+    // 실제 샘플의 "Ⅰ.안전보건관리체계 / 1.사업개요" 페이지는 일반 "라벨: 값" 목록이
+    // 아니라 글꼴·위치·□ 체크박스 불릿까지 완전히 정형화된 별도 페이지라, 그
+    // 서식을 그대로 재현하는 전용 렌더러를 쓴다(generateDocx.ts 등 참고).
+    overview_page_style: "lh_standard",
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -383,6 +387,7 @@ for (const t of TEMPLATES) {
   const overviewLabel = t.overview_label ?? null;
   const showCoverNav = t.show_cover_nav ?? false;
   const sectionOrder = t.section_order ?? [];
+  const overviewPageStyle = t.overview_page_style ?? null;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -394,6 +399,7 @@ for (const t of TEMPLATES) {
         overview_label: overviewLabel,
         show_cover_nav: showCoverNav,
         section_order: sectionOrder,
+        overview_page_style: overviewPageStyle,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -410,6 +416,7 @@ for (const t of TEMPLATES) {
         overview_label: overviewLabel,
         show_cover_nav: showCoverNav,
         section_order: sectionOrder,
+        overview_page_style: overviewPageStyle,
       })
       .select("id")
       .single();

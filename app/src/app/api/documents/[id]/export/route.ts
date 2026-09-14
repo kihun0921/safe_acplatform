@@ -1,12 +1,23 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildWizardHtml, type PdfOverview } from "@/lib/wizardHtml";
-import { extractWizardSections, extractCoverPageData } from "@/lib/wizardExport";
+import { extractWizardSections, extractCoverPageData, extractOverviewPageData } from "@/lib/wizardExport";
 import { generateWizardDocx } from "@/lib/generateDocx";
 import { generateWizardPdf } from "@/lib/generatePdf";
 import { generateWizardHwpx } from "@/lib/generateHwpx";
 import { isDocumentUnlocked } from "@/lib/documentAccess";
-import type { CoverStyle } from "@/lib/agencyTemplates";
+import type { CoverStyle, SectionOrderGroup } from "@/lib/agencyTemplates";
+
+// "Ⅰ.사업개요"가 속한 실제 장(章) 제목("Ⅰ. 안전보건관리 체계" 등)을 정형 사업개요
+// 페이지 상단에 그대로 쓴다. section_order에 그룹이 정의돼 있으면 그 로마숫자+제목을,
+// 없으면 overview_label(또는 기본 라벨)로 최대한 근접하게 구성한다.
+function resolveOverviewChapterTitle(
+  selectedTemplate: { section_order?: SectionOrderGroup[] | null; overview_label?: string | null } | null | undefined
+): string {
+  const group = selectedTemplate?.section_order?.find((g) => g.members.includes("overview"));
+  if (group) return `${group.roman}. ${group.title}`;
+  return `Ⅰ. ${selectedTemplate?.overview_label?.trim() || "사업개요 및 기본정보"}`;
+}
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -61,15 +72,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const pdfOverview = doc.content?.pdfOverview as PdfOverview | undefined;
   const html = buildWizardHtml(doc, announcement, pdfOverview, member, false, selectedTemplate);
   const savedFields = (doc.content?.fields ?? {}) as Record<string, string | boolean>;
-  const sections = extractWizardSections(html, savedFields);
+  const overviewPageStyle = (selectedTemplate?.overview_page_style as string | null | undefined) ?? null;
+  // overview_page_style이 켜진 발주처는 사업개요를 정형 페이지가 전담하므로, 일반
+  // 섹션 목록(sec-overview)에서는 빼서 같은 내용이 두 번 나가지 않게 한다.
+  const sections = extractWizardSections(html, savedFields, overviewPageStyle ? ["sec-overview"] : []);
   const cover = extractCoverPageData(html, savedFields, member?.company ?? "", member?.name ?? "");
   const coverStyle = (selectedTemplate?.cover_style as CoverStyle | undefined) ?? "generic";
+  const overviewPage = overviewPageStyle
+    ? extractOverviewPageData(html, savedFields, resolveOverviewChapterTitle(selectedTemplate))
+    : undefined;
 
   const title = (doc.title ?? "안전보건관리계획서").replace(/\s*계획서$/, "") + " 안전보건관리계획서";
   const filename = encodeURIComponent(title);
 
   if (format === "docx") {
-    const buffer = await generateWizardDocx(title, sections, cover, coverStyle);
+    const buffer = await generateWizardDocx(title, sections, cover, coverStyle, overviewPage, overviewPageStyle);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -79,7 +96,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 
   if (format === "hwpx") {
-    const buffer = await generateWizardHwpx(title, sections, cover, coverStyle);
+    const buffer = await generateWizardHwpx(title, sections, cover, coverStyle, overviewPage, overviewPageStyle);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/hwp+zip",
@@ -88,7 +105,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     });
   }
 
-  const buffer = await generateWizardPdf(title, sections, cover, coverStyle);
+  const buffer = await generateWizardPdf(title, sections, cover, coverStyle, overviewPage, overviewPageStyle);
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",

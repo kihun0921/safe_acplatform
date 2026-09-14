@@ -1,7 +1,7 @@
 import path from "path";
 import type { ReactElement } from "react";
 import { renderToBuffer, Document, Page, View, Text, StyleSheet, Font } from "@react-pdf/renderer";
-import type { WizardSection, CoverPageData } from "./wizardExport";
+import type { WizardSection, CoverPageData, OverviewPageData } from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 
 // Noto Sans KR (SIL Open Font License — free to embed/redistribute), downloaded once
@@ -20,6 +20,26 @@ function ensureFontsRegistered() {
     ],
   });
   fontsRegistered = true;
+}
+
+// 임베드한 NotoSansKR TTF는 한글/기본 라틴 글리프는 갖고 있지만 로마숫자 기호
+// 블록(Ⅰ~Ⅹ, U+2160~)은 포함하지 않아, 그대로 렌더링하면 엉뚱한 글리프로 깨진다
+// (DOCX/HWPX는 워드/한글 프로그램 자체 폰트가 이 글자를 지원해 문제없음). PDF
+// 전용으로만 안전한 ASCII 대체 문자로 바꿔준다.
+const ROMAN_TO_ASCII: Record<string, string> = {
+  Ⅰ: "I",
+  Ⅱ: "II",
+  Ⅲ: "III",
+  Ⅳ: "IV",
+  Ⅴ: "V",
+  Ⅵ: "VI",
+  Ⅶ: "VII",
+  Ⅷ: "VIII",
+  Ⅸ: "IX",
+  Ⅹ: "X",
+};
+function pdfSafeText(s: string): string {
+  return s.replace(/[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]/g, (m) => ROMAN_TO_ASCII[m] ?? m);
 }
 
 const styles = StyleSheet.create({
@@ -69,6 +89,13 @@ const styles = StyleSheet.create({
   },
   approvalCell: { flex: 1, padding: 8, textAlign: "center", borderRight: "1pt solid #999", minHeight: 26 },
   genericInfoLine: { textAlign: "center", marginBottom: 10 },
+  // "Ⅰ.안전보건관리체계 / 1.사업개요" 정형 페이지 전용 스타일.
+  overviewPage: { padding: 50, fontFamily: "NotoSansKR", fontSize: 11 },
+  overviewChapterTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 16 },
+  overviewSubTitle: { fontSize: 13, fontWeight: "bold", marginLeft: 18, marginBottom: 16 },
+  overviewBulletRow: { marginBottom: 10, paddingLeft: 36 },
+  overviewBulletLabel: { fontWeight: "bold" },
+  overviewSubBullet: { marginLeft: 54, marginBottom: 6 },
 });
 
 // 공공 제출서식 표지는 대부분 제목을 테두리 박스로 감싸서 강조한다 — 발주처
@@ -175,19 +202,67 @@ const COVER_PAGE_COMPONENTS: Record<CoverStyle, (props: { cover: CoverPageData }
   generic: GenericCoverPage,
 };
 
+// LH가 실제로 요구하는 "Ⅰ.안전보건관리체계 / 1.사업개요" 정형 페이지를 그대로
+// 재현한다: 대제목-소제목, □ 체크박스 불릿, 주요내용 하위 "-." 불릿까지 실제
+// 서식과 동일한 배치로 맞춘다.
+function LhOverviewPage({ data }: { data: OverviewPageData }) {
+  return (
+    <Page size="A4" style={styles.overviewPage}>
+      <Text style={styles.overviewChapterTitle}>{pdfSafeText(data.chapterTitle)}</Text>
+      <Text style={styles.overviewSubTitle}>1. 사업개요</Text>
+      <Text style={styles.overviewBulletRow}>
+        <Text style={styles.overviewBulletLabel}>- 사 업 명 : </Text>
+        {data.projectName || "(미입력)"}
+      </Text>
+      <Text style={styles.overviewBulletRow}>
+        <Text style={styles.overviewBulletLabel}>- 사업기간 : </Text>
+        {data.period || "(미입력)"}
+      </Text>
+      <Text style={styles.overviewBulletRow}>
+        <Text style={styles.overviewBulletLabel}>- 사업금액 : </Text>
+        {data.contractAmount || "(미입력)"}
+      </Text>
+      <Text style={styles.overviewBulletRow}>
+        <Text style={styles.overviewBulletLabel}>- 위    치 : </Text>
+        {data.location || "(미입력)"}
+      </Text>
+      <Text style={styles.overviewBulletRow}>
+        <Text style={styles.overviewBulletLabel}>- 주요내용 :</Text>
+      </Text>
+      {data.mainContentLines.length ? (
+        data.mainContentLines.map((line, idx) => (
+          <Text key={idx} style={styles.overviewSubBullet}>
+            -. {line}
+          </Text>
+        ))
+      ) : (
+        <Text style={styles.overviewSubBullet}>-. (미입력)</Text>
+      )}
+    </Page>
+  );
+}
+
+const OVERVIEW_PAGE_COMPONENTS: Record<string, (props: { data: OverviewPageData }) => ReactElement> = {
+  lh_standard: LhOverviewPage,
+};
+
 export async function generateWizardPdf(
   title: string,
   sections: WizardSection[],
   cover?: CoverPageData,
-  coverStyle: CoverStyle = "generic"
+  coverStyle: CoverStyle = "generic",
+  overviewPage?: OverviewPageData,
+  overviewPageStyle?: string | null
 ): Promise<Buffer> {
   ensureFontsRegistered();
 
   const CoverPageComponent = COVER_PAGE_COMPONENTS[coverStyle] ?? GenericCoverPage;
+  const OverviewPageComponent = overviewPageStyle ? OVERVIEW_PAGE_COMPONENTS[overviewPageStyle] : undefined;
 
   const doc = (
     <Document>
       {cover && <CoverPageComponent cover={cover} />}
+      {overviewPage && OverviewPageComponent && <OverviewPageComponent data={overviewPage} />}
       {sections.map((section, i) => (
         <Page key={section.id} size="A4" style={styles.page}>
           {i === 0 && <Text style={styles.title}>{title}</Text>}

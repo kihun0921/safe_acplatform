@@ -31,6 +31,10 @@ export type AgencyTemplateRow = {
   // 공통 6대 목차 + 발주처 전용 목차 전체를 이 발주처 실제 서식의 장(章) 구조로
   // 재배치한다. 비어 있으면 원래 순서(공통 6개 + 전용 항목은 뒤에 이어붙임)를 쓴다.
   section_order?: SectionOrderGroup[] | null;
+  // "Ⅰ장 1.사업개요"를 발주처가 실제로 요구하는 완전 정형화된 서식(글꼴·위치·
+  // □ 체크박스 불릿 등)으로 별도 페이지에 렌더링할 스타일. null이면 기존처럼
+  // 일반 "라벨: 값" 목록으로 나간다(generateDocx.ts 등의 OVERVIEW_PAGE_RENDERERS 참고).
+  overview_page_style?: string | null;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

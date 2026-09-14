@@ -13,7 +13,7 @@ import {
   BorderStyle,
   VerticalAlign,
 } from "docx";
-import type { WizardSection, CoverPageData } from "./wizardExport";
+import type { WizardSection, CoverPageData, OverviewPageData } from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 
 const FONT = "맑은 고딕";
@@ -192,17 +192,89 @@ const COVER_RENDERERS: Record<CoverStyle, (cover: CoverPageData) => (Paragraph |
   generic: buildGenericCover,
 };
 
+// LH가 실제로 요구하는 "Ⅰ.안전보건관리체계 / 1.사업개요" 정형 페이지를 그대로
+// 재현한다: 대제목-소제목, □ 체크박스 불릿, 라벨 뒤 콜론 정렬, 주요내용 하위
+// "-." 불릿까지 실제 서식과 동일한 글꼴 크기/들여쓰기로 맞춘다.
+function overviewBulletParagraph(label: string, value: string): Paragraph {
+  return new Paragraph({
+    spacing: { after: 200 },
+    indent: { left: 720, hanging: 720 },
+    children: [
+      new TextRun({ text: "□ ", bold: true, size: 22, font: FONT }),
+      new TextRun({ text: `${label} : `, bold: true, size: 22, font: FONT }),
+      new TextRun({ text: value || "(미입력)", size: 22, font: FONT }),
+    ],
+  });
+}
+
+function buildLhOverviewPage(data: OverviewPageData): Paragraph[] {
+  const children: Paragraph[] = [
+    new Paragraph({
+      spacing: { after: 300 },
+      children: [new TextRun({ text: data.chapterTitle, bold: true, size: 32, font: FONT })],
+    }),
+    new Paragraph({
+      indent: { left: 360 },
+      spacing: { after: 300 },
+      children: [new TextRun({ text: "1. 사업개요", bold: true, size: 26, font: FONT })],
+    }),
+    overviewBulletParagraph("사 업 명", data.projectName),
+    overviewBulletParagraph("사업기간", data.period),
+    overviewBulletParagraph("사업금액", data.contractAmount),
+    overviewBulletParagraph("위    치", data.location),
+    new Paragraph({
+      spacing: { after: data.mainContentLines.length ? 100 : 200 },
+      indent: { left: 720, hanging: 720 },
+      children: [new TextRun({ text: "□ 주요내용 :", bold: true, size: 22, font: FONT })],
+    }),
+  ];
+
+  if (data.mainContentLines.length) {
+    for (const line of data.mainContentLines) {
+      children.push(
+        new Paragraph({
+          indent: { left: 1080 },
+          spacing: { after: 100 },
+          children: [new TextRun({ text: `-. ${line}`, size: 22, font: FONT })],
+        })
+      );
+    }
+  } else {
+    children.push(
+      new Paragraph({
+        indent: { left: 1080 },
+        spacing: { after: 100 },
+        children: [new TextRun({ text: "-. (미입력)", size: 22, font: FONT })],
+      })
+    );
+  }
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  return children;
+}
+
+const OVERVIEW_PAGE_RENDERERS: Record<string, (data: OverviewPageData) => Paragraph[]> = {
+  lh_standard: buildLhOverviewPage,
+};
+
 export async function generateWizardDocx(
   title: string,
   sections: WizardSection[],
   cover?: CoverPageData,
-  coverStyle: CoverStyle = "generic"
+  coverStyle: CoverStyle = "generic",
+  overviewPage?: OverviewPageData,
+  overviewPageStyle?: string | null
 ): Promise<Buffer> {
   const children: (Paragraph | Table)[] = [];
 
   if (cover) {
     const render = COVER_RENDERERS[coverStyle] ?? buildGenericCover;
     children.push(...render(cover));
+  }
+
+  if (overviewPage && overviewPageStyle) {
+    const render = OVERVIEW_PAGE_RENDERERS[overviewPageStyle];
+    if (render) children.push(...render(overviewPage));
   }
 
   children.push(

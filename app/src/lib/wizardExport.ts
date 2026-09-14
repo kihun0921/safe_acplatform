@@ -121,9 +121,49 @@ export function extractCoverPageData(
   };
 }
 
+// LH가 실제로 요구하는 "Ⅰ.안전보건관리체계 / 1.사업개요" 정형 페이지(글꼴·위치·
+// □ 체크박스 불릿까지 실제 서식 그대로)를 위한 데이터. wizard-field-* 고정 id로
+// 값을 읽으므로, 사용자가 실제로 입력·수정한 값이 그대로 반영된다.
+export interface OverviewPageData {
+  chapterTitle: string;
+  projectName: string;
+  period: string;
+  contractAmount: string;
+  location: string;
+  mainContentLines: string[];
+}
+
+export function extractOverviewPageData(
+  html: string,
+  savedFields: Record<string, string | boolean>,
+  chapterTitle: string
+): OverviewPageData {
+  const $ = cheerio.load(html);
+  applySavedFields($, savedFields);
+
+  const byId = (id: string) => $(`#${id}`).attr("value")?.trim() ?? "";
+  const mainContentRaw = $("#wizard-field-main-content").text().trim();
+  const mainContentLines = mainContentRaw
+    ? mainContentRaw
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+
+  return {
+    chapterTitle,
+    projectName: byId("wizard-field-project-name"),
+    period: byId("wizard-field-period"),
+    contractAmount: byId("wizard-field-contract-amount"),
+    location: byId("wizard-field-site-location"),
+    mainContentLines,
+  };
+}
+
 export function extractWizardSections(
   html: string,
-  savedFields: Record<string, string | boolean>
+  savedFields: Record<string, string | boolean>,
+  excludeIds: string[] = []
 ): WizardSection[] {
   const $ = cheerio.load(html);
   applySavedFields($, savedFields);
@@ -131,8 +171,13 @@ export function extractWizardSections(
   const sections: WizardSection[] = [];
   // sec-cover는 위저드 화면에서만 보여주는 안내용 섹션(표지는 다운로드 시
   // extractCoverPageData()가 별도로 만드는 실제 표지 페이지가 담당)이라 본문
-  // 섹션 목록에서는 제외한다 — 포함하면 표지 내용이 문서에 중복 출력된다.
-  $("section[id^='sec-']:not([id='sec-cover'])").each((_, sectionEl) => {
+  // 섹션 목록에서는 항상 제외한다 — 포함하면 표지 내용이 문서에 중복 출력된다.
+  // excludeIds는 그 외에 추가로 뺄 섹션(예: overview_page_style이 켜져 정형
+  // 페이지가 사업개요를 전담할 때의 sec-overview)을 지정한다.
+  const excluded = new Set(["sec-cover", ...excludeIds]);
+  $("section[id^='sec-']")
+    .filter((_, el) => !excluded.has($(el).attr("id") ?? ""))
+    .each((_, sectionEl) => {
     const $section = $(sectionEl);
     const id = $section.attr("id") ?? "";
     const heading = $section.find("h2").first().text().trim();

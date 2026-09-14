@@ -323,7 +323,7 @@ __TEMPLATE_TOC_ITEMS__
 <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3">
 <div class="md:col-span-2">
 <label class="block text-xs font-bold text-neutral-700 mb-1">현장 소재지 (대지위치)</label>
-<input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900" type="text" value="경기도 화성시 안녕동 160-2 일원 (태안3지구 근린공원 내)"/>
+<input id="wizard-field-site-location" class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900" type="text" value="경기도 화성시 안녕동 160-2 일원 (태안3지구 근린공원 내)"/>
 </div>
 <div>
 <label class="block text-xs font-bold text-neutral-700 mb-1">연면적 / 건물 층수</label>
@@ -875,7 +875,7 @@ ${templateOptions
       '</div>\n</div>\n</section>\n<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->',
       `<div class="md:col-span-2">
 <label class="block text-xs font-bold text-neutral-700 mb-1">공사내용 (주요 공사 개요)</label>
-<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900" rows="2" placeholder="공고문 자동분석 결과가 없어 직접 입력이 필요합니다">${mainContent}</textarea>
+<textarea id="wizard-field-main-content" class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900" rows="2" placeholder="공고문 자동분석 결과가 없어 직접 입력이 필요합니다">${mainContent}</textarea>
 </div>
 </div>
 </div>

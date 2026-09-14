@@ -393,6 +393,11 @@ export default function WizardScreen({
         void onPolicyImageRemove();
         return;
       }
+      if (btn.hasAttribute("data-toc-group-toggle")) {
+        e.preventDefault();
+        onTocGroupToggle(btn);
+        return;
+      }
 
       if (btn.hasAttribute("data-logout")) {
         e.preventDefault();
@@ -488,6 +493,25 @@ export default function WizardScreen({
     // 보이므로 자연히 그 항목이 강조되고, 스크롤하면 그때그때 보이는 섹션으로 이동한다.
     const tocLinks = Array.from(root.querySelectorAll<HTMLAnchorElement>('nav a[href^="#sec-"]'));
     const sections = Array.from(root.querySelectorAll<HTMLElement>('section[id^="sec-"]'));
+
+    // 대제목(로마숫자) 밑 소제목 묶음을 접었다 펼쳤다 하는 아코디언. 목차가 길어질
+    // 때(발주처 전용 항목까지 합쳐 15개 안팎) 전부 펼쳐두면 스크롤할수록 좌측
+    // 목차가 화면을 다 차지해 산만해지므로, 서버 렌더링 시 첫 장만 펼치고 나머지는
+    // 접어 두고(agencyTemplates.ts의 buildGroupHeaderHtml) 여기서 클릭/스크롤에
+    // 반응해 펼침 상태를 바꾼다.
+    const setGroupOpen = (panel: HTMLElement, open: boolean) => {
+      panel.hidden = !open;
+      const toggle = panel.previousElementSibling;
+      const chevron = toggle?.querySelector<HTMLElement>("[data-toc-group-chevron]");
+      chevron?.classList.toggle("-rotate-90", !open);
+    };
+
+    const onTocGroupToggle = (btn: HTMLElement) => {
+      const panel = btn.nextElementSibling as HTMLElement | null;
+      if (!panel || !panel.matches("[data-toc-group-panel]")) return;
+      setGroupOpen(panel, panel.hidden);
+    };
+
     const setActiveSection = (id: string) => {
       tocLinks.forEach((a) => {
         const isActive = a.getAttribute("href") === `#${id}`;
@@ -503,6 +527,11 @@ export default function WizardScreen({
         a.classList.toggle("font-medium", !isActive);
         a.classList.toggle("hover:bg-neutral-100", !isActive);
         a.classList.toggle("group", !isActive);
+        // 스크롤로 활성화된 항목이 접힌 묶음 안에 있으면 자동으로 펼쳐서 보여준다.
+        if (isActive) {
+          const panel = a.closest<HTMLElement>("[data-toc-group-panel]");
+          if (panel?.hidden) setGroupOpen(panel, true);
+        }
       });
     };
 

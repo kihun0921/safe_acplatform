@@ -1036,7 +1036,7 @@ ${managementPolicySectionHtml}<!-- ════════ SECTION Ⅱ: 안전�
       COMMON_SECTIONS.map((s) => [s.key, s.label.replace(/^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]\.\s*/, "")])
     );
     if (agencyTemplate.overview_label?.trim()) commonLabels.overview = agencyTemplate.overview_label.trim();
-    commonLabels.management_policy = "안전보건 경영방침 및 목표";
+    commonLabels["management-policy"] = "안전보건 경영방침 및 목표";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

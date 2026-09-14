@@ -227,11 +227,19 @@ function buildGroupedNavItemHtml(sectionId: string, label: string): string {
 </a>`;
 }
 
-function buildGroupHeaderHtml(roman: string, title: string): string {
-  return `<div class="flex items-center gap-2 pt-3 pb-1 px-2 first:pt-0.5">
+// 대제목을 누르면 그 밑 소제목들이 접히고 펼쳐진다(WizardScreen.tsx가
+// data-toc-group-toggle 클릭을 감지해 형제 data-toc-group-panel의 hidden을 토글).
+// 문서 목차가 길어질수록(발주처 전용 항목까지 합쳐 15개 안팎) 전부 펼쳐두면
+// 스크롤할 때 좌측 목차가 화면을 다 잡아먹어 어수선해지므로, 처음 열었을 때는
+// 첫 장만 펼치고 나머지는 접어 둔다(defaultOpen).
+function buildGroupHeaderHtml(roman: string, title: string, defaultOpen: boolean): string {
+  return `<button type="button" class="w-full flex items-center gap-2 pt-3 pb-1 px-2 first:pt-0.5" data-toc-group-toggle>
 <span class="w-5 h-5 rounded bg-primary text-white text-[10px] font-bold flex items-center justify-center shrink-0">${roman}</span>
-<span class="text-[11.5px] font-extrabold text-neutral-800 tracking-wide truncate">${title}</span>
-</div>`;
+<span class="text-[11.5px] font-extrabold text-neutral-800 tracking-wide truncate flex-1 text-left">${title}</span>
+<span class="material-symbols-outlined text-neutral-400 text-base shrink-0 transition-transform${
+    defaultOpen ? "" : " -rotate-90"
+  }" data-toc-group-chevron>expand_more</span>
+</button>`;
 }
 
 // 공통 6대 목차 + 발주처 전용 목차 전체를 groups에 지정된 실제 장(章) 구조로
@@ -259,7 +267,7 @@ export function applySectionOrder(
   const NAV_TOKEN = " __SECTION_ORDER_NAV__ ";
   const BODY_TOKEN = " __SECTION_ORDER_BODY__ ";
 
-  for (const { roman, title, members } of groups) {
+  groups.forEach(({ roman, title, members }, groupIndex) => {
     let groupNavHtml = "";
     for (const id of members) {
       const isExtra = id in extraLabels;
@@ -300,9 +308,13 @@ export function applySectionOrder(
       }
     }
     if (groupNavHtml) {
-      navContents.push(buildGroupHeaderHtml(roman, title) + "\n" + groupNavHtml);
+      const defaultOpen = groupIndex === 0;
+      navContents.push(
+        buildGroupHeaderHtml(roman, title, defaultOpen) +
+          `\n<div class="space-y-0.5"${defaultOpen ? "" : " hidden"} data-toc-group-panel>\n${groupNavHtml}</div>\n`
+      );
     }
-  }
+  });
 
   result = result.replace(NAV_TOKEN, navContents.join(""));
   result = result.replace(BODY_TOKEN, bodyContents.join("\n"));

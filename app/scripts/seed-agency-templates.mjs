@@ -49,7 +49,7 @@ const TEMPLATES = [
     // 대제목(로마숫자+실제 장 제목)이 한 번만 나오고, 그 밑에 속한 절들이 들여쓰기된
     // 소제목으로 나열된다(번호가 중복되어 헷갈리던 기존 평면 목차를 계층 구조로 정리).
     section_order: [
-      { roman: "Ⅰ", title: "안전보건관리 체계", members: ["overview", "management_policy", "org_chart"] },
+      { roman: "Ⅰ", title: "안전보건관리 체계", members: ["overview", "management-policy", "org_chart"] },
       { roman: "Ⅱ", title: "실행계획", members: ["education_plan", "risk", "execution"] },
       { roman: "Ⅲ", title: "운영관리", members: ["protection_equipment"] },
       { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency", "accident_procedure"] },

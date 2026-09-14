@@ -28,16 +28,16 @@ export type AgencyTemplateRow = {
   overview_label?: string | null;
   // 좌측 목차 맨 위(Ⅰ장보다 위)에 "표지" 안내 항목을 보여줄지 여부.
   show_cover_nav?: boolean;
-  // 공통 6대 목차 + 발주처 전용 목차 전체를 이 발주처 실제 서식의 목차 순서/장
-  // 번호로 재배치한다. 비어 있으면 원래 순서(공통 6개 + 전용 항목은 뒤에 이어붙임)를 쓴다.
-  section_order?: SectionOrderItem[] | null;
+  // 공통 6대 목차 + 발주처 전용 목차 전체를 이 발주처 실제 서식의 장(章) 구조로
+  // 재배치한다. 비어 있으면 원래 순서(공통 6개 + 전용 항목은 뒤에 이어붙임)를 쓴다.
+  section_order?: SectionOrderGroup[] | null;
 };
 
-// section_order 배열의 한 항목. id는 공통 섹션 키(overview/risk/execution/emergency/
-// target/attachments) 또는 sections[].id(발주처 전용 목차) 중 하나이고, roman은 그
-// 항목이 속하는 실제 장(章) 번호다. 여러 항목이 같은 roman을 공유하면(실제 문서에서
-// 여러 절이 한 장 아래 있는 경우) 좌측 목차/본문에 같은 로마숫자 배지로 표시된다.
-export type SectionOrderItem = { id: string; roman: string };
+// section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에
+// 대제목으로 한 번만 표시되고, members(공통 섹션 키 또는 sections[].id)는 그 장에
+// 속하는 소제목들로 대제목 밑에 들여쓰기되어 나열된다 — 큰 목차 하나에 여러 절이
+// 묶여 있는 실제 공공서식의 구조를 그대로 반영한다.
+export type SectionOrderGroup = { roman: string; title: string; members: string[] };
 
 // 다운로드 문서(DOCX/PDF/HWPX) 맨 앞에 붙는 표지 레이아웃 종류. 표지 데이터
 // (공사명/공사기간/도급금액/작성자 등)는 발주처와 무관하게 항상 동일하고,
@@ -210,75 +210,95 @@ export function insertCoverNavAndSection(html: string): string {
 const COMMON_BODY_BADGE_RE =
   /(<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">)[^<]*(<\/span>)/;
 const EXTRA_BODY_ICON = '<span class="material-symbols-outlined text-primary text-lg">domain</span>';
-const NAV_ROMAN_PREFIX_RE = />([ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ])\.(\s*)/;
 
-// 공통 6대 목차 + 발주처 전용 목차 전체를 order에 지정된 실제 장(章) 순서로 재배치한다.
-// 각 항목의 nav <a>...</a>와 본문 <section id>...</section> 블록을 원래 위치에서
-// 통째로 떼어낸 뒤, order 순서대로 다시 이어붙이고 로마숫자 배지만 order.roman으로
-// 바꾼다(라벨 텍스트·입력 필드 구성은 절대 건드리지 않으므로 자동저장 인덱스에
-// 영향이 없다). 첫 번째 떼어낸 위치에 재배치된 전체 묶음을 끼워 넣으므로, 재배치
-// 대상이 아닌 다른 항목(예: 표지 안내 항목)의 상대적 위치는 그대로 유지된다.
+// WizardScreen.tsx의 스크롤 위치 기반 강조 표시(IntersectionObserver)는
+// `nav a[href^="#sec-"]`를 전부 조회해 classList.toggle로 활성 스타일을 켜고 끄므로,
+// 아래에서 새로 만드는 소제목 <a>가 이 속성(href="#sec-X")만 갖고 있으면 클래스
+// 구성과 무관하게 그대로 동작한다 — 별도 JS 수정이 필요 없다.
+function buildGroupedNavItemHtml(sectionId: string, label: string): string {
+  return `<a class="flex items-center px-3 py-1.5 ml-2 rounded-lg text-[11.5px] font-medium text-neutral-600 border-l-2 border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900 hover:border-primary/40 transition group" href="#${sectionId}">
+<span class="truncate">${label}</span>
+</a>`;
+}
+
+function buildGroupHeaderHtml(roman: string, title: string): string {
+  return `<div class="flex items-center gap-2 pt-3 pb-1 px-2 first:pt-0.5">
+<span class="w-5 h-5 rounded bg-primary text-white text-[10px] font-bold flex items-center justify-center shrink-0">${roman}</span>
+<span class="text-[11.5px] font-extrabold text-neutral-800 tracking-wide truncate">${title}</span>
+</div>`;
+}
+
+// 공통 6대 목차 + 발주처 전용 목차 전체를 groups에 지정된 실제 장(章) 구조로
+// 재배치한다.
+//  - 좌측 목차(nav): 장(章)마다 대제목(로마숫자+실제 장 제목)을 한 번만 보여주고,
+//    그 밑에 속한 절들은 대제목 없이 들여쓰기된 소제목만 나열한다(요청한
+//    "대제목 밑에 소제목이 들어가는" 계층 구조). 각 절의 status 배지(진행률/완료 등)는
+//    항목이 많아질수록 오히려 산만해지므로 생략하고 라벨만 보여준다.
+//  - 본문(body): 각 절 카드는 그대로 두되, 배지만 자신이 속한 장의 로마숫자로
+//    바꾼다(카드 자체가 이미 시각적으로 분리돼 있어 그룹 배지가 반복돼도 헷갈리지 않음).
+// 라벨 텍스트·입력 필드 구성은 전혀 건드리지 않으므로 자동저장 인덱스에 영향이 없다.
 export function applySectionOrder(
   html: string,
-  order: SectionOrderItem[],
-  extraLabels: Record<string, string>
+  groups: SectionOrderGroup[],
+  extraLabels: Record<string, string>,
+  commonLabels: Record<string, string>
 ): string {
-  if (!order.length) return html;
+  if (!groups.length) return html;
 
   const navContents: string[] = [];
   const bodyContents: string[] = [];
   let result = html;
   let navPlaced = false;
   let bodyPlaced = false;
-  const NAV_TOKEN = " __SECTION_ORDER_NAV__ ";
-  const BODY_TOKEN = " __SECTION_ORDER_BODY__ ";
+  const NAV_TOKEN = " __SECTION_ORDER_NAV__ ";
+  const BODY_TOKEN = " __SECTION_ORDER_BODY__ ";
 
-  for (const { id, roman } of order) {
-    const isExtra = id in extraLabels;
-    const sectionId = isExtra ? `sec-tpl-${id}` : `sec-${id}`;
+  for (const { roman, title, members } of groups) {
+    let groupNavHtml = "";
+    for (const id of members) {
+      const isExtra = id in extraLabels;
+      const sectionId = isExtra ? `sec-tpl-${id}` : `sec-${id}`;
+      const label = escapeHtml(isExtra ? extraLabels[id] : commonLabels[id] ?? id);
 
-    const navMatch = result.match(new RegExp(`<a[^>]*href="#${sectionId}"[^>]*>`));
-    if (navMatch && navMatch.index !== undefined) {
-      const start = navMatch.index;
-      const closeIdx = result.indexOf("</a>", start);
-      if (closeIdx !== -1) {
-        const end = closeIdx + "</a>".length;
-        let block = result.slice(start, end);
-        if (isExtra) {
-          const label = escapeHtml(extraLabels[id]);
-          block = block.replace(`>${label}<`, `>${roman}. ${label}<`);
-        } else {
-          block = block.replace(NAV_ROMAN_PREFIX_RE, `>${roman}.$2`);
+      const navMatch = result.match(new RegExp(`<a[^>]*href="#${sectionId}"[^>]*>`));
+      if (navMatch && navMatch.index !== undefined) {
+        const start = navMatch.index;
+        const closeIdx = result.indexOf("</a>", start);
+        if (closeIdx !== -1) {
+          const end = closeIdx + "</a>".length;
+          groupNavHtml += buildGroupedNavItemHtml(sectionId, label) + "\n";
+          result = result.slice(0, start) + (navPlaced ? "" : NAV_TOKEN) + result.slice(end);
+          navPlaced = true;
         }
-        navContents.push(block);
-        result = result.slice(0, start) + (navPlaced ? "" : NAV_TOKEN) + result.slice(end);
-        navPlaced = true;
+      }
+
+      const bodyMatch = result.match(new RegExp(`<section[^>]*id="${sectionId}"[^>]*>`));
+      if (bodyMatch && bodyMatch.index !== undefined) {
+        const start = bodyMatch.index;
+        const closeIdx = result.indexOf("</section>", start);
+        if (closeIdx !== -1) {
+          const end = closeIdx + "</section>".length;
+          let block = result.slice(start, end);
+          if (isExtra) {
+            block = block.replace(
+              EXTRA_BODY_ICON,
+              `<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">${roman}</span>`
+            );
+          } else {
+            block = block.replace(COMMON_BODY_BADGE_RE, `$1${roman}$2`);
+          }
+          bodyContents.push(block);
+          result = result.slice(0, start) + (bodyPlaced ? "" : BODY_TOKEN) + result.slice(end);
+          bodyPlaced = true;
+        }
       }
     }
-
-    const bodyMatch = result.match(new RegExp(`<section[^>]*id="${sectionId}"[^>]*>`));
-    if (bodyMatch && bodyMatch.index !== undefined) {
-      const start = bodyMatch.index;
-      const closeIdx = result.indexOf("</section>", start);
-      if (closeIdx !== -1) {
-        const end = closeIdx + "</section>".length;
-        let block = result.slice(start, end);
-        if (isExtra) {
-          block = block.replace(
-            EXTRA_BODY_ICON,
-            `<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">${roman}</span>`
-          );
-        } else {
-          block = block.replace(COMMON_BODY_BADGE_RE, `$1${roman}$2`);
-        }
-        bodyContents.push(block);
-        result = result.slice(0, start) + (bodyPlaced ? "" : BODY_TOKEN) + result.slice(end);
-        bodyPlaced = true;
-      }
+    if (groupNavHtml) {
+      navContents.push(buildGroupHeaderHtml(roman, title) + "\n" + groupNavHtml);
     }
   }
 
-  result = result.replace(NAV_TOKEN, navContents.join("\n"));
+  result = result.replace(NAV_TOKEN, navContents.join(""));
   result = result.replace(BODY_TOKEN, bodyContents.join("\n"));
   return result;
 }

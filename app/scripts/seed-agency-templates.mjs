@@ -36,25 +36,18 @@ const TEMPLATES = [
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
-    // 9개 발주처 전용 목차를 함께 재배치한다. 같은 로마숫자를 공유하는 항목들은
-    // 실제 문서에서 같은 장(章) 아래 있는 절들이다(예: Ⅰ = 사업개요 + 안전보건관리
-    // 조직구성, Ⅱ = 교육계획 + 위험성평가 + 안전작업계획).
+    // 9개 발주처 전용 목차를 각 장(章) 밑에 소제목으로 묶는다. 좌측 목차에는 장별로
+    // 대제목(로마숫자+실제 장 제목)이 한 번만 나오고, 그 밑에 속한 절들이 들여쓰기된
+    // 소제목으로 나열된다(번호가 중복되어 헷갈리던 기존 평면 목차를 계층 구조로 정리).
     section_order: [
-      { id: "overview", roman: "Ⅰ" },
-      { id: "org_chart", roman: "Ⅰ" },
-      { id: "education_plan", roman: "Ⅱ" },
-      { id: "risk", roman: "Ⅱ" },
-      { id: "execution", roman: "Ⅱ" },
-      { id: "protection_equipment", roman: "Ⅲ" },
-      { id: "emergency", roman: "Ⅳ" },
-      { id: "accident_procedure", roman: "Ⅳ" },
-      { id: "safety_council", roman: "Ⅴ" },
-      { id: "target", roman: "Ⅴ" },
-      { id: "misc_admin", roman: "Ⅴ" },
-      { id: "safety_cost", roman: "Ⅴ" },
-      { id: "accident_level", roman: "Ⅵ" },
-      { id: "attachments", roman: "Ⅶ" },
-      { id: "workforce", roman: "Ⅷ" },
+      { roman: "Ⅰ", title: "안전보건관리 체계", members: ["overview", "org_chart"] },
+      { roman: "Ⅱ", title: "실행계획", members: ["education_plan", "risk", "execution"] },
+      { roman: "Ⅲ", title: "운영관리", members: ["protection_equipment"] },
+      { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency", "accident_procedure"] },
+      { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "target", "misc_admin", "safety_cost"] },
+      { roman: "Ⅵ", title: "재해발생 수준", members: ["accident_level"] },
+      { roman: "Ⅶ", title: "붙임", members: ["attachments"] },
+      { roman: "Ⅷ", title: "작업투입 인력 인적사항", members: ["workforce"] },
     ],
     disabled_common_sections: [],
     sections: [

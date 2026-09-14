@@ -16,6 +16,7 @@ import {
   applyOverviewLabel,
   insertCoverNavAndSection,
   applySectionOrder,
+  COMMON_SECTIONS,
   type AgencyTemplateRow,
 } from "@/lib/agencyTemplates";
 
@@ -911,7 +912,14 @@ ${templateOptions
   }
   if (agencyTemplate?.section_order?.length) {
     const extraLabels = Object.fromEntries(templateSections.map((s) => [s.id, s.label]));
-    html = applySectionOrder(html, agencyTemplate.section_order, extraLabels);
+    // 소제목 목록에는 로마숫자를 다시 넣지 않으므로(대제목에서 한 번만 보여줌),
+    // 공통 섹션의 원래 라벨("Ⅰ. 사업개요 및 기본정보" 등)에서 로마숫자 접두어를
+    // 뗀 순수 제목만 쓴다. overview는 overview_label로 이미 재정의됐으면 그 값을 쓴다.
+    const commonLabels: Record<string, string> = Object.fromEntries(
+      COMMON_SECTIONS.map((s) => [s.key, s.label.replace(/^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]\.\s*/, "")])
+    );
+    if (agencyTemplate.overview_label?.trim()) commonLabels.overview = agencyTemplate.overview_label.trim();
+    html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 
   return html;

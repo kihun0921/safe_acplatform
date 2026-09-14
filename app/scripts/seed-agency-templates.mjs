@@ -22,110 +22,6 @@ const admin = createClient(
 // 완성 샘플(화성동탄(2) 근린공원31호 지하주차장 설치공사 등)에서 쓰인 표현과
 // 형식을 그대로 반영한 초안이다 — 회원은 이 문구를 그대로 두거나 현장 실정에
 // 맞게 고쳐 쓰기만 하면 된다(처음부터 빈 칸에 새로 작성할 필요가 없도록).
-// 실제 LH 목차의 "4.2 이행계획 추진을 위한 구성원의 역할분담(본사, 현장)"에
-// 해당한다. 경쟁사 서식과 회원이 실제 제출했던 서식 두 가지를 비교해서 중복되는
-// 내용을 하나로 통합한 일반적인 문구를 기본값으로 채워뒀다 — 이 절 자체는
-// 특정 발주처 전용이 아니라 모든 안전보건관리계획서에 공통으로 들어가는 법정
-// 내용이라, 여러 발주처 표준서식에 그대로 재사용한다(아래 TEMPLATES 여러 곳에서
-// 참조).
-const ROLE_RESPONSIBILITIES_SECTION = {
-  id: "role_responsibilities",
-  label: "구성원별 안전보건 관리 역할 (책임과 권한 및 주요업무)",
-  fields: [
-    {
-      key: "ceo",
-      label: "대표이사",
-      type: "textarea",
-      placeholder: "대표이사의 안전보건 경영시스템 운영 권한·책임을 입력하세요",
-      default:
-        "1. 안전보건경영시스템 운영 관련 관계자 권한 부여(업무분장·지휘감독·예산집행 등) 및 확인\n" +
-        "2. 안전보건 경영방침 및 목표 설정, 계획 승인\n" +
-        "3. 조직 구성, 인력·안전보건관리비·시설·장비 등 자원의 지원\n" +
-        "4. 이사회 보고 및 승인\n" +
-        "5. 시스템 평가 및 지속적인 개선\n" +
-        "6. 안전보건에 관한 최종 의사결정 및 산업재해 예방 총괄",
-    },
-    {
-      key: "hq_safety_dept",
-      label: "본사 안전보건관리부서 (관리팀 안전담당)",
-      type: "textarea",
-      placeholder: "본사 안전보건관리부서(관리팀 안전담당)의 역할을 입력하세요",
-      default:
-        "1. 안전보건 경영시스템 제·개정, 실무, 검토, 품의, 등록, 배포, 실행, 이행상태 점검 및 총괄 관리\n" +
-        "2. 안전보건 경영방침·목표·계획 수립 및 대표이사 보고\n" +
-        "3. 현장 안전보건 확산 분위기 조성 및 지원, 순회 점검\n" +
-        "4. 안전보건 인력 및 시설·예산 편성, 집행 감독, 기록 보관\n" +
-        "5. 안전보건교육 계획수립·집행 지원, 협의회 등 법정회의 지원\n" +
-        "6. 사고 재발방지대책 수립 및 전파교육\n" +
-        "7. 중대재해처벌법 등 안전보건관계법령에 따른 이행업무 지원",
-    },
-    {
-      key: "site_manager",
-      label: "안전보건관리책임자 (현장소장)",
-      type: "textarea",
-      placeholder: "안전보건관리책임자(현장소장)의 책임과 권한을 입력하세요",
-      default:
-        "1. 사업장의 산업재해 예방계획의 수립에 관한 사항\n" +
-        "2. 안전보건관리규정의 작성 및 변경에 관한 사항\n" +
-        "3. 안전보건교육에 관한 사항\n" +
-        "4. 작업환경측정 등 작업환경의 점검 및 개선에 관한 사항\n" +
-        "5. 근로자의 건강진단 등 건강관리에 관한 사항\n" +
-        "6. 산업재해의 원인 조사 및 재발 방지대책 수립에 관한 사항\n" +
-        "7. 산업재해에 관한 통계의 기록·유지에 관한 사항\n" +
-        "8. 안전장치 및 보호구 구입 시 적격품 여부 확인에 관한 사항\n" +
-        "9. 그 밖에 근로자의 유해·위험 방지조치에 관한 사항으로서 고용노동부령으로 정하는 사항\n" +
-        "10. 본사 안전보건 전담부서의 지도·조언에 대한 성실한 협조 및 대표이사 부여 권한의 행사·보고",
-    },
-    {
-      key: "supervisor",
-      label: "관리감독자",
-      type: "textarea",
-      placeholder: "관리감독자의 책임과 권한을 입력하세요",
-      default:
-        "1. 지휘·감독하는 작업과 관련된 기계·기구 또는 설비의 안전·보건 점검 및 이상 유무 확인\n" +
-        "2. 소속 근로자의 작업복·보호구 및 방호장치의 점검과 그 착용·사용에 관한 교육·지도\n" +
-        "3. 산업재해에 관한 보고 및 이에 대한 응급조치\n" +
-        "4. 작업 정리·정돈 및 통로 확보에 대한 확인·감독\n" +
-        "5. 위험성평가에 관한 유해·위험요인의 파악 및 개선조치 시행에 대한 참여\n" +
-        "6. 사업장 순회점검 지도 및 조치 건의\n" +
-        "7. 소속 근로자 등 관계자 직접 지휘·감독, 교육, 의견 청취 및 조치\n" +
-        "8. 그 밖에 안전 및 보건에 관한 사항으로서 고용노동부령으로 정하는 사항",
-    },
-    {
-      key: "safety_manager",
-      label: "안전관리자",
-      type: "textarea",
-      placeholder: "안전관리자의 책임과 권한을 입력하세요",
-      default:
-        "1. 산업안전보건위원회 또는 안전 및 보건에 관한 노사협의체에서 심의·의결한 업무와 해당 사업장의 안전보건관리규정 및 취업규칙에서 정한 업무\n" +
-        "2. 위험성평가에 관한 보좌 및 지도·조언\n" +
-        "3. 안전인증대상기계 등과 자율안전확인대상기계 등 구입 시 적격품 선정에 관한 보좌 및 지도·조언\n" +
-        "4. 해당 사업장 안전교육계획의 수립 및 안전교육 실시에 관한 보좌 및 지도·조언\n" +
-        "5. 사업장 순회점검, 지도 및 조치 건의\n" +
-        "6. 산업재해 발생의 원인 조사·분석 및 재발 방지를 위한 기술적 보좌 및 지도·조언\n" +
-        "7. 산업재해에 관한 통계의 유지·관리·분석을 위한 보좌 및 지도·조언\n" +
-        "8. 법 또는 법에 따른 명령으로 정한 안전에 관한 사항의 이행에 관한 보좌 및 지도·조언\n" +
-        "9. 업무 수행 내용의 기록·유지\n" +
-        "10. 현장소장 보좌 및 관리감독자·근로자에 대한 지도·조언, 위험성평가 자료 확보 및 정보제공\n" +
-        "11. 안전관리자 직무수행(산업안전보건법 제17조, 같은 법 시행령 제18조)",
-    },
-    {
-      key: "safety_officer",
-      label: "안전보건담당자 (안전관리자 미선임 시 지정)",
-      type: "textarea",
-      placeholder: "안전관리자를 별도로 선임하지 않은 소규모 수급사의 경우, 안전보건담당자의 책임과 권한을 입력하세요",
-      default:
-        "※ 안전관리자 미선임 수급사는 안전보건관리담당자를 선임하여 아래 업무를 수행한다.\n" +
-        "1. 안전보건교육 실시에 관한 보좌 및 지도·조언\n" +
-        "2. 위험성평가에 관한 보좌 및 지도·조언\n" +
-        "3. 작업환경측정 및 개선에 관한 보좌 및 지도·조언\n" +
-        "4. 각종 건강진단에 관한 보좌 및 지도·조언\n" +
-        "5. 산업재해 발생의 원인 조사, 산업재해 통계의 기록 및 유지를 위한 보좌 및 지도·조언\n" +
-        "6. 안전장치 및 보호구 구입 시 적격품 선정에 관한 보좌 및 지도·조언",
-    },
-  ],
-};
-
 const TEMPLATES = [
   {
     agency: "한국토지주택공사(LH)",
@@ -152,6 +48,13 @@ const TEMPLATES = [
     // sections의 자유서식 텍스트 2칸이었지만, 실제 표준 조직도 서식과 더 가깝게
     // 표 형식으로 바꿨다.
     show_org_chart: true,
+    // "구성원별 안전보건 관리 역할"을 회원이 실제 제출했던 서식(구분/주요업무/비고,
+    // 헤드라인 음영)과 같은 표로 보여준다. 구분(직책)은 고정값, 주요업무는
+    // 경쟁사 서식과 비교해 중복을 통합한 표준 문구가 채워진 채로 수정 가능,
+    // 비고는 빈 칸으로 시작한다(wizardHtml.ts의 buildRoleResponsibilitiesSectionHtml
+    // 참고). 특정 발주처 전용 내용이 아니라 모든 안전보건관리계획서에 공통으로
+    // 들어가는 법정 내용이라 아래 한국전력공사 표준서식에도 동일하게 켜둔다.
+    show_role_responsibilities: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -212,7 +115,6 @@ const TEMPLATES = [
           },
         ],
       },
-      ROLE_RESPONSIBILITIES_SECTION,
       {
         id: "safety_council",
         label: "안전보건관리 협의체 구성 및 운영",
@@ -426,9 +328,11 @@ const TEMPLATES = [
   {
     agency: "한국전력공사",
     name: "한국전력공사 표준 서식 (2025 개정판)",
+    // "구성원별 안전보건 관리 역할"은 특정 발주처 전용이 아니라 모든 안전보건
+    // 관리계획서에 공통으로 들어가는 법정 내용이라 LH와 동일하게 켜둔다.
+    show_role_responsibilities: true,
     disabled_common_sections: [],
     sections: [
-      ROLE_RESPONSIBILITIES_SECTION,
       {
         id: "electrical_safety",
         label: "전기공사 특별 안전관리 사항",
@@ -481,6 +385,7 @@ for (const t of TEMPLATES) {
   const overviewPageStyle = t.overview_page_style ?? null;
   const showManagementPolicy = t.show_management_policy ?? false;
   const showOrgChart = t.show_org_chart ?? false;
+  const showRoleResponsibilities = t.show_role_responsibilities ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -495,6 +400,7 @@ for (const t of TEMPLATES) {
         overview_page_style: overviewPageStyle,
         show_management_policy: showManagementPolicy,
         show_org_chart: showOrgChart,
+        show_role_responsibilities: showRoleResponsibilities,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -514,6 +420,7 @@ for (const t of TEMPLATES) {
         overview_page_style: overviewPageStyle,
         show_management_policy: showManagementPolicy,
         show_org_chart: showOrgChart,
+        show_role_responsibilities: showRoleResponsibilities,
       })
       .select("id")
       .single();

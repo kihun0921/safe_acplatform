@@ -169,6 +169,12 @@ alter table public.agency_templates add column if not exists show_management_pol
 -- 조직도 표(직책은 고정값, 성명·연락처만 입력) 형태로 보여줄지 여부.
 alter table public.agency_templates add column if not exists show_org_chart boolean not null default false;
 
+-- show_role_responsibilities: "구성원별 안전보건 관리 역할"을 라벨+텍스트박스
+-- 나열이 아니라, 회원이 실제 제출한 서식처럼 표(구분/주요업무/비고, 헤드라인
+-- 음영)로 보여줄지 여부. 구분(직책)은 고정값, 주요업무는 사전 작성 문구가
+-- 채워진 채로 수정 가능, 비고는 빈 칸으로 시작한다.
+alter table public.agency_templates add column if not exists show_role_responsibilities boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

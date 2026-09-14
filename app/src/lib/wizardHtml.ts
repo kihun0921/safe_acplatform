@@ -892,6 +892,142 @@ ${rows}
 `;
 }
 
+// "구성원별 안전보건 관리 역할" — 회원이 실제 제출했던 서식(구분/주요업무/비고,
+// 헤드라인 음영)을 그대로 재현한다. 경쟁사 서식과 비교해 중복 내용을 하나로
+// 통합한 문구를 "주요업무" 칸에 기본값으로 채워 넣고, 구분(직책)은 고정값,
+// 비고는 빈 칸으로 시작한다.
+const ROLE_RESPONSIBILITIES: { key: string; role: string; duties: string }[] = [
+  {
+    key: "ceo",
+    role: "대표이사",
+    duties:
+      "1. 안전보건경영시스템 운영 관련 관계자 권한 부여(업무분장·지휘감독·예산집행 등) 및 확인\n" +
+      "2. 안전보건 경영방침 및 목표 설정, 계획 승인\n" +
+      "3. 조직 구성, 인력·안전보건관리비·시설·장비 등 자원의 지원\n" +
+      "4. 이사회 보고 및 승인\n" +
+      "5. 시스템 평가 및 지속적인 개선\n" +
+      "6. 안전보건에 관한 최종 의사결정 및 산업재해 예방 총괄",
+  },
+  {
+    key: "hq-safety-dept",
+    role: "본사 안전보건관리부서\n(관리팀 안전담당)",
+    duties:
+      "1. 안전보건 경영시스템 제·개정, 실무, 검토, 품의, 등록, 배포, 실행, 이행상태 점검 및 총괄 관리\n" +
+      "2. 안전보건 경영방침·목표·계획 수립 및 대표이사 보고\n" +
+      "3. 현장 안전보건 확산 분위기 조성 및 지원, 순회 점검\n" +
+      "4. 안전보건 인력 및 시설·예산 편성, 집행 감독, 기록 보관\n" +
+      "5. 안전보건교육 계획수립·집행 지원, 협의회 등 법정회의 지원\n" +
+      "6. 사고 재발방지대책 수립 및 전파교육\n" +
+      "7. 중대재해처벌법 등 안전보건관계법령에 따른 이행업무 지원",
+  },
+  {
+    key: "site-manager",
+    role: "안전보건관리책임자\n(현장소장)",
+    duties:
+      "1. 사업장의 산업재해 예방계획의 수립에 관한 사항\n" +
+      "2. 안전보건관리규정의 작성 및 변경에 관한 사항\n" +
+      "3. 안전보건교육에 관한 사항\n" +
+      "4. 작업환경측정 등 작업환경의 점검 및 개선에 관한 사항\n" +
+      "5. 근로자의 건강진단 등 건강관리에 관한 사항\n" +
+      "6. 산업재해의 원인 조사 및 재발 방지대책 수립에 관한 사항\n" +
+      "7. 산업재해에 관한 통계의 기록·유지에 관한 사항\n" +
+      "8. 안전장치 및 보호구 구입 시 적격품 여부 확인에 관한 사항\n" +
+      "9. 그 밖에 근로자의 유해·위험 방지조치에 관한 사항으로서 고용노동부령으로 정하는 사항\n" +
+      "10. 본사 안전보건 전담부서의 지도·조언에 대한 성실한 협조 및 대표이사 부여 권한의 행사·보고",
+  },
+  {
+    key: "supervisor",
+    role: "관리감독자",
+    duties:
+      "1. 지휘·감독하는 작업과 관련된 기계·기구 또는 설비의 안전·보건 점검 및 이상 유무 확인\n" +
+      "2. 소속 근로자의 작업복·보호구 및 방호장치의 점검과 그 착용·사용에 관한 교육·지도\n" +
+      "3. 산업재해에 관한 보고 및 이에 대한 응급조치\n" +
+      "4. 작업 정리·정돈 및 통로 확보에 대한 확인·감독\n" +
+      "5. 위험성평가에 관한 유해·위험요인의 파악 및 개선조치 시행에 대한 참여\n" +
+      "6. 사업장 순회점검 지도 및 조치 건의\n" +
+      "7. 소속 근로자 등 관계자 직접 지휘·감독, 교육, 의견 청취 및 조치\n" +
+      "8. 그 밖에 안전 및 보건에 관한 사항으로서 고용노동부령으로 정하는 사항",
+  },
+  {
+    key: "safety-manager",
+    role: "안전관리자",
+    duties:
+      "1. 산업안전보건위원회 또는 안전 및 보건에 관한 노사협의체에서 심의·의결한 업무와 해당 사업장의 안전보건관리규정 및 취업규칙에서 정한 업무\n" +
+      "2. 위험성평가에 관한 보좌 및 지도·조언\n" +
+      "3. 안전인증대상기계 등과 자율안전확인대상기계 등 구입 시 적격품 선정에 관한 보좌 및 지도·조언\n" +
+      "4. 해당 사업장 안전교육계획의 수립 및 안전교육 실시에 관한 보좌 및 지도·조언\n" +
+      "5. 사업장 순회점검, 지도 및 조치 건의\n" +
+      "6. 산업재해 발생의 원인 조사·분석 및 재발 방지를 위한 기술적 보좌 및 지도·조언\n" +
+      "7. 산업재해에 관한 통계의 유지·관리·분석을 위한 보좌 및 지도·조언\n" +
+      "8. 법 또는 법에 따른 명령으로 정한 안전에 관한 사항의 이행에 관한 보좌 및 지도·조언\n" +
+      "9. 업무 수행 내용의 기록·유지\n" +
+      "10. 현장소장 보좌 및 관리감독자·근로자에 대한 지도·조언, 위험성평가 자료 확보 및 정보제공\n" +
+      "11. 안전관리자 직무수행(산업안전보건법 제17조, 같은 법 시행령 제18조)",
+  },
+  {
+    key: "safety-officer",
+    role: "안전보건담당자\n(안전관리자 미선임 시)",
+    duties:
+      "※ 안전관리자 미선임 수급사는 안전보건관리담당자를 선임하여 아래 업무를 수행한다.\n" +
+      "1. 안전보건교육 실시에 관한 보좌 및 지도·조언\n" +
+      "2. 위험성평가에 관한 보좌 및 지도·조언\n" +
+      "3. 작업환경측정 및 개선에 관한 보좌 및 지도·조언\n" +
+      "4. 각종 건강진단에 관한 보좌 및 지도·조언\n" +
+      "5. 산업재해 발생의 원인 조사, 산업재해 통계의 기록 및 유지를 위한 보좌 및 지도·조언\n" +
+      "6. 안전장치 및 보호구 구입 시 적격품 선정에 관한 보좌 및 지도·조언",
+  },
+];
+
+function buildRoleResponsibilitiesNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-role_responsibilities">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  02
+                </span>
+<span class="group-hover:text-neutral-900">구성원별 안전보건 관리 역할</span>
+</div>
+</a>
+`;
+}
+
+function buildRoleResponsibilitiesSectionHtml(): string {
+  const rows = ROLE_RESPONSIBILITIES.map(({ key, role, duties }) => {
+    const roleHtml = escapeHtmlPolicy(role).replace(/\n/g, "<br/>");
+    const rowCount = Math.min(14, Math.max(4, duties.split("\n").length + 1));
+    return `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top whitespace-nowrap">${roleHtml}</td>
+<td class="px-3 py-2 border-b border-neutral-100"><textarea id="wizard-field-role-${key}-duties" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5 leading-relaxed" rows="${rowCount}" placeholder="주요업무·책임과 권한을 입력하세요">${escapeHtmlPolicy(
+      duties
+    )}</textarea></td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top"><input id="wizard-field-role-${key}-note" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" type="text" placeholder="비고"/></td>
+</tr>`;
+  }).join("\n");
+
+  return `<!-- ════════ SECTION: 구성원별 안전보건 관리 역할 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-role_responsibilities">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅰ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">구성원별 안전보건 관리 역할</h2>
+</div>
+<div class="p-6">
+<p class="text-xs text-neutral-500 mb-3">구성원별 안전보건 관리 역할(책임과 권한 및 주요업무) — 구분(직책)은 고정되어 있고, 주요업무는 표준 문구가 채워져 있어 그대로 두거나 현장 실정에 맞게 고쳐 쓰면 됩니다.</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[16%]">구분</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">주요업무</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[14%]">비고</th>
+</tr>
+</thead>
+<tbody>
+${rows}
+</tbody>
+</table>
+</div>
+</section>
+`;
+}
+
 export function buildWizardHtml(
   doc: WizardDocRow,
   announcement: WizardAnnouncementRow,
@@ -961,7 +1097,11 @@ export function buildWizardHtml(
   // 겹치지 않게 한다.
   const templateTocHtml = buildTemplateTocHtml(templateSections, 7);
   const totalSectionCount =
-    visibleCommonCount + templateSections.length + (agencyTemplate?.show_management_policy ? 1 : 0);
+    visibleCommonCount +
+    templateSections.length +
+    (agencyTemplate?.show_management_policy ? 1 : 0) +
+    (agencyTemplate?.show_org_chart ? 1 : 0) +
+    (agencyTemplate?.show_role_responsibilities ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -999,6 +1139,12 @@ ${templateOptions
     : "";
   const orgChartNavHtml = agencyTemplate?.show_org_chart ? buildOrgChartNavHtml() : "";
   const orgChartSectionHtml = agencyTemplate?.show_org_chart ? buildOrgChartSectionHtml() : "";
+  const roleResponsibilitiesNavHtml = agencyTemplate?.show_role_responsibilities
+    ? buildRoleResponsibilitiesNavHtml()
+    : "";
+  const roleResponsibilitiesSectionHtml = agencyTemplate?.show_role_responsibilities
+    ? buildRoleResponsibilitiesSectionHtml()
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -1013,6 +1159,10 @@ ${templateOptions
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
       `${orgChartNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${roleResponsibilitiesNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace("6개 대분류", `${totalSectionCount}개 대분류`)
     .replace(
@@ -1061,7 +1211,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     );
 
   if (contractAmount) {
@@ -1102,6 +1252,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}<!-- ═══════�
     if (agencyTemplate.overview_label?.trim()) commonLabels.overview = agencyTemplate.overview_label.trim();
     commonLabels["management-policy"] = "안전보건 경영방침 및 목표";
     commonLabels.org_chart = "안전보건관리 조직구성";
+    commonLabels.role_responsibilities = "구성원별 안전보건 관리 역할";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

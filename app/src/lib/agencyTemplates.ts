@@ -40,6 +40,9 @@ export type AgencyTemplateRow = {
   // "안전보건관리 조직구성"을 실제 조직도 표(직책 고정값, 성명·연락처만 입력)로
   // 보여줄지 여부.
   show_org_chart?: boolean;
+  // "구성원별 안전보건 관리 역할"을 표(구분/주요업무/비고, 헤드라인 음영)로
+  // 보여줄지 여부.
+  show_role_responsibilities?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

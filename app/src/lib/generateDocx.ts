@@ -88,34 +88,39 @@ function buildApprovalTable(cover: CoverPageData): Table {
   });
 }
 
+// 공공 제출서식 표지는 대부분 제목을 테두리 박스로 감싸서 강조한다 — 발주처
+// 스타일과 무관하게 재사용하는 공통 요소.
+function buildTitleBox(text: string): Table {
+  return new Table({
+    width: { size: 60, type: WidthType.PERCENTAGE },
+    alignment: AlignmentType.CENTER,
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            borders: CELL_BORDERS,
+            margins: { top: 300, bottom: 300 },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text, bold: true, size: 34, font: FONT })],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
 // LH가 실제로 요구하는 표준 표지(제목 박스, 공사명/공사기간/도급금액/계상
 // 안전관리비 표, 제출문, 작성·검토·승인 결재란)를 첫 페이지로 렌더링한다.
 // 다른 발주처의 실제 표지 샘플이 확보되면 이 함수 옆에 buildXxxCover()를
 // 추가하고 generateWizardDocx()의 분기에 등록한다.
 function buildLhStandardCover(cover: CoverPageData): (Paragraph | Table)[] {
-  const spacedTitle = "안 전 보 건 관 리 계 획 서";
   return [
     new Paragraph({ spacing: { after: 600 }, children: [] }),
-    new Table({
-      width: { size: 60, type: WidthType.PERCENTAGE },
-      alignment: AlignmentType.CENTER,
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              borders: CELL_BORDERS,
-              margins: { top: 300, bottom: 300 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [new TextRun({ text: spacedTitle, bold: true, size: 34, font: FONT })],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
+    buildTitleBox("안 전 보 건 관 리 계 획 서"),
     new Paragraph({ spacing: { before: 500, after: 100 }, children: [] }),
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
@@ -144,9 +149,9 @@ function buildLhStandardCover(cover: CoverPageData): (Paragraph | Table)[] {
   ];
 }
 
-// 아직 실제 표지 샘플을 확보하지 못한 발주처를 위한 범용 표지. 제목 박스나
-// 표 테두리 같은 발주처 고유 장식 없이, 표지에 반드시 있어야 하는 정보
-// (공사명/기간/금액/제출문/결재란)만 담백하게 배치한다.
+// 아직 실제 표지 샘플을 확보하지 못한 발주처를 위한 범용 표지. LH처럼 정보를
+// 표(테두리 있는 라벨/값 칸)로 나누지는 않지만, 제목만큼은 공공 제출서식 표지의
+// 관례대로 테두리 박스로 감싸 격식을 갖춘다.
 function buildGenericCover(cover: CoverPageData): (Paragraph | Table)[] {
   const infoLine = (label: string, value: string) =>
     new Paragraph({
@@ -159,12 +164,9 @@ function buildGenericCover(cover: CoverPageData): (Paragraph | Table)[] {
     });
 
   return [
-    new Paragraph({ spacing: { after: 800 }, children: [] }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 700 },
-      children: [new TextRun({ text: "안전보건관리계획서", bold: true, size: 40, font: FONT })],
-    }),
+    new Paragraph({ spacing: { after: 600 }, children: [] }),
+    buildTitleBox("안전보건관리계획서"),
+    new Paragraph({ spacing: { before: 500, after: 100 }, children: [] }),
     infoLine("공사(용역)명", cover.projectName),
     infoLine("공사기간", cover.period),
     infoLine("도급금액", cover.contractAmount ? `${cover.contractAmount} (부가세 포함)` : ""),

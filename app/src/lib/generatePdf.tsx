@@ -68,9 +68,18 @@ const styles = StyleSheet.create({
     borderRight: "1pt solid #999",
   },
   approvalCell: { flex: 1, padding: 8, textAlign: "center", borderRight: "1pt solid #999", minHeight: 26 },
-  genericTitle: { fontSize: 26, fontWeight: "bold", textAlign: "center", marginBottom: 40 },
   genericInfoLine: { textAlign: "center", marginBottom: 10 },
 });
+
+// 공공 제출서식 표지는 대부분 제목을 테두리 박스로 감싸서 강조한다 — 발주처
+// 스타일과 무관하게 재사용하는 공통 요소.
+function TitleBox({ text }: { text: string }) {
+  return (
+    <View style={styles.coverTitleBox}>
+      <Text style={styles.coverTitleText}>{text}</Text>
+    </View>
+  );
+}
 
 // 결재란(작성/검토/승인)은 발주처와 무관하게 공공 제출서식 어디서나 쓰이는
 // 공통 요소라 스타일 구분 없이 재사용한다.
@@ -110,9 +119,7 @@ function ApprovalTable({ cover }: { cover: CoverPageData }) {
 function LhStandardCoverPage({ cover }: { cover: CoverPageData }) {
   return (
     <Page size="A4" style={styles.coverPage}>
-      <View style={styles.coverTitleBox}>
-        <Text style={styles.coverTitleText}>안 전 보 건 관 리 계 획 서</Text>
-      </View>
+      <TitleBox text="안 전 보 건 관 리 계 획 서" />
       <View style={styles.coverTable}>
         <View style={styles.coverTableRow}>
           <Text style={styles.coverLabelCell}>공 사(용 역) 명</Text>
@@ -141,13 +148,14 @@ function LhStandardCoverPage({ cover }: { cover: CoverPageData }) {
   );
 }
 
-// 아직 실제 표지 샘플을 확보하지 못한 발주처를 위한 범용 표지. 제목 박스나
-// 표 테두리 같은 발주처 고유 장식 없이, 표지에 반드시 있어야 하는 정보만
-// 담백하게 배치한다.
+// 아직 실제 표지 샘플을 확보하지 못한 발주처를 위한 범용 표지. LH처럼 정보를
+// 표(테두리 있는 라벨/값 칸)로 나누지는 않지만, 제목만큼은 공공 제출서식 표지의
+// 관례대로 테두리 박스로 감싸 격식을 갖춘다.
 function GenericCoverPage({ cover }: { cover: CoverPageData }) {
   return (
     <Page size="A4" style={styles.coverPage}>
-      <Text style={styles.genericTitle}>안전보건관리계획서</Text>
+      <TitleBox text="안전보건관리계획서" />
+      <View style={{ marginTop: 32 }} />
       <Text style={styles.genericInfoLine}>공사(용역)명 : {cover.projectName || "(미입력)"}</Text>
       <Text style={styles.genericInfoLine}>공사기간 : {cover.period || "(미입력)"}</Text>
       <Text style={styles.genericInfoLine}>

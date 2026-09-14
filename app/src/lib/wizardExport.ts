@@ -18,9 +18,19 @@ export interface WizardSection {
 }
 
 function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string | boolean>) {
+  // WizardScreen.tsx의 field-N 인덱싱 쿼리(input:not([type=hidden]):not([data-risk-field]),
+  // textarea:not([data-risk-field]), select:not([data-template-select]):not([data-risk-field]))와
+  // 반드시 동일한 요소 집합·순서를 훑어야 한다 — 위험성평가 표 입력요소와 표준서식
+  // 선택 드롭다운은 별도 저장 경로(riskRows, template_id)를 쓰므로 애초에 field-N
+  // 인덱스 대상에서 빠지는데, 여기서 다르게 세면 그 뒤에 나오는 모든 필드의 인덱스가
+  // 밀려서 엉뚱한 값이 출력물에 들어간다.
   const els = $("input, textarea, select").filter((_, el) => {
-    const type = $(el).attr("type");
-    return type !== "hidden";
+    const $el = $(el);
+    const type = $el.attr("type");
+    if (type === "hidden") return false;
+    if ($el.attr("data-risk-field") !== undefined) return false;
+    if (el.tagName === "select" && $el.attr("data-template-select") !== undefined) return false;
+    return true;
   });
   els.each((i, el) => {
     const key = `field-${i}`;

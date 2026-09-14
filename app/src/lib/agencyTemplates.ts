@@ -3,6 +3,11 @@ export type AgencyTemplateField = {
   label: string;
   type: "text" | "textarea";
   placeholder?: string;
+  // 실제 LH 등 발주처 제출 서식에서 흔히 쓰이는 문구/형식을 미리 채워두는 값.
+  // 회원은 빈 칸에서 시작하는 대신 이 초안을 바로 고쳐 쓸 수 있다. 저장된 값이
+  // 없을 때만 서버 렌더링 시 이 값으로 채워지고, 한 글자라도 입력해 저장되면
+  // 그 이후로는 항상 저장된 값이 우선한다(일반 필드 자동저장과 동일한 동작).
+  default?: string;
 };
 
 export type AgencyTemplateSection = {
@@ -36,9 +41,11 @@ const escapeHtml = (s: string) =>
 // DOM 관례(section id="sec-*", label이 input/textarea를 감싸는 형태)로 렌더링한다.
 // 이 관례를 따르기 때문에 WizardScreen의 필드 자동저장/자동인덱싱과
 // wizardExport.ts의 다운로드용 섹션 추출 로직이 별도 수정 없이 그대로 동작한다.
-// 필드 값은 여기서 채우지 않는다 — WizardScreen이 마운트 시 DOM 순서대로
-// field-0, field-1... 인덱스를 매겨 저장된 값을 자동으로 채워 넣으므로, 이
-// 섹션들을 항상 공통 섹션 "뒤"(main 닫기 직전)에 이어붙이기만 하면 기존 필드의
+// field.default가 있으면 필드 값을 여기서 미리 채워 넣는다(사전 작성된 문구/형식) —
+// WizardScreen이 마운트 시 DOM 순서대로 field-0, field-1... 인덱스를 매기고,
+// 저장된 값(doc.content.fields)이 있는 키만 그 값으로 덮어쓰므로, 아직 한 번도
+// 저장되지 않은 필드는 이 기본값이 그대로 화면에 보이고 그대로 저장·출력된다.
+// 이 섹션들을 항상 공통 섹션 "뒤"(main 닫기 직전)에 이어붙이기만 하면 기존 필드의
 // 인덱스를 건드리지 않고 그대로 동작한다.
 export function buildTemplateSectionsHtml(sections: AgencyTemplateSection[]): string {
   if (!sections.length) return "";
@@ -49,12 +56,12 @@ export function buildTemplateSectionsHtml(sections: AgencyTemplateSection[]): st
         .map((field) => {
           const fieldHtml =
             field.type === "textarea"
-              ? `<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900" rows="3" placeholder="${escapeHtml(
-                  field.placeholder ?? ""
-                )}"></textarea>`
+              ? `<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 leading-relaxed" rows="${
+                  field.default ? Math.min(14, Math.max(4, field.default.split("\n").length + 1)) : 3
+                }" placeholder="${escapeHtml(field.placeholder ?? "")}">${escapeHtml(field.default ?? "")}</textarea>`
               : `<input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900" type="text" placeholder="${escapeHtml(
                   field.placeholder ?? ""
-                )}"/>`;
+                )}" value="${escapeHtml(field.default ?? "")}"/>`;
           return `<div>
 <label class="block text-xs font-bold text-neutral-700 mb-1">${escapeHtml(field.label)}</label>
 ${fieldHtml}

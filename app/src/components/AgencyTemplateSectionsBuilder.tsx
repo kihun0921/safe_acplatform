@@ -126,34 +126,43 @@ export default function AgencyTemplateSectionsBuilder({
 
               <div className="space-y-2">
                 {section.fields.map((field, fIdx) => (
-                  <div key={field.key} className="flex flex-wrap items-center gap-2 bg-white border border-slate-200 rounded-lg p-2.5">
-                    <input
-                      value={field.label}
-                      onChange={(e) => updateField(sIdx, fIdx, { label: e.target.value })}
-                      placeholder="필드명 (예: 안전취약근로자 현황)"
-                      className="flex-1 min-w-[160px] border border-slate-300 rounded px-2.5 py-1.5 text-xs"
+                  <div key={field.key} className="bg-white border border-slate-200 rounded-lg p-2.5 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        value={field.label}
+                        onChange={(e) => updateField(sIdx, fIdx, { label: e.target.value })}
+                        placeholder="필드명 (예: 안전취약근로자 현황)"
+                        className="flex-1 min-w-[160px] border border-slate-300 rounded px-2.5 py-1.5 text-xs"
+                      />
+                      <select
+                        value={field.type}
+                        onChange={(e) => updateField(sIdx, fIdx, { type: e.target.value as "text" | "textarea" })}
+                        className="border border-slate-300 rounded px-2 py-1.5 text-xs"
+                      >
+                        <option value="text">한 줄 입력</option>
+                        <option value="textarea">여러 줄 입력</option>
+                      </select>
+                      <input
+                        value={field.placeholder ?? ""}
+                        onChange={(e) => updateField(sIdx, fIdx, { placeholder: e.target.value })}
+                        placeholder="입력 안내문구(선택)"
+                        className="flex-1 min-w-[160px] border border-slate-300 rounded px-2.5 py-1.5 text-xs"
+                      />
+                      <button
+                        onClick={() => removeField(sIdx, fIdx)}
+                        type="button"
+                        className="text-[11px] text-rose-500 hover:underline shrink-0"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                    <textarea
+                      value={field.default ?? ""}
+                      onChange={(e) => updateField(sIdx, fIdx, { default: e.target.value })}
+                      placeholder="사전 작성 문구(초안) — 회원이 빈 칸이 아니라 이 문구/형식을 바로 고쳐 쓸 수 있도록 미리 채워 넣을 내용"
+                      rows={3}
+                      className="w-full border border-dashed border-slate-300 rounded px-2.5 py-1.5 text-xs bg-slate-50/60"
                     />
-                    <select
-                      value={field.type}
-                      onChange={(e) => updateField(sIdx, fIdx, { type: e.target.value as "text" | "textarea" })}
-                      className="border border-slate-300 rounded px-2 py-1.5 text-xs"
-                    >
-                      <option value="text">한 줄 입력</option>
-                      <option value="textarea">여러 줄 입력</option>
-                    </select>
-                    <input
-                      value={field.placeholder ?? ""}
-                      onChange={(e) => updateField(sIdx, fIdx, { placeholder: e.target.value })}
-                      placeholder="입력 안내문구(선택)"
-                      className="flex-1 min-w-[160px] border border-slate-300 rounded px-2.5 py-1.5 text-xs"
-                    />
-                    <button
-                      onClick={() => removeField(sIdx, fIdx)}
-                      type="button"
-                      className="text-[11px] text-rose-500 hover:underline shrink-0"
-                    >
-                      삭제
-                    </button>
                   </div>
                 ))}
               </div>

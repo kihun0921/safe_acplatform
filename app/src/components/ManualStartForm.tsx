@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export default function ManualStartForm() {
   const router = useRouter();
   const [title, setTitle] = useState("");
-  const [agency, setAgency] = useState("LH 한국토지주택공사");
+  const [agency, setAgency] = useState("한국토지주택공사(LH)");
   const [customAgency, setCustomAgency] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -71,8 +71,8 @@ export default function ManualStartForm() {
             onChange={(e) => setAgency(e.target.value)}
             className="border border-white/20 bg-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-white/40"
           >
-            <option>LH 한국토지주택공사</option>
-            <option>K-water 한국수자원공사</option>
+            <option>한국토지주택공사(LH)</option>
+            <option>한국수자원공사(K-water)</option>
             <option>한국가스공사</option>
             <option>기타</option>
           </select>

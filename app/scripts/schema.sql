@@ -144,6 +144,12 @@ alter table public.agency_templates add column if not exists overview_label text
 -- 입력 없이 Ⅰ장에 이미 입력된 값(공사명/발주기관/공사기간/도급금액)과 회원정보로
 -- 다운로드 시 자동 생성되므로, 이 항목은 그 사실을 안내하는 정보성 섹션이다.
 alter table public.agency_templates add column if not exists show_cover_nav boolean not null default false;
+-- 공통 6대 목차 + 발주처 전용 목차 전체를, 이 발주처의 실제 서식 목차 순서/장 번호에
+-- 맞춰 재배치할 때 쓴다. shape: [{ "id": "overview"|"risk"|...|<sections[].id>, "roman":
+-- "Ⅰ"|"Ⅱ"|... }, ...] — 같은 roman을 여러 항목이 공유하면(예: 실제 문서에서 여러
+-- 절이 한 장(章) 밑에 있는 경우) 좌측 목차/본문에 같은 로마숫자 배지로 표시된다.
+-- 비어 있으면([]) 항상 원래 순서(공통 6개 그대로 + 발주처 전용 항목은 뒤에 이어붙임)를 쓴다.
+alter table public.agency_templates add column if not exists section_order jsonb not null default '[]'::jsonb;
 
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,

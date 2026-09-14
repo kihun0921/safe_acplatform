@@ -33,6 +33,29 @@ const TEMPLATES = [
     // 실제 목차에 맞춰 바꾼다.
     overview_label: "안전보건관리 체계",
     show_cover_nav: true,
+    // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
+    // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
+    // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
+    // 9개 발주처 전용 목차를 함께 재배치한다. 같은 로마숫자를 공유하는 항목들은
+    // 실제 문서에서 같은 장(章) 아래 있는 절들이다(예: Ⅰ = 사업개요 + 안전보건관리
+    // 조직구성, Ⅱ = 교육계획 + 위험성평가 + 안전작업계획).
+    section_order: [
+      { id: "overview", roman: "Ⅰ" },
+      { id: "org_chart", roman: "Ⅰ" },
+      { id: "education_plan", roman: "Ⅱ" },
+      { id: "risk", roman: "Ⅱ" },
+      { id: "execution", roman: "Ⅱ" },
+      { id: "protection_equipment", roman: "Ⅲ" },
+      { id: "emergency", roman: "Ⅳ" },
+      { id: "accident_procedure", roman: "Ⅳ" },
+      { id: "safety_council", roman: "Ⅴ" },
+      { id: "target", roman: "Ⅴ" },
+      { id: "misc_admin", roman: "Ⅴ" },
+      { id: "safety_cost", roman: "Ⅴ" },
+      { id: "accident_level", roman: "Ⅵ" },
+      { id: "attachments", roman: "Ⅶ" },
+      { id: "workforce", roman: "Ⅷ" },
+    ],
     disabled_common_sections: [],
     sections: [
       {
@@ -366,6 +389,7 @@ for (const t of TEMPLATES) {
   const coverStyle = t.cover_style ?? "generic";
   const overviewLabel = t.overview_label ?? null;
   const showCoverNav = t.show_cover_nav ?? false;
+  const sectionOrder = t.section_order ?? [];
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -376,6 +400,7 @@ for (const t of TEMPLATES) {
         cover_style: coverStyle,
         overview_label: overviewLabel,
         show_cover_nav: showCoverNav,
+        section_order: sectionOrder,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -391,6 +416,7 @@ for (const t of TEMPLATES) {
         cover_style: coverStyle,
         overview_label: overviewLabel,
         show_cover_nav: showCoverNav,
+        section_order: sectionOrder,
       })
       .select("id")
       .single();

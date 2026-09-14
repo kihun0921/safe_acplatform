@@ -28,7 +28,16 @@ export type AgencyTemplateRow = {
   overview_label?: string | null;
   // 좌측 목차 맨 위(Ⅰ장보다 위)에 "표지" 안내 항목을 보여줄지 여부.
   show_cover_nav?: boolean;
+  // 공통 6대 목차 + 발주처 전용 목차 전체를 이 발주처 실제 서식의 목차 순서/장
+  // 번호로 재배치한다. 비어 있으면 원래 순서(공통 6개 + 전용 항목은 뒤에 이어붙임)를 쓴다.
+  section_order?: SectionOrderItem[] | null;
 };
+
+// section_order 배열의 한 항목. id는 공통 섹션 키(overview/risk/execution/emergency/
+// target/attachments) 또는 sections[].id(발주처 전용 목차) 중 하나이고, roman은 그
+// 항목이 속하는 실제 장(章) 번호다. 여러 항목이 같은 roman을 공유하면(실제 문서에서
+// 여러 절이 한 장 아래 있는 경우) 좌측 목차/본문에 같은 로마숫자 배지로 표시된다.
+export type SectionOrderItem = { id: string; roman: string };
 
 // 다운로드 문서(DOCX/PDF/HWPX) 맨 앞에 붙는 표지 레이아웃 종류. 표지 데이터
 // (공사명/공사기간/도급금액/작성자 등)는 발주처와 무관하게 항상 동일하고,
@@ -195,5 +204,81 @@ export function insertCoverNavAndSection(html: string): string {
   if (result.includes(sectionAnchor)) {
     result = result.replace(sectionAnchor, section + sectionAnchor);
   }
+  return result;
+}
+
+const COMMON_BODY_BADGE_RE =
+  /(<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">)[^<]*(<\/span>)/;
+const EXTRA_BODY_ICON = '<span class="material-symbols-outlined text-primary text-lg">domain</span>';
+const NAV_ROMAN_PREFIX_RE = />([ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ])\.(\s*)/;
+
+// 공통 6대 목차 + 발주처 전용 목차 전체를 order에 지정된 실제 장(章) 순서로 재배치한다.
+// 각 항목의 nav <a>...</a>와 본문 <section id>...</section> 블록을 원래 위치에서
+// 통째로 떼어낸 뒤, order 순서대로 다시 이어붙이고 로마숫자 배지만 order.roman으로
+// 바꾼다(라벨 텍스트·입력 필드 구성은 절대 건드리지 않으므로 자동저장 인덱스에
+// 영향이 없다). 첫 번째 떼어낸 위치에 재배치된 전체 묶음을 끼워 넣으므로, 재배치
+// 대상이 아닌 다른 항목(예: 표지 안내 항목)의 상대적 위치는 그대로 유지된다.
+export function applySectionOrder(
+  html: string,
+  order: SectionOrderItem[],
+  extraLabels: Record<string, string>
+): string {
+  if (!order.length) return html;
+
+  const navContents: string[] = [];
+  const bodyContents: string[] = [];
+  let result = html;
+  let navPlaced = false;
+  let bodyPlaced = false;
+  const NAV_TOKEN = " __SECTION_ORDER_NAV__ ";
+  const BODY_TOKEN = " __SECTION_ORDER_BODY__ ";
+
+  for (const { id, roman } of order) {
+    const isExtra = id in extraLabels;
+    const sectionId = isExtra ? `sec-tpl-${id}` : `sec-${id}`;
+
+    const navMatch = result.match(new RegExp(`<a[^>]*href="#${sectionId}"[^>]*>`));
+    if (navMatch && navMatch.index !== undefined) {
+      const start = navMatch.index;
+      const closeIdx = result.indexOf("</a>", start);
+      if (closeIdx !== -1) {
+        const end = closeIdx + "</a>".length;
+        let block = result.slice(start, end);
+        if (isExtra) {
+          const label = escapeHtml(extraLabels[id]);
+          block = block.replace(`>${label}<`, `>${roman}. ${label}<`);
+        } else {
+          block = block.replace(NAV_ROMAN_PREFIX_RE, `>${roman}.$2`);
+        }
+        navContents.push(block);
+        result = result.slice(0, start) + (navPlaced ? "" : NAV_TOKEN) + result.slice(end);
+        navPlaced = true;
+      }
+    }
+
+    const bodyMatch = result.match(new RegExp(`<section[^>]*id="${sectionId}"[^>]*>`));
+    if (bodyMatch && bodyMatch.index !== undefined) {
+      const start = bodyMatch.index;
+      const closeIdx = result.indexOf("</section>", start);
+      if (closeIdx !== -1) {
+        const end = closeIdx + "</section>".length;
+        let block = result.slice(start, end);
+        if (isExtra) {
+          block = block.replace(
+            EXTRA_BODY_ICON,
+            `<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">${roman}</span>`
+          );
+        } else {
+          block = block.replace(COMMON_BODY_BADGE_RE, `$1${roman}$2`);
+        }
+        bodyContents.push(block);
+        result = result.slice(0, start) + (bodyPlaced ? "" : BODY_TOKEN) + result.slice(end);
+        bodyPlaced = true;
+      }
+    }
+  }
+
+  result = result.replace(NAV_TOKEN, navContents.join("\n"));
+  result = result.replace(BODY_TOKEN, bodyContents.join("\n"));
   return result;
 }

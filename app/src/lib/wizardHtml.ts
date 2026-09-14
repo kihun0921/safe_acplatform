@@ -15,6 +15,7 @@ import {
   removeDisabledCommonSections,
   applyOverviewLabel,
   insertCoverNavAndSection,
+  applySectionOrder,
   type AgencyTemplateRow,
 } from "@/lib/agencyTemplates";
 
@@ -907,6 +908,10 @@ ${templateOptions
   html = applyOverviewLabel(html, agencyTemplate?.overview_label);
   if (agencyTemplate?.show_cover_nav) {
     html = insertCoverNavAndSection(html);
+  }
+  if (agencyTemplate?.section_order?.length) {
+    const extraLabels = Object.fromEntries(templateSections.map((s) => [s.id, s.label]));
+    html = applySectionOrder(html, agencyTemplate.section_order, extraLabels);
   }
 
   return html;

@@ -863,7 +863,7 @@ function buildOrgChartSectionHtml(): string {
     ({ key, role }) => `<tr>
 <td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-middle">${role}</td>
 <td class="px-3 py-2 border-b border-neutral-100"><input id="wizard-field-org-${key}-name" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" type="text" placeholder="성명"/></td>
-<td class="px-3 py-2 border-b border-neutral-100"><input id="wizard-field-org-${key}-contact" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" type="text" placeholder="연락처"/></td>
+<td class="px-3 py-2 border-b border-neutral-100"><input id="wizard-field-org-${key}-contact" data-phone-format class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" type="text" inputmode="numeric" placeholder="연락처 (하이픈 자동 입력)"/></td>
 </tr>`
   ).join("\n");
 

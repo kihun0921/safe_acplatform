@@ -341,8 +341,28 @@ export default function WizardScreen({
       }
     };
 
+    // 연락처 입력칸(data-phone-format)은 타이핑 도중 하이픈을 자동으로 넣어준다.
+    // 010-XXXX-XXXX(11자리)/일반 국번(10·9자리)/서울(02) 국번을 구분해서 포맷한다.
+    const formatPhoneNumber = (raw: string): string => {
+      const digits = raw.replace(/\D/g, "").slice(0, 11);
+      if (digits.startsWith("02")) {
+        if (digits.length <= 2) return digits;
+        if (digits.length <= 5) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+        if (digits.length <= 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+        return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6, 10)}`;
+      }
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+      if (digits.length <= 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+      return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+    };
+
     const onFieldChange = (e: Event) => {
       const el = e.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+      if (el instanceof HTMLInputElement && el.matches("[data-phone-format]")) {
+        const formatted = formatPhoneNumber(el.value);
+        if (formatted !== el.value) el.value = formatted;
+      }
       if (el.matches("[data-risk-field]")) {
         saveRiskRows(false);
         return;

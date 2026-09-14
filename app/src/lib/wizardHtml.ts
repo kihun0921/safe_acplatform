@@ -834,6 +834,64 @@ function buildManagementPolicySectionHtml(params: {
 `;
 }
 
+// "안전보건관리 조직구성"(현장 조직도) — 직책은 실제 표준 조직도 그대로 고정값이고
+// 성명·연락처만 입력할 수 있다. 표(<table>) 형태로 만들어 두면 wizardExport.ts의
+// 위험성평가 표와 동일한 방식(셀 안의 input을 값으로 읽음)으로 별도 코드 없이
+// 자동으로 다운로드 문서에도 표 그대로 출력된다.
+const ORG_CHART_ROLES: { key: string; role: string }[] = [
+  { key: "site-manager", role: "안전보건관리책임자(현장소장)" },
+  { key: "safety-manager", role: "안전관리자(안전담당자)" },
+  { key: "supervisor", role: "관리감독자" },
+  { key: "team1", role: "작업 1팀장" },
+  { key: "team2", role: "작업 2팀장" },
+];
+
+function buildOrgChartNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-org_chart">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  02
+                </span>
+<span class="group-hover:text-neutral-900">안전보건관리 조직구성</span>
+</div>
+</a>
+`;
+}
+
+function buildOrgChartSectionHtml(): string {
+  const rows = ORG_CHART_ROLES.map(
+    ({ key, role }) => `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-middle">${role}</td>
+<td class="px-3 py-2 border-b border-neutral-100"><input id="wizard-field-org-${key}-name" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" type="text" placeholder="성명"/></td>
+<td class="px-3 py-2 border-b border-neutral-100"><input id="wizard-field-org-${key}-contact" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" type="text" placeholder="연락처"/></td>
+</tr>`
+  ).join("\n");
+
+  return `<!-- ════════ SECTION: 안전보건관리 조직구성 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-org_chart">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅰ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">안전보건관리 조직구성</h2>
+</div>
+<div class="p-6">
+<p class="text-xs text-neutral-500 mb-3">현장 사업소 조직도(임무 및 비상연락망 포함) — 직책은 표준 조직도에 맞춰 고정되어 있고, 성명·연락처만 입력하면 됩니다.</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden">
+<thead>
+<tr class="bg-neutral-50">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">직책</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">성명</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">연락처</th>
+</tr>
+</thead>
+<tbody>
+${rows}
+</tbody>
+</table>
+</div>
+</section>
+`;
+}
+
 export function buildWizardHtml(
   doc: WizardDocRow,
   announcement: WizardAnnouncementRow,
@@ -939,6 +997,8 @@ ${templateOptions
         goal: "중대재해 ZERO, 일반재해 3건",
       })
     : "";
+  const orgChartNavHtml = agencyTemplate?.show_org_chart ? buildOrgChartNavHtml() : "";
+  const orgChartSectionHtml = agencyTemplate?.show_org_chart ? buildOrgChartSectionHtml() : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -949,6 +1009,10 @@ ${templateOptions
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
       `${managementPolicyNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${orgChartNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace("6개 대분류", `${totalSectionCount}개 대분류`)
     .replace(
@@ -997,7 +1061,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     );
 
   if (contractAmount) {
@@ -1037,6 +1101,7 @@ ${managementPolicySectionHtml}<!-- ════════ SECTION Ⅱ: 안전�
     );
     if (agencyTemplate.overview_label?.trim()) commonLabels.overview = agencyTemplate.overview_label.trim();
     commonLabels["management-policy"] = "안전보건 경영방침 및 목표";
+    commonLabels.org_chart = "안전보건관리 조직구성";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

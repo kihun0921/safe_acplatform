@@ -165,6 +165,10 @@ alter table public.agency_templates add column if not exists overview_page_style
 -- documents.content.safetyPolicy에 저장된다({ mode: "image"|"standard", imagePath }).
 alter table public.agency_templates add column if not exists show_management_policy boolean not null default false;
 
+-- show_org_chart: "안전보건관리 조직구성"을 자유서식 텍스트 2칸이 아니라, 실제
+-- 조직도 표(직책은 고정값, 성명·연락처만 입력) 형태로 보여줄지 여부.
+alter table public.agency_templates add column if not exists show_org_chart boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).
@@ -364,6 +368,36 @@ create policy announcements_admin_write on public.announcements for all using (p
 -- documents
 drop policy if exists documents_owner_all on public.documents;
 create policy documents_owner_all on public.documents for all using (auth.uid() = member_id or public.is_admin()) with check (auth.uid() = member_id or public.is_admin());
+
+-- 위저드 화면은 "임시저장" 한 번에 서로 다른 content 하위 키(fields/riskRows/
+-- safetyPolicy)를 동시에 여러 건의 PATCH 요청으로 저장한다(위험성평가 표는 별도
+-- 저장 경로를 쓰므로). API 라우트가 매번 "select content → 병합 → update"로
+-- 처리하면, 두 요청이 겹칠 때 나중에 쓰는 쪽이 먼저 쓴 쪽의 값을 통째로 덮어써
+-- 버리는 lost-update가 실제로 발생했다(예: riskRows 저장 완료 직후 fields 저장이
+-- 곧바로 따라와도, fields PATCH가 그 사이의 최신 content를 못 보고 자기 것만
+-- 반영해버림). DB가 한 UPDATE 문 안에서 jsonb `||` 병합을 원자적으로 수행하게
+-- 하면 이 경쟁 상태 자체가 성립하지 않는다. security invoker라 호출자 권한으로
+-- 실행되어 documents_owner_all RLS가 그대로 적용된다(본인 문서만 수정 가능).
+create or replace function public.merge_document_content(
+  doc_id uuid,
+  content_patch jsonb,
+  new_percent_complete integer default null,
+  new_status text default null
+)
+returns void
+language plpgsql
+security invoker
+as $$
+begin
+  update public.documents
+  set
+    content = coalesce(content, '{}'::jsonb) || content_patch,
+    percent_complete = coalesce(new_percent_complete, percent_complete),
+    status = coalesce(new_status, status),
+    completed_at = case when new_status = 'completed' then now() else completed_at end
+  where id = doc_id;
+end;
+$$;
 
 -- inquiries
 drop policy if exists inquiries_owner_select on public.inquiries;

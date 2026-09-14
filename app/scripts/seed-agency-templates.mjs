@@ -42,6 +42,12 @@ const TEMPLATES = [
     // 첨부하고, 없으면 이 발주처 표준 문구(회사명만 자동 치환, 음영 박스 2곳만
     // 직접 입력)를 쓴다(wizardHtml.ts의 buildManagementPolicySectionHtml 참고).
     show_management_policy: true,
+    // "안전보건관리 조직구성"을 실제 조직도(현장소장/안전관리자/관리감독자/작업팀장)
+    // 표 형식으로 보여준다. 직책명은 고정값이고 성명·연락처만 입력 가능하다
+    // (wizardHtml.ts의 buildOrgChartSectionHtml 참고). 예전에는 agency_templates.
+    // sections의 자유서식 텍스트 2칸이었지만, 실제 표준 조직도 서식과 더 가깝게
+    // 표 형식으로 바꿨다.
+    show_org_chart: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -95,36 +101,6 @@ const TEMPLATES = [
               "작업일자: 착공 후 수시\n" +
               "1조(주작업자): (미입력) / 2조(보조·감시자): (미입력)\n" +
               "소속: (미입력) / 비상연락처: (미입력)",
-          },
-        ],
-      },
-      {
-        id: "org_chart",
-        label: "안전보건관리 조직구성",
-        fields: [
-          {
-            key: "hq_site_org",
-            label: "본사·현장 조직도 및 비상연락망",
-            type: "textarea",
-            placeholder: "본사 조직도(대표이사-안전보건관리부서 등)와 현장 조직도(안전보건관리책임자/안전보건총괄책임자-안전관리자-관리감독자-협력업체)를 부서·직책·성명 단위로 입력하세요",
-            default:
-              "[본사 조직도]\n대표이사 → 관리팀 / 공무팀 / 공사팀(건설현장·협력업체)\n※ 본사 안전관리부서: 관리팀에서 겸직 수행\n\n" +
-              "[현장 조직도 (산업안전보건법 기준)]\n" +
-              "안전보건관리책임자·안전보건총괄책임자(현장소장) — (미입력) / 연락처: (미입력)\n" +
-              "  ├ 안전관리자 — (미입력) / 연락처: (미입력)\n" +
-              "  ├ 관리감독자(공사팀) — (미입력)\n" +
-              "  └ 협력업체, 근로자\n" +
-              "※ 위 선임 기술인력은 변경될 수 있습니다.",
-          },
-          {
-            key: "key_personnel",
-            label: "안전보건관리책임자·안전관리자·관리감독자 명단",
-            type: "textarea",
-            placeholder: "직책/성명/자격(산업안전기사 등)/휴대전화번호를 인원별로 입력하세요 — 안전보건관리책임자(현장소장), 안전관리자, 공종별 관리감독자 순",
-            default:
-              "① 안전보건관리책임자(현장소장): 성명 (미입력) / 연락처 (미입력)\n" +
-              "② 안전관리자: 성명 (미입력) / 자격 (미입력) / 연락처 (미입력)\n" +
-              "③ 관리감독자(공종별): 성명 (미입력) / 담당공종 (미입력) / 연락처 (미입력)",
           },
         ],
       },
@@ -394,6 +370,7 @@ for (const t of TEMPLATES) {
   const sectionOrder = t.section_order ?? [];
   const overviewPageStyle = t.overview_page_style ?? null;
   const showManagementPolicy = t.show_management_policy ?? false;
+  const showOrgChart = t.show_org_chart ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -407,6 +384,7 @@ for (const t of TEMPLATES) {
         section_order: sectionOrder,
         overview_page_style: overviewPageStyle,
         show_management_policy: showManagementPolicy,
+        show_org_chart: showOrgChart,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -425,6 +403,7 @@ for (const t of TEMPLATES) {
         section_order: sectionOrder,
         overview_page_style: overviewPageStyle,
         show_management_policy: showManagementPolicy,
+        show_org_chart: showOrgChart,
       })
       .select("id")
       .single();

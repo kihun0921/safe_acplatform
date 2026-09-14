@@ -25,26 +25,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const body = await request.json();
   const { fields, riskRows, safetyPolicy, percentComplete, status } = body ?? {};
 
-  const update: Record<string, unknown> = {};
-  if (fields || riskRows || safetyPolicy) {
-    // content는 fields 외에도 pdfOverview(공고문 PDF 자동분석 캐시), riskRows(위험성평가
-    // 표 행), safetyPolicy(안전보건 경영방침 이미지 첨부/표준문구 모드) 등 다른 키를
-    // 담을 수 있으므로, 통째로 교체하지 않고 해당 키만 병합해 덮어쓴다.
-    const { data: existing } = await supabase.from("documents").select("content").eq("id", id).single();
-    const nextContent: Record<string, unknown> = { ...(existing?.content ?? {}) };
-    if (fields) nextContent.fields = fields;
-    if (riskRows) nextContent.riskRows = riskRows;
-    if (safetyPolicy) nextContent.safetyPolicy = safetyPolicy;
-    update.content = nextContent;
-  }
-  if (typeof percentComplete === "number") update.percent_complete = percentComplete;
-  if (status) {
-    update.status = status;
-    if (status === "completed") update.completed_at = new Date().toISOString();
-  }
+  // content는 fields 외에도 pdfOverview(공고문 PDF 자동분석 캐시), riskRows(위험성평가
+  // 표 행), safetyPolicy(안전보건 경영방침 이미지 첨부/표준문구 모드) 등 여러 키를
+  // 독립적으로 담는다. "임시저장" 한 번에 이 키들이 서로 다른 PATCH 요청으로 거의
+  // 동시에 도착할 수 있는데(위험성평가 표는 항상 별도 요청으로 저장됨), 여기서
+  // "읽고 → 병합 → 쓰기"를 따로 하면 두 요청이 겹칠 때 나중에 끝나는 쪽이 먼저
+  // 저장된 값을 통째로 덮어써 버리는 lost-update가 실제로 발생했다. DB 함수
+  // merge_document_content()가 한 UPDATE 문 안에서 jsonb `||` 병합을 원자적으로
+  // 수행하므로 이 경쟁 상태 자체가 생기지 않는다.
+  const contentPatch: Record<string, unknown> = {};
+  if (fields) contentPatch.fields = fields;
+  if (riskRows) contentPatch.riskRows = riskRows;
+  if (safetyPolicy) contentPatch.safetyPolicy = safetyPolicy;
 
-  const { error } = await supabase.from("documents").update(update).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (Object.keys(contentPatch).length > 0 || typeof percentComplete === "number" || status) {
+    const { error } = await supabase.rpc("merge_document_content", {
+      doc_id: id,
+      content_patch: contentPatch,
+      new_percent_complete: typeof percentComplete === "number" ? percentComplete : null,
+      new_status: status ?? null,
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  }
   return NextResponse.json({ ok: true });
 }
 

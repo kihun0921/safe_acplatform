@@ -37,6 +37,9 @@ export type AgencyTemplateRow = {
   overview_page_style?: string | null;
   // "Ⅰ.사업개요" 바로 다음에 "안전보건 경영방침 및 목표" 절을 보여줄지 여부.
   show_management_policy?: boolean;
+  // "안전보건관리 조직구성"을 실제 조직도 표(직책 고정값, 성명·연락처만 입력)로
+  // 보여줄지 여부.
+  show_org_chart?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

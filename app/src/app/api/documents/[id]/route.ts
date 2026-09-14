@@ -23,16 +23,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
   const body = await request.json();
-  const { fields, riskRows, percentComplete, status } = body ?? {};
+  const { fields, riskRows, safetyPolicy, percentComplete, status } = body ?? {};
 
   const update: Record<string, unknown> = {};
-  if (fields || riskRows) {
+  if (fields || riskRows || safetyPolicy) {
     // content는 fields 외에도 pdfOverview(공고문 PDF 자동분석 캐시), riskRows(위험성평가
-    // 표 행) 등 다른 키를 담을 수 있으므로, 통째로 교체하지 않고 해당 키만 병합해 덮어쓴다.
+    // 표 행), safetyPolicy(안전보건 경영방침 이미지 첨부/표준문구 모드) 등 다른 키를
+    // 담을 수 있으므로, 통째로 교체하지 않고 해당 키만 병합해 덮어쓴다.
     const { data: existing } = await supabase.from("documents").select("content").eq("id", id).single();
     const nextContent: Record<string, unknown> = { ...(existing?.content ?? {}) };
     if (fields) nextContent.fields = fields;
     if (riskRows) nextContent.riskRows = riskRows;
+    if (safetyPolicy) nextContent.safetyPolicy = safetyPolicy;
     update.content = nextContent;
   }
   if (typeof percentComplete === "number") update.percent_complete = percentComplete;

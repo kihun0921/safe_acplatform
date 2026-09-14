@@ -55,7 +55,7 @@ export default function WizardScreen({
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]):not([data-risk-field]), textarea:not([data-risk-field]), select:not([data-template-select]):not([data-risk-field])"
+        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]), textarea:not([data-risk-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -221,6 +221,101 @@ export default function WizardScreen({
       });
     };
 
+    // ── 안전보건 경영방침 및 목표(Ⅰ장): 회사가 자체 이미지를 갖고 있으면 첨부,
+    // 없으면 표준 문구를 쓴다. mode/이미지 경로는 field-N 자동저장 대상이 아니라
+    // documents.content.safetyPolicy에 별도 저장한다(위험성평가 행과 같은 이유).
+    const policySection = root.querySelector<HTMLElement>("#sec-management-policy");
+
+    const savePolicyState = async (mode: string, imagePath: string) => {
+      setSaving(true);
+      try {
+        await fetch(`/api/documents/${documentId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ safetyPolicy: { mode, imagePath: imagePath || null } }),
+        });
+        setSavedAt(new Date());
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    const setPolicyTab = (mode: "image" | "standard") => {
+      if (!policySection) return;
+      policySection.dataset.policyMode = mode;
+      policySection.querySelectorAll<HTMLElement>("[data-policy-tab]").forEach((tab) => {
+        const active = tab.dataset.policyTab === mode;
+        tab.classList.toggle("bg-primary", active);
+        tab.classList.toggle("text-white", active);
+        tab.classList.toggle("border-primary", active);
+        tab.classList.toggle("bg-white", !active);
+        tab.classList.toggle("text-neutral-600", !active);
+        tab.classList.toggle("border-neutral-300", !active);
+      });
+      policySection.querySelectorAll<HTMLElement>("[data-policy-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.policyPanel !== mode;
+      });
+    };
+
+    const onPolicyTabClick = (tab: HTMLElement) => {
+      const mode = tab.dataset.policyTab === "image" ? "image" : "standard";
+      setPolicyTab(mode);
+      void savePolicyState(mode, policySection?.dataset.policyImagePath ?? "");
+    };
+
+    const onPolicyImageChange = async (e: Event) => {
+      const input = e.target as HTMLInputElement;
+      if (!input.matches("[data-policy-image-input]") || !policySection) return;
+      const file = input.files?.[0];
+      if (!file) return;
+      const status = policySection.querySelector<HTMLElement>("[data-policy-image-status]");
+      if (status) status.textContent = "업로드 중...";
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new Error("로그인이 필요합니다.");
+        const ext = file.name.split(".").pop() || "png";
+        const path = `${documentId}/${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("safety-policy-images")
+          .upload(path, file, { upsert: true, contentType: file.type });
+        if (uploadError) throw uploadError;
+
+        policySection.dataset.policyImagePath = path;
+        const previewWrap = policySection.querySelector<HTMLElement>("[data-policy-image-preview-wrap]");
+        const previewImg = policySection.querySelector<HTMLImageElement>("[data-policy-image-preview]");
+        if (previewImg) previewImg.src = URL.createObjectURL(file);
+        if (previewWrap) previewWrap.classList.remove("hidden");
+        if (status) status.textContent = "업로드된 이미지가 저장되어 있습니다.";
+        await savePolicyState("image", path);
+      } catch (err) {
+        if (status) status.textContent = "업로드 실패 — 다시 시도해 주세요.";
+        console.error("[WizardScreen] safety policy image upload failed", err);
+      } finally {
+        input.value = "";
+      }
+    };
+
+    const onPolicyImageRemove = async () => {
+      if (!policySection) return;
+      if (!confirm("첨부한 안전보건경영방침 이미지를 삭제하시겠습니까?")) return;
+      const path = policySection.dataset.policyImagePath;
+      if (path) {
+        const supabase = createClient();
+        await supabase.storage.from("safety-policy-images").remove([path]).catch(() => {});
+      }
+      policySection.dataset.policyImagePath = "";
+      const previewWrap = policySection.querySelector<HTMLElement>("[data-policy-image-preview-wrap]");
+      const previewImg = policySection.querySelector<HTMLImageElement>("[data-policy-image-preview]");
+      const status = policySection.querySelector<HTMLElement>("[data-policy-image-status]");
+      if (previewImg) previewImg.src = "";
+      if (previewWrap) previewWrap.classList.add("hidden");
+      if (status) status.textContent = "아직 업로드된 이미지가 없습니다.";
+      await savePolicyState("image", "");
+    };
+
     const onTemplateSelectChange = async (e: Event) => {
       const el = e.target as HTMLSelectElement;
       if (!el.matches("[data-template-select]")) return;
@@ -286,6 +381,16 @@ export default function WizardScreen({
       if (btn.hasAttribute("data-risk-tab")) {
         e.preventDefault();
         onRiskTabClick(btn);
+        return;
+      }
+      if (btn.hasAttribute("data-policy-tab")) {
+        e.preventDefault();
+        onPolicyTabClick(btn);
+        return;
+      }
+      if (btn.hasAttribute("data-policy-image-remove")) {
+        e.preventDefault();
+        void onPolicyImageRemove();
         return;
       }
 
@@ -419,6 +524,7 @@ export default function WizardScreen({
     root.addEventListener("change", onFieldChange);
     root.addEventListener("change", onTemplateSelectChange);
     root.addEventListener("change", onRiskDbSelectChange);
+    root.addEventListener("change", onPolicyImageChange);
     root.addEventListener("click", onClick);
     root.addEventListener("click", onTocClick);
     return () => {
@@ -426,6 +532,7 @@ export default function WizardScreen({
       root.removeEventListener("change", onFieldChange);
       root.removeEventListener("change", onTemplateSelectChange);
       root.removeEventListener("change", onRiskDbSelectChange);
+      root.removeEventListener("change", onPolicyImageChange);
       root.removeEventListener("click", onClick);
       root.removeEventListener("click", onTocClick);
       sectionObserver.disconnect();

@@ -37,6 +37,11 @@ const TEMPLATES = [
     // 아니라 글꼴·위치·□ 체크박스 불릿까지 완전히 정형화된 별도 페이지라, 그
     // 서식을 그대로 재현하는 전용 렌더러를 쓴다(generateDocx.ts 등 참고).
     overview_page_style: "lh_standard",
+    // "Ⅰ.사업개요" 바로 다음에 "안전보건 경영방침 및 목표" 절을 추가한다. 회원사가
+    // 자체 안전보건경영방침 이미지를 갖고 있으면 그 이미지를 업로드해 그대로
+    // 첨부하고, 없으면 이 발주처 표준 문구(회사명만 자동 치환, 음영 박스 2곳만
+    // 직접 입력)를 쓴다(wizardHtml.ts의 buildManagementPolicySectionHtml 참고).
+    show_management_policy: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -44,7 +49,7 @@ const TEMPLATES = [
     // 대제목(로마숫자+실제 장 제목)이 한 번만 나오고, 그 밑에 속한 절들이 들여쓰기된
     // 소제목으로 나열된다(번호가 중복되어 헷갈리던 기존 평면 목차를 계층 구조로 정리).
     section_order: [
-      { roman: "Ⅰ", title: "안전보건관리 체계", members: ["overview", "org_chart"] },
+      { roman: "Ⅰ", title: "안전보건관리 체계", members: ["overview", "management_policy", "org_chart"] },
       { roman: "Ⅱ", title: "실행계획", members: ["education_plan", "risk", "execution"] },
       { roman: "Ⅲ", title: "운영관리", members: ["protection_equipment"] },
       { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency", "accident_procedure"] },
@@ -388,6 +393,7 @@ for (const t of TEMPLATES) {
   const showCoverNav = t.show_cover_nav ?? false;
   const sectionOrder = t.section_order ?? [];
   const overviewPageStyle = t.overview_page_style ?? null;
+  const showManagementPolicy = t.show_management_policy ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -400,6 +406,7 @@ for (const t of TEMPLATES) {
         show_cover_nav: showCoverNav,
         section_order: sectionOrder,
         overview_page_style: overviewPageStyle,
+        show_management_policy: showManagementPolicy,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -417,6 +424,7 @@ for (const t of TEMPLATES) {
         show_cover_nav: showCoverNav,
         section_order: sectionOrder,
         overview_page_style: overviewPageStyle,
+        show_management_policy: showManagementPolicy,
       })
       .select("id")
       .single();

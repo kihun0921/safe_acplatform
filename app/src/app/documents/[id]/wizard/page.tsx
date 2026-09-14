@@ -86,6 +86,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     doc.content = { ...doc.content, riskRows };
   }
 
+  // 안전보건 경영방침 이미지: Storage에는 경로만 저장돼 있고(documents.content.
+  // safetyPolicy.imagePath), 비공개 버킷이라 볼 때마다 서명 URL을 새로 만들어야 한다.
+  const safetyPolicyImagePath = (doc.content?.safetyPolicy as { imagePath?: string } | undefined)?.imagePath;
+  let safetyPolicyImageUrl: string | null = null;
+  if (safetyPolicyImagePath) {
+    const { data: signed } = await supabase.storage
+      .from("safety-policy-images")
+      .createSignedUrl(safetyPolicyImagePath, 3600);
+    safetyPolicyImageUrl = signed?.signedUrl ?? null;
+  }
+
   const html = buildWizardHtml(
     doc,
     announcement,
@@ -93,7 +104,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     member,
     showAdminReturnLink,
     selectedTemplate,
-    availableTemplates ?? []
+    availableTemplates ?? [],
+    safetyPolicyImageUrl
   );
 
   return (

@@ -158,6 +158,13 @@ alter table public.agency_templates add column if not exists section_order jsonb
 -- 제외해 같은 내용이 두 번 나가지 않게 한다(표지와 동일한 원리).
 alter table public.agency_templates add column if not exists overview_page_style text;
 
+-- show_management_policy: 좌측 목차의 "Ⅰ.사업개요" 바로 다음에 "안전보건 경영방침
+-- 및 목표" 절을 추가할지 여부. 회원사가 자체 안전보건경영방침 이미지를 갖고
+-- 있으면 그 이미지를 업로드해 그대로 첨부하고, 없으면 이 발주처의 표준 문구
+-- 서식(회사명만 자동 치환, 음영 박스 2곳만 직접 입력)을 쓴다. 실제 값은 문서별로
+-- documents.content.safetyPolicy에 저장된다({ mode: "image"|"standard", imagePath }).
+alter table public.agency_templates add column if not exists show_management_policy boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).
@@ -409,3 +416,34 @@ drop policy if exists agency_templates_read_all on public.agency_templates;
 create policy agency_templates_read_all on public.agency_templates for select using (true);
 drop policy if exists agency_templates_admin_write on public.agency_templates;
 create policy agency_templates_admin_write on public.agency_templates for all using (public.is_admin()) with check (public.is_admin());
+
+-- ============================================================================
+-- storage: safety-policy-images — 회원사가 자체 보유한 "안전보건 경영방침" 이미지를
+-- 업로드해 위저드에서 첨부할 수 있게 하는 전용 버킷. 경로는 항상
+-- "<document_id>/<파일명>"으로 강제하고, RLS는 그 document_id가 실제로 요청자
+-- 소유(documents.member_id = auth.uid()) 문서인지 매번 확인한다(폴더명을 그냥
+-- 신뢰하는 대신 실제 소유권을 검증) — 관리자는 전체 열람/관리 가능.
+-- ============================================================================
+insert into storage.buckets (id, name, public)
+values ('safety-policy-images', 'safety-policy-images', false)
+on conflict (id) do nothing;
+
+drop policy if exists safety_policy_images_owner_all on storage.objects;
+create policy safety_policy_images_owner_all on storage.objects
+  for all
+  using (
+    bucket_id = 'safety-policy-images'
+    and exists (
+      select 1 from public.documents d
+      where d.id::text = (storage.foldername(name))[1]
+        and (d.member_id = auth.uid() or public.is_admin())
+    )
+  )
+  with check (
+    bucket_id = 'safety-policy-images'
+    and exists (
+      select 1 from public.documents d
+      where d.id::text = (storage.foldername(name))[1]
+        and (d.member_id = auth.uid() or public.is_admin())
+    )
+  );

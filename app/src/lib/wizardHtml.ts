@@ -740,6 +740,100 @@ export const SCRIPT_documents_wizard = `
 
 `;
 
+const escapeHtmlPolicy = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// "Ⅰ.사업개요" 바로 다음에 오는 "안전보건 경영방침 및 목표" 절. 회원사가 자체
+// 안전보건경영방침 이미지를 갖고 있으면 그 이미지를 업로드해 그대로 첨부하고
+// (WizardScreen.tsx가 Supabase Storage에 올려 documents.content.safetyPolicy에
+// 저장), 없으면 이 발주처 표준 문구(회사명만 자동 치환, 음영 박스 2곳만 직접
+// 입력)를 쓴다. 두 모드 모두 실제로 선택 가능하도록 탭 버튼과 두 패널을 함께
+// 렌더링하고, 현재 저장된 모드에 따라 한쪽만 보이도록 한다.
+function buildManagementPolicyNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-management-policy">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  02
+                </span>
+<span class="group-hover:text-neutral-900">안전보건 경영방침 및 목표</span>
+</div>
+</a>
+`;
+}
+
+function buildManagementPolicySectionHtml(params: {
+  companyName: string;
+  mode: "image" | "standard";
+  imageUrl: string | null;
+  imagePath: string;
+  slogan: string;
+  goal: string;
+}): string {
+  const { companyName, mode, imageUrl, imagePath, slogan, goal } = params;
+  const company = escapeHtmlPolicy(companyName || "회사명 미등록");
+  const bodyParagraph = `${company} 사업장의 각종 산업재해예방 및 근로자의 생명을 보호하기 위해 사업주와 근로자가 안전보건의무를 이행함으로써 재해없는 일터, 행복하고 건강한 일터를 조성하는 것을 목표로 경영방침, 안전목표 달성을 위해 각자 주어진 업무와 역할을 충실히 수행함으로써 안전문화 정착을 통한 상호협력 및 상생을 통한 지속가능한 기업으로 추구하고자 한다.`;
+  const isImage = mode === "image";
+
+  return `<!-- ════════ SECTION: 안전보건 경영방침 및 목표 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-management-policy" data-policy-mode="${mode}" data-policy-image-path="${escapeHtmlPolicy(
+    imagePath
+  )}">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅰ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">안전보건 경영방침 및 목표</h2>
+</div>
+</div>
+<div class="p-6 space-y-4">
+<div class="flex gap-2" data-policy-tabs>
+<button type="button" data-policy-tab="image" class="text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${
+    isImage
+      ? "bg-primary text-white border-primary"
+      : "bg-white text-neutral-600 border-neutral-300 hover:bg-neutral-50"
+  }">회사 자체 안전보건경영방침 이미지 첨부</button>
+<button type="button" data-policy-tab="standard" class="text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${
+    isImage
+      ? "bg-white text-neutral-600 border-neutral-300 hover:bg-neutral-50"
+      : "bg-primary text-white border-primary"
+  }">표준 문구 사용</button>
+</div>
+<div data-policy-panel="image" ${isImage ? "" : "hidden"}>
+<p class="text-[11px] text-neutral-500 mb-2">이미 만들어진 안전보건경영방침 게시물(이미지)이 있으면 그대로 첨부하세요. 다운로드 문서 표지 다음 페이지에 이미지 그대로 삽입됩니다.</p>
+<input type="file" accept="image/png,image/jpeg" data-policy-image-input class="text-xs" />
+<div class="mt-3 ${imageUrl ? "" : "hidden"}" data-policy-image-preview-wrap>
+<img data-policy-image-preview src="${imageUrl ? escapeHtmlPolicy(imageUrl) : ""}" class="max-w-full max-h-[420px] rounded-lg border border-neutral-200" alt="안전보건경영방침"/>
+<button type="button" data-policy-image-remove class="mt-2 text-xs text-rose-600 hover:underline">이미지 삭제</button>
+</div>
+<p class="text-[11px] text-neutral-400 mt-1" data-policy-image-status>${
+    imageUrl ? "업로드된 이미지가 저장되어 있습니다." : "아직 업로드된 이미지가 없습니다."
+  }</p>
+</div>
+<div data-policy-panel="standard" ${isImage ? "hidden" : ""}>
+<p class="text-center font-bold text-neutral-900 underline mb-4">안전보건 경영방침 및 목표</p>
+<p class="font-bold text-neutral-800 underline mb-2">가. 안전보건 경영방침</p>
+<div class="bg-neutral-100 border border-neutral-200 rounded-lg py-3 px-4 mb-3">
+<input id="wizard-field-policy-slogan" class="w-full text-center text-sm font-bold underline bg-transparent text-neutral-900 focus:outline-none" type="text" value="${escapeHtmlPolicy(
+    slogan
+  )}"/>
+</div>
+<p class="text-xs text-neutral-700 leading-relaxed mb-3">${bodyParagraph}</p>
+<ul class="text-xs text-neutral-700 leading-relaxed space-y-1 mb-4 list-none">
+<li>- 기본과 원칙을 준수하는 안전/보건문화를 정착한다.</li>
+<li>- 체계적인 사전 위험성평가와 지속적 개선활동을 통하여 무재해 목표 달성을 실천한다.</li>
+<li>- 전 구성원의 능동적 참여, 협력사와의 상생으로 안전하고 쾌적한 작업환경을 조성한다.</li>
+</ul>
+<p class="font-bold text-neutral-800 underline mb-2">나. 안전보건 목표</p>
+<div class="bg-neutral-100 border border-neutral-200 rounded-lg py-3 px-4">
+<input id="wizard-field-policy-goal" class="w-full text-center text-sm font-bold bg-transparent text-neutral-900 focus:outline-none" type="text" value="${escapeHtmlPolicy(
+    goal
+  )}"/>
+</div>
+</div>
+</div>
+</section>
+`;
+}
+
 export function buildWizardHtml(
   doc: WizardDocRow,
   announcement: WizardAnnouncementRow,
@@ -747,7 +841,8 @@ export function buildWizardHtml(
   member?: WizardMemberRow,
   viewerIsAdmin?: boolean,
   agencyTemplate?: AgencyTemplateRow | null,
-  availableTemplates?: { id: string; name: string }[]
+  availableTemplates?: { id: string; name: string }[],
+  safetyPolicyImageUrl?: string | null
 ): string {
   // The wizard's raw HTML was originally a static Stitch mockup for one demo
   // project (LH / 화성태안3지구). Swap in this document's real title/agency, and
@@ -807,7 +902,8 @@ export function buildWizardHtml(
   // 추가 목차 번호는 (꺼진 개수와 무관하게) 항상 7부터 시작해 배지 번호가 절대
   // 겹치지 않게 한다.
   const templateTocHtml = buildTemplateTocHtml(templateSections, 7);
-  const totalSectionCount = visibleCommonCount + templateSections.length;
+  const totalSectionCount =
+    visibleCommonCount + templateSections.length + (agencyTemplate?.show_management_policy ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -827,12 +923,33 @@ ${templateOptions
 </select>`
       : `<span aria-label="발주처 표준 서식" class="text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5"><span class="material-symbols-outlined text-sm text-neutral-400">description</span>${agencyName} 표준 서식</span>`;
 
+  // "안전보건 경영방침 및 목표": 회사별로 이미지 첨부/표준 문구 중 어느 쪽을 쓰는지,
+  // 이미지가 있다면 그 URL은 documents.content.safetyPolicy에 저장되고, 페이지 서버
+  // 컴포넌트가 매번 새 서명 URL을 만들어 safetyPolicyImageUrl로 넘겨준다.
+  const safetyPolicyRaw = (doc.content?.safetyPolicy ?? {}) as { mode?: string; imagePath?: string };
+  const safetyPolicyMode: "image" | "standard" = safetyPolicyRaw.mode === "image" ? "image" : "standard";
+  const managementPolicyNavHtml = agencyTemplate?.show_management_policy ? buildManagementPolicyNavHtml() : "";
+  const managementPolicySectionHtml = agencyTemplate?.show_management_policy
+    ? buildManagementPolicySectionHtml({
+        companyName: member?.company ?? "",
+        mode: safetyPolicyMode,
+        imageUrl: safetyPolicyImageUrl ?? null,
+        imagePath: safetyPolicyRaw.imagePath ?? "",
+        slogan: "안전보건 경영시스템 정착 : 재해없는 일터/행복하고 건강한 일터",
+        goal: "중대재해 ZERO, 일반재해 3건",
+      })
+    : "";
+
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
     .replace("__ANNOUNCEMENT_PDF_LINK__", announcementPdfLinkHtml)
     .replace("__TEMPLATE_SELECT__", templateSelectHtml)
     .replace("__TEMPLATE_TOC_ITEMS__", templateTocHtml)
     .replace("__TEMPLATE_SECTIONS__", templateSectionsHtml)
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${managementPolicyNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
     .replace("6개 대분류", `${totalSectionCount}개 대분류`)
     .replace(
       '<div class="w-8 h-8 rounded-full bg-primary-soft text-primary font-semibold text-xs flex items-center justify-center border border-primary/20" title="대한종합건설 홍길동 부장 프로필">\n            홍\n          </div>',
@@ -880,7 +997,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     );
 
   if (contractAmount) {
@@ -919,6 +1036,7 @@ ${templateOptions
       COMMON_SECTIONS.map((s) => [s.key, s.label.replace(/^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]\.\s*/, "")])
     );
     if (agencyTemplate.overview_label?.trim()) commonLabels.overview = agencyTemplate.overview_label.trim();
+    commonLabels.management_policy = "안전보건 경영방침 및 목표";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

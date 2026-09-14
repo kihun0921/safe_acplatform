@@ -18,17 +18,19 @@ export interface WizardSection {
 }
 
 function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string | boolean>) {
-  // WizardScreen.tsx의 field-N 인덱싱 쿼리(input:not([type=hidden]):not([data-risk-field]),
-  // textarea:not([data-risk-field]), select:not([data-template-select]):not([data-risk-field]))와
-  // 반드시 동일한 요소 집합·순서를 훑어야 한다 — 위험성평가 표 입력요소와 표준서식
-  // 선택 드롭다운은 별도 저장 경로(riskRows, template_id)를 쓰므로 애초에 field-N
-  // 인덱스 대상에서 빠지는데, 여기서 다르게 세면 그 뒤에 나오는 모든 필드의 인덱스가
-  // 밀려서 엉뚱한 값이 출력물에 들어간다.
+  // WizardScreen.tsx의 field-N 인덱싱 쿼리(input:not([type=hidden]):not([data-risk-field])
+  // :not([data-policy-image-input]), textarea:not([data-risk-field]),
+  // select:not([data-template-select]):not([data-risk-field]))와 반드시 동일한 요소
+  // 집합·순서를 훑어야 한다 — 위험성평가 표 입력요소, 표준서식 선택 드롭다운,
+  // 안전보건경영방침 이미지 파일 입력은 각각 별도 저장 경로(riskRows, template_id,
+  // content.safetyPolicy)를 쓰므로 애초에 field-N 인덱스 대상에서 빠지는데, 여기서
+  // 다르게 세면 그 뒤에 나오는 모든 필드의 인덱스가 밀려서 엉뚱한 값이 출력물에 들어간다.
   const els = $("input, textarea, select").filter((_, el) => {
     const $el = $(el);
     const type = $el.attr("type");
     if (type === "hidden") return false;
     if ($el.attr("data-risk-field") !== undefined) return false;
+    if ($el.attr("data-policy-image-input") !== undefined) return false;
     if (el.tagName === "select" && $el.attr("data-template-select") !== undefined) return false;
     return true;
   });
@@ -157,6 +159,48 @@ export function extractOverviewPageData(
     contractAmount: byId("wizard-field-contract-amount"),
     location: byId("wizard-field-site-location"),
     mainContentLines,
+  };
+}
+
+// "안전보건 경영방침 및 목표"(Ⅰ.사업개요 다음 절)를 위한 데이터. 회사가 자체
+// 이미지를 첨부했으면(mode="image") 표지·사업개요와 달리 실제 이미지 바이트는
+// export route가 Supabase Storage에서 직접 읽어와 각 생성기에 별도로 넘긴다
+// (이 함수는 HTML만 다루므로 이진 데이터를 알 수 없음). 표준 문구 모드일 때만
+// 여기서 읽는 slogan/goal 두 값과 회사명 보간 문단이 실제로 쓰인다.
+export interface ManagementPolicyData {
+  mode: "image" | "standard";
+  companyName: string;
+  slogan: string;
+  goal: string;
+  bodyParagraph: string;
+  bullets: string[];
+}
+
+const MANAGEMENT_POLICY_BULLETS = [
+  "기본과 원칙을 준수하는 안전/보건문화를 정착한다.",
+  "체계적인 사전 위험성평가와 지속적 개선활동을 통하여 무재해 목표 달성을 실천한다.",
+  "전 구성원의 능동적 참여, 협력사와의 상생으로 안전하고 쾌적한 작업환경을 조성한다.",
+];
+
+export function extractManagementPolicyData(
+  html: string,
+  savedFields: Record<string, string | boolean>,
+  companyName: string,
+  mode: "image" | "standard"
+): ManagementPolicyData {
+  const $ = cheerio.load(html);
+  applySavedFields($, savedFields);
+
+  const byId = (id: string) => $(`#${id}`).attr("value")?.trim() ?? "";
+  const company = companyName || "회사명 미등록";
+
+  return {
+    mode,
+    companyName: company,
+    slogan: byId("wizard-field-policy-slogan"),
+    goal: byId("wizard-field-policy-goal"),
+    bodyParagraph: `${company} 사업장의 각종 산업재해예방 및 근로자의 생명을 보호하기 위해 사업주와 근로자가 안전보건의무를 이행함으로써 재해없는 일터, 행복하고 건강한 일터를 조성하는 것을 목표로 경영방침, 안전목표 달성을 위해 각자 주어진 업무와 역할을 충실히 수행함으로써 안전문화 정착을 통한 상호협력 및 상생을 통한 지속가능한 기업으로 추구하고자 한다.`,
+    bullets: MANAGEMENT_POLICY_BULLETS,
   };
 }
 

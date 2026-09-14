@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import JSZip from "jszip";
-import type { WizardSection, CoverPageData, OverviewPageData } from "./wizardExport";
+import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData } from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 
 // HWPX(.hwpx)는 한글과컴퓨터의 개방형 문서 표준(OWPML, KS X 6101)으로, ZIP 컨테이너 안에
@@ -149,13 +149,51 @@ const OVERVIEW_PAGE_PARAGRAPH_BUILDERS: Record<string, (data: OverviewPageData) 
   lh_standard: buildLhOverviewPageParagraphs,
 };
 
+// "안전보건 경영방침 및 목표": 회사가 자체 이미지를 첨부했더라도, 이 생성기는
+// 실제 한글 프로그램에서 열어 검증할 방법이 없는 순수 텍스트 XML 조립 방식이라
+// 임의 바이너리 이미지를 OWPML BinData로 안전하게 끼워 넣는 기능은 아직 없다.
+// 그래서 이미지 모드에서는 DOCX/PDF를 안내하는 문구로 대체하고, 표준 문구
+// 모드에서는 실제 서식을 텍스트로 재현한다.
+function buildManagementPolicyParagraphs(data: ManagementPolicyData, hasImage: boolean): string[] {
+  if (data.mode === "image" && hasImage) {
+    return [
+      textParagraph("안전보건 경영방침 및 목표", "5", false),
+      emptyParagraph(),
+      textParagraph(
+        "회사에서 첨부한 안전보건경영방침 이미지는 DOCX 또는 PDF 다운로드에서 확인하실 수 있습니다.",
+        "0",
+        false
+      ),
+      emptyParagraph(),
+    ];
+  }
+  const paragraphs: string[] = [
+    textParagraph("안전보건 경영방침 및 목표", "5", false),
+    emptyParagraph(),
+    textParagraph("가. 안전보건 경영방침", "0", false),
+    textParagraph(data.slogan || "(미입력)", "0", false),
+    emptyParagraph(),
+    textParagraph(data.bodyParagraph, "0", false),
+  ];
+  for (const b of data.bullets) {
+    paragraphs.push(textParagraph(`- ${b}`, "0", false));
+  }
+  paragraphs.push(emptyParagraph());
+  paragraphs.push(textParagraph("나. 안전보건 목표", "0", false));
+  paragraphs.push(textParagraph(data.goal || "(미입력)", "0", false));
+  paragraphs.push(emptyParagraph());
+  return paragraphs;
+}
+
 function buildSection0Xml(
   title: string,
   sections: WizardSection[],
   cover?: CoverPageData,
   coverStyle: CoverStyle = "generic",
   overviewPage?: OverviewPageData,
-  overviewPageStyle?: string | null
+  overviewPageStyle?: string | null,
+  managementPolicy?: ManagementPolicyData,
+  hasManagementPolicyImage?: boolean
 ): string {
   const baseSection0 = fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "section0.xml"), "utf8");
   // 템플릿의 첫 <hp:p>(secPr가 들어있는, 페이지 크기/여백을 정의하는 문단)는 그대로 두고,
@@ -182,7 +220,19 @@ function buildSection0Xml(
       overviewPageInserted = true;
     }
   }
-  paragraphs.push(textParagraph(title, "5", Boolean(cover) || overviewPageInserted));
+  let managementPolicyInserted = false;
+  if (managementPolicy) {
+    const policyParagraphs = buildManagementPolicyParagraphs(managementPolicy, Boolean(hasManagementPolicyImage));
+    if (policyParagraphs.length) {
+      policyParagraphs[0] = policyParagraphs[0].replace(
+        'pageBreak="0"',
+        `pageBreak="${cover || overviewPageInserted ? 1 : 0}"`
+      );
+    }
+    paragraphs.push(...policyParagraphs);
+    managementPolicyInserted = true;
+  }
+  paragraphs.push(textParagraph(title, "5", Boolean(cover) || overviewPageInserted || managementPolicyInserted));
   paragraphs.push(emptyParagraph());
 
   sections.forEach((section, i) => {
@@ -212,7 +262,9 @@ export async function generateWizardHwpx(
   cover?: CoverPageData,
   coverStyle: CoverStyle = "generic",
   overviewPage?: OverviewPageData,
-  overviewPageStyle?: string | null
+  overviewPageStyle?: string | null,
+  managementPolicy?: ManagementPolicyData,
+  managementPolicyImage?: Buffer | null
 ): Promise<Buffer> {
   const zip = new JSZip();
 
@@ -225,7 +277,16 @@ export async function generateWizardHwpx(
   zip.file("Contents/content.hpf", fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "content.hpf")));
   zip.file(
     "Contents/section0.xml",
-    buildSection0Xml(title, sections, cover, coverStyle, overviewPage, overviewPageStyle)
+    buildSection0Xml(
+      title,
+      sections,
+      cover,
+      coverStyle,
+      overviewPage,
+      overviewPageStyle,
+      managementPolicy,
+      Boolean(managementPolicyImage)
+    )
   );
   zip.file("META-INF/container.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "container.xml")));
   zip.file("META-INF/container.rdf", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "container.rdf")));

@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildWizardHtml, type PdfOverview } from "@/lib/wizardHtml";
-import { extractWizardSections, extractCoverPageData, extractOverviewPageData } from "@/lib/wizardExport";
+import {
+  extractWizardSections,
+  extractCoverPageData,
+  extractOverviewPageData,
+  extractManagementPolicyData,
+} from "@/lib/wizardExport";
 import { generateWizardDocx } from "@/lib/generateDocx";
 import { generateWizardPdf } from "@/lib/generatePdf";
 import { generateWizardHwpx } from "@/lib/generateHwpx";
@@ -17,6 +22,18 @@ function resolveOverviewChapterTitle(
   const group = selectedTemplate?.section_order?.find((g) => g.members.includes("overview"));
   if (group) return `${group.roman}. ${group.title}`;
   return `Ⅰ. ${selectedTemplate?.overview_label?.trim() || "사업개요 및 기본정보"}`;
+}
+
+// 회사가 첨부한 안전보건경영방침 이미지가 손상돼 있으면(예: 잘린 PNG) 문서 생성
+// 라이브러리(react-pdf/docx)의 이미지 디코더가 무한 루프에 빠질 수 있음을 실제로
+// 확인했다. 손상 이미지 자체를 완벽히 걸러내기는 어려우므로, 생성 단계 전체에
+// 안전 타임아웃을 둬 특정 문서 하나 때문에 요청이 영영 멈춰 있지 않도록 한다.
+class ExportTimeoutError extends Error {}
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new ExportTimeoutError("export timed out")), ms)),
+  ]);
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -73,43 +90,88 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const html = buildWizardHtml(doc, announcement, pdfOverview, member, false, selectedTemplate);
   const savedFields = (doc.content?.fields ?? {}) as Record<string, string | boolean>;
   const overviewPageStyle = (selectedTemplate?.overview_page_style as string | null | undefined) ?? null;
-  // overview_page_style이 켜진 발주처는 사업개요를 정형 페이지가 전담하므로, 일반
-  // 섹션 목록(sec-overview)에서는 빼서 같은 내용이 두 번 나가지 않게 한다.
-  const sections = extractWizardSections(html, savedFields, overviewPageStyle ? ["sec-overview"] : []);
+  const showManagementPolicy = Boolean(selectedTemplate?.show_management_policy);
+  // overview_page_style이 켜진 발주처는 사업개요를, show_management_policy가 켜진
+  // 발주처는 안전보건 경영방침을 각각 정형 페이지가 전담하므로, 일반 섹션 목록에서는
+  // 빼서 같은 내용이 두 번 나가지 않게 한다.
+  const excludeIds = [
+    ...(overviewPageStyle ? ["sec-overview"] : []),
+    ...(showManagementPolicy ? ["sec-management-policy"] : []),
+  ];
+  const sections = extractWizardSections(html, savedFields, excludeIds);
   const cover = extractCoverPageData(html, savedFields, member?.company ?? "", member?.name ?? "");
   const coverStyle = (selectedTemplate?.cover_style as CoverStyle | undefined) ?? "generic";
   const overviewPage = overviewPageStyle
     ? extractOverviewPageData(html, savedFields, resolveOverviewChapterTitle(selectedTemplate))
     : undefined;
 
+  // 안전보건 경영방침: 회사가 이미지를 첨부했으면 Storage에서 실제 바이트를 읽어와
+  // 세 생성기 모두에 넘긴다(표지/사업개요와 달리 텍스트가 아니라 이진 데이터라
+  // wizardExport.ts가 아니라 여기서 직접 다룬다).
+  let managementPolicy: ReturnType<typeof extractManagementPolicyData> | undefined;
+  let managementPolicyImage: Buffer | null = null;
+  if (showManagementPolicy) {
+    const safetyPolicy = (doc.content?.safetyPolicy ?? {}) as { mode?: string; imagePath?: string };
+    const mode: "image" | "standard" = safetyPolicy.mode === "image" ? "image" : "standard";
+    managementPolicy = extractManagementPolicyData(html, savedFields, member?.company ?? "", mode);
+    if (mode === "image" && safetyPolicy.imagePath) {
+      const { data: imageBlob } = await supabase.storage
+        .from("safety-policy-images")
+        .download(safetyPolicy.imagePath);
+      if (imageBlob) managementPolicyImage = Buffer.from(await imageBlob.arrayBuffer());
+    }
+  }
+
   const title = (doc.title ?? "안전보건관리계획서").replace(/\s*계획서$/, "") + " 안전보건관리계획서";
   const filename = encodeURIComponent(title);
 
-  if (format === "docx") {
-    const buffer = await generateWizardDocx(title, sections, cover, coverStyle, overviewPage, overviewPageStyle);
+  try {
+    if (format === "docx") {
+      const buffer = await withTimeout(
+        generateWizardDocx(title, sections, cover, coverStyle, overviewPage, overviewPageStyle, managementPolicy, managementPolicyImage),
+        45000
+      );
+      return new NextResponse(new Uint8Array(buffer), {
+        headers: {
+          "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "Content-Disposition": `${disposition}; filename="${filename}.docx"`,
+        },
+      });
+    }
+
+    if (format === "hwpx") {
+      const buffer = await withTimeout(
+        generateWizardHwpx(title, sections, cover, coverStyle, overviewPage, overviewPageStyle, managementPolicy, managementPolicyImage),
+        45000
+      );
+      return new NextResponse(new Uint8Array(buffer), {
+        headers: {
+          "Content-Type": "application/hwp+zip",
+          "Content-Disposition": `${disposition}; filename="${filename}.hwpx"`,
+        },
+      });
+    }
+
+    const buffer = await withTimeout(
+      generateWizardPdf(title, sections, cover, coverStyle, overviewPage, overviewPageStyle, managementPolicy, managementPolicyImage),
+      45000
+    );
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `${disposition}; filename="${filename}.docx"`,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `${disposition}; filename="${filename}.pdf"`,
       },
     });
+  } catch (err) {
+    if (err instanceof ExportTimeoutError) {
+      return NextResponse.json(
+        {
+          error:
+            "문서 생성이 지연되고 있습니다. 첨부하신 안전보건경영방침 이미지가 손상됐을 수 있으니 다른 이미지로 다시 첨부해 보세요.",
+        },
+        { status: 500 }
+      );
+    }
+    throw err;
   }
-
-  if (format === "hwpx") {
-    const buffer = await generateWizardHwpx(title, sections, cover, coverStyle, overviewPage, overviewPageStyle);
-    return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        "Content-Type": "application/hwp+zip",
-        "Content-Disposition": `${disposition}; filename="${filename}.hwpx"`,
-      },
-    });
-  }
-
-  const buffer = await generateWizardPdf(title, sections, cover, coverStyle, overviewPage, overviewPageStyle);
-  return new NextResponse(new Uint8Array(buffer), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `${disposition}; filename="${filename}.pdf"`,
-    },
-  });
 }

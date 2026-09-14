@@ -1,8 +1,9 @@
 import path from "path";
 import type { ReactElement } from "react";
-import { renderToBuffer, Document, Page, View, Text, StyleSheet, Font } from "@react-pdf/renderer";
-import type { WizardSection, CoverPageData, OverviewPageData } from "./wizardExport";
+import { renderToBuffer, Document, Page, View, Text, Image, StyleSheet, Font } from "@react-pdf/renderer";
+import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData } from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
+import { readImageDimensions } from "./imageDimensions";
 
 // Noto Sans KR (SIL Open Font License — free to embed/redistribute), downloaded once
 // from Google Fonts' static TTF endpoint. @react-pdf/renderer's default fonts
@@ -96,6 +97,21 @@ const styles = StyleSheet.create({
   overviewBulletRow: { marginBottom: 10, paddingLeft: 36 },
   overviewBulletLabel: { fontWeight: "bold" },
   overviewSubBullet: { marginLeft: 54, marginBottom: 6 },
+  // "안전보건 경영방침 및 목표" 전용 스타일.
+  policyPage: { padding: 50, fontFamily: "NotoSansKR", fontSize: 10 },
+  policyTitle: { fontSize: 15, fontWeight: "bold", textAlign: "center", textDecoration: "underline", marginBottom: 20 },
+  policySubTitle: { fontSize: 12, fontWeight: "bold", textDecoration: "underline", marginBottom: 10 },
+  policyShadedBox: {
+    backgroundColor: "#f3f4f6",
+    border: "1pt solid #d4d4d4",
+    borderRadius: 4,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  policyShadedText: { textAlign: "center", fontWeight: "bold", textDecoration: "underline" },
+  policyBody: { lineHeight: 1.6, marginBottom: 12 },
+  policyBullet: { marginBottom: 6, lineHeight: 1.5 },
+  policyImagePage: { padding: 20, alignItems: "center", justifyContent: "center" },
 });
 
 // 공공 제출서식 표지는 대부분 제목을 테두리 박스로 감싸서 강조한다 — 발주처
@@ -246,13 +262,67 @@ const OVERVIEW_PAGE_COMPONENTS: Record<string, (props: { data: OverviewPageData 
   lh_standard: LhOverviewPage,
 };
 
+// "안전보건 경영방침 및 목표": 회사가 자체 이미지를 첨부했으면 그 이미지를 페이지
+// 폭에 맞춰 원본 비율대로 삽입하고, 아니면 실제 LH 표준 문구 서식(음영 박스
+// 2곳만 회사 입력값, 나머지는 고정 문구 + 회사명 자동 치환)을 그대로 재현한다.
+function ManagementPolicyImagePage({ imageBuffer }: { imageBuffer: Buffer }) {
+  const dims = readImageDimensions(imageBuffer);
+  const isPng = imageBuffer.length >= 8 && imageBuffer.readUInt32BE(0) === 0x89504e47;
+  const isJpg = imageBuffer.length >= 2 && imageBuffer[0] === 0xff && imageBuffer[1] === 0xd8;
+  if (!dims || (!isPng && !isJpg)) {
+    return (
+      <Page size="A4" style={styles.policyPage}>
+        <Text>
+          첨부된 안전보건경영방침 이미지 형식을 지원하지 않아 표시할 수 없습니다. PNG 또는 JPEG로 다시 업로드해
+          주세요.
+        </Text>
+      </Page>
+    );
+  }
+  const mime = isPng ? "image/png" : "image/jpeg";
+  const dataUri = `data:${mime};base64,${imageBuffer.toString("base64")}`;
+  const maxWidth = 500;
+  const maxHeight = 700;
+  const scale = Math.min(1, maxWidth / dims.width, maxHeight / dims.height);
+  return (
+    <Page size="A4" style={styles.policyImagePage}>
+      {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is a PDF-embed primitive (no alt prop), not an HTML <img> */}
+      <Image src={dataUri} style={{ width: dims.width * scale, height: dims.height * scale }} />
+    </Page>
+  );
+}
+
+function ManagementPolicyStandardPage({ data }: { data: ManagementPolicyData }) {
+  return (
+    <Page size="A4" style={styles.policyPage}>
+      <Text style={styles.policyTitle}>안전보건 경영방침 및 목표</Text>
+      <Text style={styles.policySubTitle}>가. 안전보건 경영방침</Text>
+      <View style={styles.policyShadedBox}>
+        <Text style={styles.policyShadedText}>{data.slogan || "(미입력)"}</Text>
+      </View>
+      <Text style={styles.policyBody}>{data.bodyParagraph}</Text>
+      {data.bullets.map((b, idx) => (
+        <Text key={idx} style={styles.policyBullet}>
+          - {b}
+        </Text>
+      ))}
+      <Text style={[styles.policySubTitle, { marginTop: 10 }]}>나. 안전보건 목표</Text>
+      <View style={styles.policyShadedBox}>
+        <Text style={styles.policyShadedText}>{data.goal || "(미입력)"}</Text>
+      </View>
+    </Page>
+  );
+}
+
 export async function generateWizardPdf(
   title: string,
   sections: WizardSection[],
   cover?: CoverPageData,
   coverStyle: CoverStyle = "generic",
   overviewPage?: OverviewPageData,
-  overviewPageStyle?: string | null
+  overviewPageStyle?: string | null,
+  managementPolicy?: ManagementPolicyData,
+  managementPolicyImage?: Buffer | null
 ): Promise<Buffer> {
   ensureFontsRegistered();
 
@@ -263,6 +333,12 @@ export async function generateWizardPdf(
     <Document>
       {cover && <CoverPageComponent cover={cover} />}
       {overviewPage && OverviewPageComponent && <OverviewPageComponent data={overviewPage} />}
+      {managementPolicy && managementPolicy.mode === "image" && managementPolicyImage && (
+        <ManagementPolicyImagePage imageBuffer={managementPolicyImage} />
+      )}
+      {managementPolicy && !(managementPolicy.mode === "image" && managementPolicyImage) && (
+        <ManagementPolicyStandardPage data={managementPolicy} />
+      )}
       {sections.map((section, i) => (
         <Page key={section.id} size="A4" style={styles.page}>
           {i === 0 && <Text style={styles.title}>{title}</Text>}

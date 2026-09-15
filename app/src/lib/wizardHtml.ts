@@ -344,10 +344,11 @@ __TEMPLATE_TOC_ITEMS__
 </div>
 </div>
 <div class="flex items-center gap-2">
-<button class="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-400 bg-neutral-100 border border-neutral-200 px-3 py-1.5 rounded-lg cursor-not-allowed" disabled title="AI 기반 자동 추출은 준비 중입니다" type="button">
-<span class="material-symbols-outlined text-base" data-icon="auto_awesome">auto_awesome</span>
-<span>첨부도면/시방서 기반 AI 위험성 자동 추출 (준비 중)</span>
-</button>
+<label class="inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary-soft border border-primary/20 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-primary/10 transition" title="현장설명서·공사개요 PDF에서 공정 목록을 자동으로 뽑아 행으로 추가합니다">
+<span class="material-symbols-outlined text-base" data-icon="upload_file">upload_file</span>
+<span data-process-extract-label-text>현장설명서/공사개요 첨부해 공정 자동추출</span>
+<input accept="application/pdf" class="hidden" data-process-extract-input type="file"/>
+</label>
 </div>
 </div>
 <div class="p-6 space-y-5">
@@ -373,12 +374,18 @@ __RISK_DB_SELECT__
 <thead>
 <tr class="bg-neutral-100 text-neutral-700 border-b border-neutral-200 font-semibold">
 <th class="p-3 w-12 text-center">No</th>
-<th class="p-3 w-32">공정 및 세부단위작업</th>
-<th class="p-3 min-w-[200px]">주요 유해·위험요인 (Hazard)</th>
-<th class="p-3 w-28 text-center">현재 위험도 (빈도×강도)</th>
-<th class="p-3 min-w-[240px]">발주처 권장 저감대책 및 개선조치</th>
-<th class="p-3 w-24 text-center">개선 후 위험도</th>
-<th class="p-3 w-24 text-center">조치현황</th>
+<th class="p-3 w-28">세부공정명</th>
+<th class="p-3 w-20">위험분류</th>
+<th class="p-3 min-w-[180px]">유해·위험요인</th>
+<th class="p-3 min-w-[160px]">현재의 안전보건조치</th>
+<th class="p-3 w-14 text-center">빈도</th>
+<th class="p-3 w-14 text-center">강도</th>
+<th class="p-3 w-14 text-center">위험성</th>
+<th class="p-3 min-w-[200px]">위험성 감소대책</th>
+<th class="p-3 w-16 text-center">개선후 위험성</th>
+<th class="p-3 w-20">개선예정일</th>
+<th class="p-3 w-20">개선완료일</th>
+<th class="p-3 w-24">개선여부확인</th>
 <th class="p-3 w-12 text-center">관리</th>
 </tr>
 </thead>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { OPEN_PAYWALL_EVENT } from "./DocumentPaywallModal";
+import { classifyHazardType, suggestFrequencySeverity } from "@/lib/riskTemplates";
 
 type FieldValue = string | boolean;
 
@@ -55,7 +56,7 @@ export default function WizardScreen({
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]), textarea:not([data-risk-field]), select:not([data-template-select]):not([data-risk-field])"
+        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]), textarea:not([data-risk-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -170,7 +171,18 @@ export default function WizardScreen({
       return "일반공사";
     };
 
-    const appendRiskRow = (fill?: { process?: string; hazard?: string; countermeasure?: string }) => {
+    // save=false로 여러 행을 연달아 추가할 때(예: 첨부파일에서 공정 목록을 한 번에
+    // 여러 개 뽑아 넣는 경우) 매 행마다 saveRiskRows(true)로 즉시 저장을 쏘면,
+    // 거의 동시에 나간 여러 PATCH 요청의 응답이 네트워크에서 순서가 뒤바뀌어
+    // 나중에 추가한 행이 들어있는 스냅샷을 먼저 추가한(행이 더 적은) 스냅샷이
+    // 나중에 도착해 덮어써 버리는 사고가 실측으로 확인됐다(merge_document_content가
+    // riskRows 배열 자체를 통째로 교체하는 얕은 병합이라 행별로는 병합되지 않음).
+    // 그래서 일괄 추가 시에는 DOM에만 반영하고, 호출부가 마지막에 한 번만
+    // saveRiskRows(true)를 불러 정확히 하나의 스냅샷만 저장하게 한다.
+    const appendRiskRow = (
+      fill?: { process?: string; hazard?: string; countermeasure?: string },
+      options?: { save?: boolean }
+    ) => {
       if (!riskTbody || !riskTemplate) return;
       const fragment = riskTemplate.content.cloneNode(true) as DocumentFragment;
       const tr = fragment.querySelector("tr");
@@ -178,17 +190,26 @@ export default function WizardScreen({
       tr.dataset.riskId = `risk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       if (fill) {
         const setVal = (field: string, value: string) => {
-          const el = tr.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-risk-field="${field}"]`);
+          const el = tr.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+            `[data-risk-field="${field}"]`
+          );
           if (el) el.value = value;
         };
         if (fill.process) setVal("process", fill.process);
-        if (fill.hazard) setVal("hazard", fill.hazard);
+        if (fill.hazard) {
+          setVal("hazard", fill.hazard);
+          const { frequency, severity } = suggestFrequencySeverity(fill.hazard);
+          setVal("hazardType", classifyHazardType(fill.hazard));
+          setVal("frequency", String(frequency));
+          setVal("severity", String(severity));
+          setVal("riskScore", String(frequency * severity));
+        }
         if (fill.countermeasure) setVal("countermeasure", fill.countermeasure);
         tr.dataset.riskCategory = categorizeRiskProcess(fill.process ?? "");
       }
       riskTbody.appendChild(tr);
       renumberRiskRows();
-      saveRiskRows(true);
+      if (options?.save !== false) saveRiskRows(true);
     };
 
     const onRiskDbSelectChange = (e: Event) => {
@@ -202,6 +223,45 @@ export default function WizardScreen({
         countermeasure: option.dataset.countermeasure,
       });
       select.value = "";
+    };
+
+    // 현장설명서·공사개요 PDF 첨부 → 서버가 공정 목록을 추출해 돌려주면 그대로
+    // 위험성평가 행으로 추가한다. 추출된 유해요인이 있으면(공종을 확신할 수 있는
+    // 경우만) appendRiskRow가 빈도·강도·위험분류까지 같이 채워준다.
+    const onProcessExtractFileChange = async (e: Event) => {
+      const input = e.target as HTMLInputElement;
+      if (!input.matches("[data-process-extract-input]")) return;
+      const file = input.files?.[0];
+      if (!file) return;
+      const labelText = root.querySelector<HTMLElement>("[data-process-extract-label-text]");
+      const original = labelText?.textContent ?? "";
+      if (labelText) labelText.textContent = "분석 중...";
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(`/api/documents/${documentId}/extract-processes`, {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          alert(`공정 추출 실패: ${data.error ?? "알 수 없는 오류"}`);
+          return;
+        }
+        const processes = (data.processes ?? []) as { process: string; hazard?: string; countermeasure?: string }[];
+        if (processes.length === 0) {
+          alert(data.error || "문서에서 공정 목록을 찾지 못했습니다. 직접 입력해 주세요.");
+          return;
+        }
+        processes.forEach((p) => appendRiskRow(p, { save: false }));
+        await saveRiskRows(true);
+        alert(`${processes.length}개 공정을 위험성평가 표에 추가했습니다. 내용을 확인하고 필요에 맞게 수정하세요.`);
+      } catch {
+        alert("공정 추출 중 오류가 발생했습니다.");
+      } finally {
+        if (labelText) labelText.textContent = original;
+        input.value = "";
+      }
     };
 
     const onRiskTabClick = (tab: HTMLElement) => {
@@ -364,6 +424,16 @@ export default function WizardScreen({
         if (formatted !== el.value) el.value = formatted;
       }
       if (el.matches("[data-risk-field]")) {
+        const field = el.dataset.riskField;
+        if (field === "frequency" || field === "severity") {
+          const tr = el.closest<HTMLElement>("tr[data-risk-id]");
+          const freqEl = tr?.querySelector<HTMLSelectElement>('[data-risk-field="frequency"]');
+          const sevEl = tr?.querySelector<HTMLSelectElement>('[data-risk-field="severity"]');
+          const scoreEl = tr?.querySelector<HTMLInputElement>('[data-risk-field="riskScore"]');
+          if (freqEl && sevEl && scoreEl) {
+            scoreEl.value = String(Number(freqEl.value) * Number(sevEl.value));
+          }
+        }
         saveRiskRows(false);
         return;
       }
@@ -602,6 +672,7 @@ export default function WizardScreen({
     root.addEventListener("change", onTemplateSelectChange);
     root.addEventListener("change", onRiskDbSelectChange);
     root.addEventListener("change", onPolicyImageChange);
+    root.addEventListener("change", onProcessExtractFileChange);
     root.addEventListener("click", onClick);
     root.addEventListener("click", onTocClick);
     return () => {
@@ -610,6 +681,7 @@ export default function WizardScreen({
       root.removeEventListener("change", onTemplateSelectChange);
       root.removeEventListener("change", onRiskDbSelectChange);
       root.removeEventListener("change", onPolicyImageChange);
+      root.removeEventListener("change", onProcessExtractFileChange);
       root.removeEventListener("click", onClick);
       root.removeEventListener("click", onTocClick);
       sectionObserver.disconnect();

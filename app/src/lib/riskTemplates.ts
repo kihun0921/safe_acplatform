@@ -152,31 +152,56 @@ export const RISK_TEMPLATES: Record<ConstructionType, RiskTemplateItem[]> = {
   ],
 };
 
+// 실제 LH 샘플(화성동탄(2), 붙임2 "최초위험성평가서" 146~154p)의 빈도×강도법을
+// 그대로 따른다 — 빈도 1~3, 강도 1~3을 곱해 위험성(1~9)을 산출.
 const HIGH_RISK_KEYWORDS = ["추락", "붕괴", "감전", "질식", "폭발", "화재", "매몰", "무너짐"];
 const MID_RISK_KEYWORDS = ["협착", "충돌", "낙하", "화상", "베임", "전도", "끼임"];
 
-export function suggestRiskLevel(hazard: string): "상" | "중" | "하" {
-  if (HIGH_RISK_KEYWORDS.some((kw) => hazard.includes(kw))) return "상";
-  if (MID_RISK_KEYWORDS.some((kw) => hazard.includes(kw))) return "중";
-  return "하";
+export function suggestFrequencySeverity(hazard: string): { frequency: number; severity: number } {
+  if (HIGH_RISK_KEYWORDS.some((kw) => hazard.includes(kw))) return { frequency: 3, severity: 3 };
+  if (MID_RISK_KEYWORDS.some((kw) => hazard.includes(kw))) return { frequency: 2, severity: 3 };
+  return { frequency: 1, severity: 2 };
 }
 
-// 실제로 편집·추가·삭제 가능한 위험성평가 행 하나의 구조. 문서마다 몇 개가
-// 있을지 알 수 없는 가변 길이 데이터라서, WizardScreen의 DOM 순서 기반
-// field-N 자동저장 체계에 태우지 않고 documents.content.riskRows에 배열
-// 그대로 저장한다(행 추가/삭제 시 뒤에 나오는 다른 필드들의 인덱스가
-// 밀려서 엉뚱한 값이 저장되는 사고를 원천 차단하기 위함).
-export type RiskLevel = "상" | "중" | "하";
-export type RiskStatus = "계획반영" | "조치중" | "조치완료";
+// "위험분류" — 실제 샘플의 관리적/인적/물리적/기계적/화학적요인 5분류를 그대로 쓴다.
+export type HazardType = "관리적요인" | "인적요인" | "물리적요인" | "기계적요인" | "화학적요인";
+export const HAZARD_TYPE_OPTIONS: HazardType[] = ["관리적요인", "인적요인", "물리적요인", "기계적요인", "화학적요인"];
 
+const HAZARD_TYPE_RULES: { type: HazardType; keywords: string[] }[] = [
+  { type: "화학적요인", keywords: ["화재", "중독", "MSDS", "유해물질", "석면", "분진", "유기용제", "가스", "폭발", "질식", "화상", "화학"] },
+  { type: "기계적요인", keywords: ["협착", "전도", "크레인", "건설기계", "지게차", "굴착기", "베임", "끼임", "말림", "장비"] },
+  { type: "물리적요인", keywords: ["소음", "진동", "붕괴", "매몰", "낙하", "추락", "감전", "무너짐", "침수"] },
+  { type: "인적요인", keywords: ["부주의", "실족", "걸려", "무리한", "근골격계", "무단출입", "충돌"] },
+];
+
+export function classifyHazardType(hazard: string): HazardType {
+  for (const rule of HAZARD_TYPE_RULES) {
+    if (rule.keywords.some((kw) => hazard.includes(kw))) return rule.type;
+  }
+  return "관리적요인";
+}
+
+// 실제로 편집·추가·삭제 가능한 위험성평가 행 하나의 구조 — 경쟁사 서식이 아니라
+// 실제 LH "최초위험성평가서" 샘플 컬럼(세부공정명/위험분류/유해위험요인/현재의
+// 안전보건조치/빈도·강도·위험성/위험성 감소대책/개선후 위험성/개선예정일/
+// 개선완료일/개선여부확인)을 그대로 반영한다. 문서마다 몇 개가 있을지 알 수
+// 없는 가변 길이 데이터라서, WizardScreen의 DOM 순서 기반 field-N 자동저장
+// 체계에 태우지 않고 documents.content.riskRows에 배열 그대로 저장한다(행
+// 추가/삭제 시 뒤에 나오는 다른 필드들의 인덱스가 밀려서 엉뚱한 값이 저장되는
+// 사고를 원천 차단하기 위함).
 export type RiskRow = {
   id: string;
   process: string;
+  hazardType: HazardType;
   hazard: string;
-  level: RiskLevel;
+  currentAction: string;
+  frequency: number;
+  severity: number;
   countermeasure: string;
-  afterLevel: RiskLevel;
-  status: RiskStatus;
+  afterRisk: number;
+  dueDate: string;
+  completeDate: string;
+  confirmedBy: string;
 };
 
 function makeRiskRowId(): string {
@@ -185,22 +210,44 @@ function makeRiskRowId(): string {
 
 // 문서를 처음 열었을 때(아직 riskRows가 저장되어 있지 않을 때) 보여줄 출발점
 // 데이터 — 공고 제목 기반 자동분류 공종의 표준 항목 3개를 실제 편집 가능한
-// 행으로 변환한다.
+// 행으로 변환한다. 개선예정일/완료일/확인자는 실제 샘플에서 거의 모든 행에
+// 공통으로 쓰인 "착공전"/"공사시"/"현장대리인, 근로자"를 기본값으로 둔다.
 export function buildInitialRiskRows(type: ConstructionType): RiskRow[] {
   const items = RISK_TEMPLATES[type] ?? RISK_TEMPLATES["일반공사"];
-  return items.map((item) => ({
-    id: makeRiskRowId(),
-    process: item.process,
-    hazard: item.hazard,
-    level: suggestRiskLevel(item.hazard),
-    countermeasure: item.countermeasure,
-    afterLevel: "하" as const,
-    status: "계획반영" as const,
-  }));
+  return items.map((item) => {
+    const { frequency, severity } = suggestFrequencySeverity(item.hazard);
+    return {
+      id: makeRiskRowId(),
+      process: item.process,
+      hazardType: classifyHazardType(item.hazard),
+      hazard: item.hazard,
+      currentAction: "",
+      frequency,
+      severity,
+      countermeasure: item.countermeasure,
+      afterRisk: 1,
+      dueDate: "착공전",
+      completeDate: "공사시",
+      confirmedBy: "현장대리인, 근로자",
+    };
+  });
 }
 
 export function newBlankRiskRow(): RiskRow {
-  return { id: makeRiskRowId(), process: "", hazard: "", level: "하", countermeasure: "", afterLevel: "하", status: "계획반영" };
+  return {
+    id: makeRiskRowId(),
+    process: "",
+    hazardType: "관리적요인",
+    hazard: "",
+    currentAction: "",
+    frequency: 1,
+    severity: 2,
+    countermeasure: "",
+    afterRisk: 1,
+    dueDate: "",
+    completeDate: "",
+    confirmedBy: "",
+  };
 }
 
 // 상단 "집중관리 대상공종" 필터 탭에 쓰일, 공정명 텍스트 기반의 간단한 분류.
@@ -233,44 +280,73 @@ export function buildRiskLibrary(): RiskLibraryItem[] {
 const riskEscapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-const RISK_LEVEL_OPTIONS: RiskLevel[] = ["상", "중", "하"];
-const RISK_LEVEL_SCORE: Record<RiskLevel, string> = { 상: "4×4=16", 중: "3×3=9", 하: "2×2=4" };
-const RISK_STATUS_OPTIONS: RiskStatus[] = ["계획반영", "조치중", "조치완료"];
-
-function levelSelectHtml(field: "level" | "afterLevel", current: RiskLevel): string {
-  const options = RISK_LEVEL_OPTIONS.map(
-    (lv) =>
-      `<option value="${lv}"${lv === current ? " selected" : ""}>${lv} (${RISK_LEVEL_SCORE[lv]})</option>`
+function hazardTypeSelectHtml(current: HazardType): string {
+  const options = HAZARD_TYPE_OPTIONS.map(
+    (t) => `<option value="${t}"${t === current ? " selected" : ""}>${t}</option>`
   ).join("");
-  return `<select class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-risk-field="${field}">${options}</select>`;
+  return `<select class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-1.5 py-1.5" data-risk-field="hazardType">${options}</select>`;
 }
 
-function statusSelectHtml(current: RiskStatus): string {
-  const options = RISK_STATUS_OPTIONS.map(
-    (s) => `<option value="${s}"${s === current ? " selected" : ""}>${s}</option>`
-  ).join("");
-  return `<select class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-risk-field="status">${options}</select>`;
+// row.frequency/severity/afterRisk는 TS 타입상 number지만, 실제로는 브라우저의
+// serializeRiskRows()가 <select>.value(항상 문자열)를 그대로 documents.content.
+// riskRows에 저장하므로 런타임에는 문자열("3")로 들어온다. 여기서 Number()로
+// 강제 변환하지 않고 "===" 로 비교하면(예: 1 === "3") 항상 false가 되어 저장된
+// 값과 무관하게 매번 첫 옵션이 선택된 것처럼 보이는(그러나 실제로는 아무 옵션도
+// selected가 안 붙는) 사고가 실측으로 확인됐다.
+function scoreSelectHtml(field: "frequency" | "severity", current: number): string {
+  const cur = Number(current) || 1;
+  const options = [1, 2, 3]
+    .map((v) => `<option value="${v}"${v === cur ? " selected" : ""}>${v}</option>`)
+    .join("");
+  return `<select class="w-full text-xs text-center bg-white border border-neutral-300 rounded-lg px-1 py-1.5" data-risk-field="${field}">${options}</select>`;
+}
+
+function afterRiskSelectHtml(current: number): string {
+  const cur = Number(current) || 1;
+  const options = Array.from({ length: 9 }, (_, i) => i + 1)
+    .map((v) => `<option value="${v}"${v === cur ? " selected" : ""}>${v}</option>`)
+    .join("");
+  return `<select class="w-full text-xs text-center bg-white border border-neutral-300 rounded-lg px-1 py-1.5" data-risk-field="afterRisk">${options}</select>`;
 }
 
 // 실제 편집 가능한 <tr> 하나를 만든다. rowIndex가 없으면(신규 행 템플릿용)
-// 번호란은 JS가 매 렌더 후 다시 매겨준다(data-risk-no).
+// 번호란은 JS가 매 렌더 후 다시 매겨준다(data-risk-no). "위험성"(빈도×강도)
+// 칸은 사용자가 직접 고르는 값이 아니라 두 값의 곱을 그대로 보여주는 읽기전용
+// 칸이라, WizardScreen이 frequency/severity 변경 시마다 다시 계산해 넣는다.
 function buildRiskRowHtml(row: RiskRow, rowIndex: number | null): string {
   const no = rowIndex === null ? "--" : String(rowIndex + 1).padStart(2, "0");
   const category = riskEscapeHtml(categorizeRiskProcess(row.process));
+  const riskScore = row.frequency * row.severity;
   return `<tr class="hover:bg-neutral-50/80 transition" data-risk-id="${riskEscapeHtml(row.id)}" data-risk-category="${category}">
 <td class="p-3 text-center font-mono text-neutral-500" data-risk-no>${no}</td>
 <td class="p-3">
-<input class="w-full text-xs font-semibold text-neutral-900 bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-risk-field="process" placeholder="공정 및 세부단위작업" type="text" value="${riskEscapeHtml(row.process)}"/>
+<input class="w-full text-xs font-semibold text-neutral-900 bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-risk-field="process" placeholder="세부공정명" type="text" value="${riskEscapeHtml(row.process)}"/>
+</td>
+<td class="p-3">${hazardTypeSelectHtml(row.hazardType)}</td>
+<td class="p-3">
+<textarea class="w-full text-xs text-neutral-700 bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-risk-field="hazard" placeholder="유해·위험요인" rows="2">${riskEscapeHtml(row.hazard)}</textarea>
 </td>
 <td class="p-3">
-<textarea class="w-full text-xs text-neutral-700 bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-risk-field="hazard" placeholder="주요 유해·위험요인" rows="2">${riskEscapeHtml(row.hazard)}</textarea>
+<textarea class="w-full text-xs text-neutral-700 bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-risk-field="currentAction" placeholder="현재의 안전보건조치" rows="2">${riskEscapeHtml(row.currentAction)}</textarea>
 </td>
-<td class="p-3 text-center">${levelSelectHtml("level", row.level)}</td>
+<td class="p-3 text-center">${scoreSelectHtml("frequency", row.frequency)}</td>
+<td class="p-3 text-center">${scoreSelectHtml("severity", row.severity)}</td>
+<td class="p-3 text-center">
+<input class="w-full text-xs text-center font-bold bg-neutral-100 border border-neutral-200 rounded-lg px-1 py-1.5 text-neutral-700" data-risk-field="riskScore" readonly type="text" value="${riskScore}"/>
+</td>
 <td class="p-3">
-<textarea class="w-full text-xs text-neutral-700 bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-risk-field="countermeasure" placeholder="발주처 권장 저감대책 및 개선조치" rows="2">${riskEscapeHtml(row.countermeasure)}</textarea>
+<textarea class="w-full text-xs text-neutral-700 bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-risk-field="countermeasure" placeholder="위험성 감소대책" rows="2">${riskEscapeHtml(row.countermeasure)}</textarea>
 </td>
-<td class="p-3 text-center">${levelSelectHtml("afterLevel", row.afterLevel)}</td>
-<td class="p-3 text-center">${statusSelectHtml(row.status)}</td>
+<td class="p-3 text-center">${afterRiskSelectHtml(row.afterRisk)}</td>
+<td class="p-3">
+<input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-risk-field="dueDate" placeholder="개선예정일" type="text" value="${riskEscapeHtml(row.dueDate)}"/>
+</td>
+<td class="p-3">
+<input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-risk-field="completeDate" placeholder="개선완료일" type="text" value="${riskEscapeHtml(row.completeDate)}"/>
+</td>
+<td class="p-3">
+<input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-risk-field="confirmedBy" placeholder="현장대리인, 근로자" type="text" value="${riskEscapeHtml(row.confirmedBy)}"/>
+</td>
 <td class="p-3 text-center">
 <button class="text-neutral-400 hover:text-status-danger transition" data-risk-delete type="button" title="행 삭제">
 <span class="material-symbols-outlined text-lg">delete</span>

@@ -370,7 +370,7 @@ __RISK_DB_SELECT__
 </div>
 <!-- Risk Matrix 5x4 Table -->
 <div class="overflow-x-auto border border-neutral-200 rounded-lg">
-<table class="w-full text-left text-xs border-collapse" data-risk-table>
+<table class="min-w-[1320px] text-left text-xs border-collapse" data-risk-table>
 <thead>
 <tr class="bg-neutral-100 text-neutral-700 border-b border-neutral-200 font-semibold">
 <th class="p-3 w-12 text-center">No</th>

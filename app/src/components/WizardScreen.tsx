@@ -379,9 +379,37 @@ export default function WizardScreen({
       doSave(false);
     };
 
+    const closeModal = (name: string) => {
+      const modal = root.querySelector<HTMLElement>(`[data-modal="${name}"]`);
+      if (modal) modal.classList.add("hidden");
+    };
+
     const onClick = (e: MouseEvent) => {
-      const btn = (e.target as HTMLElement)?.closest("button");
+      const target = e.target as HTMLElement;
+      // 배경(backdrop) 클릭으로 팝업 닫기: 실제 팝업 콘텐츠 위 클릭은 이 요소까지
+      // 안 올라오므로(콘텐츠 wrapper가 별도 div), backdrop 자신을 클릭했을 때만 닫는다.
+      const backdrop = target?.closest<HTMLElement>("[data-modal-backdrop]");
+      if (backdrop && root.contains(backdrop) && target === backdrop) {
+        closeModal(backdrop.getAttribute("data-modal-backdrop") ?? "");
+        return;
+      }
+
+      const btn = target?.closest("button");
       if (!btn || !root.contains(btn)) return;
+
+      const openModalName = btn.getAttribute("data-open-modal");
+      if (openModalName) {
+        e.preventDefault();
+        const modal = root.querySelector<HTMLElement>(`[data-modal="${openModalName}"]`);
+        if (modal) modal.classList.remove("hidden");
+        return;
+      }
+      const closeModalName = btn.getAttribute("data-modal-close");
+      if (closeModalName) {
+        e.preventDefault();
+        closeModal(closeModalName);
+        return;
+      }
 
       if (btn.hasAttribute("data-risk-add")) {
         e.preventDefault();

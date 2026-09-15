@@ -483,15 +483,27 @@ export async function generateWizardDocx(
     );
 
     for (const field of section.fields) {
+      // field.value에 개행이 있으면(위험성평가 실시규정처럼 여러 문단짜리 긴 텍스트)
+      // TextRun 하나에 몰아넣지 않고 줄마다 별도 Paragraph로 나눠야 실제로 줄바꿈이
+      // 보인다 — TextRun.text 안의 "\n"은 Word가 줄바꿈으로 렌더링하지 않는다.
+      const lines = (field.value || "(미입력)").split("\n");
       children.push(
         new Paragraph({
-          spacing: { after: 120 },
+          spacing: { after: lines.length > 1 ? 40 : 120 },
           children: [
             new TextRun({ text: `${field.label}: `, bold: true, size: 22, font: FONT }),
-            new TextRun({ text: field.value || "(미입력)", size: 22, font: FONT }),
+            new TextRun({ text: lines[0], size: 22, font: FONT }),
           ],
         })
       );
+      lines.slice(1).forEach((line, i, arr) => {
+        children.push(
+          new Paragraph({
+            spacing: { after: i === arr.length - 1 ? 120 : 40 },
+            children: [new TextRun({ text: line, size: 22, font: FONT })],
+          })
+        );
+      });
     }
 
     if (section.table && section.table.rows.length > 0) {

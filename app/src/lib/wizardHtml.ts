@@ -1193,6 +1193,222 @@ ${rows}
 `;
 }
 
+// "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
+// 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
+// 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
+// 본문에는 안내문구 + "작성하기" 버튼만 두고 실제 내용은 모달 안에 둔다. 전문
+// 대부분은 법정 표준 문구라 읽기전용(textarea readonly)으로 넣어 두고, 실제로
+// 채워야 하는 값(제·개정일, 승인자/검토자/작성자 성명, 조직 담당자 성명)만 입력
+// 가능하게 한다. wizardExport.ts의 일반 라벨+값 추출(findLabel/fieldValue)을 그대로
+// 타므로 별도 export 코드가 필요 없다 — <div><label>...</label><input|textarea>...
+// 패턴(라벨이 입력요소의 직계 형제)만 지키면 자동으로 문서에 포함된다.
+function raRField(id: string, label: string, value: string, opts: { type?: string; placeholder?: string } = {}): string {
+  const { type = "text", placeholder = "" } = opts;
+  return `<div>
+<label class="block text-xs font-bold text-neutral-700 mb-1">${escapeHtmlPolicy(label)}</label>
+<input id="${id}" class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900" type="${type}" value="${escapeHtmlPolicy(
+    value
+  )}" placeholder="${escapeHtmlPolicy(placeholder)}"/>
+</div>`;
+}
+
+function raRReadonlyBlock(label: string, text: string): string {
+  const rows = Math.min(30, Math.max(6, text.split("\n").length + 1));
+  return `<div>
+<label class="block text-xs font-bold text-neutral-700 mb-1">${escapeHtmlPolicy(label)}</label>
+<textarea readonly class="w-full text-xs bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-neutral-700 leading-relaxed" rows="${rows}">${escapeHtmlPolicy(
+    text
+  )}</textarea>
+</div>`;
+}
+
+const RISK_ASSESSMENT_RULES_BLOCK_1_TEXT =
+  "1. 목적\n" +
+  "본 규정은 산업안전보건법 제36조에 따라 현장에서 유해·위험요인에 대한 실태를 파악하고 이를 평가하여 관리·개선하는 등 재해를 예방하기 위하여 위험성평가에 관한 조직의 구성, 역할과 책임, 평가대상, 근로자 참여, 실시시기, 절차, 방법 등에 대한 기준을 제시하고, 현장에서 발생하는 위험요인을 사전에 제거함으로써 안전하고 쾌적한 작업환경을 유지하는 데 그 목적이 있다.\n\n" +
+  "2. 적용범위\n" +
+  "이 규정은 회사에서 시공하는 본 현장에 적용한다.\n\n" +
+  "3. 용어의 정의\n" +
+  "3.1 위험성평가: 현장소장이 스스로 유해·위험요인을 파악하고 해당 유해·위험요인의 위험성 수준을 결정하여, 위험성을 낮추기 위한 적절한 조치를 마련하고 실행하는 과정을 말한다.\n" +
+  "3.2 유해·위험요인: 유해·위험을 일으킬 잠재적 가능성이 있는 것의 고유한 특징이나 속성을 말한다.\n" +
+  "3.3 위험성: 유해·위험요인이 사망, 부상 또는 질병으로 이어질 수 있는 가능성과 중대성 등을 고려한 위험의 정도를 말한다.\n" +
+  "3.4 허용가능 위험성: 허용할 수 있는 수준으로 감소된 위험성을 말한다.\n" +
+  "3.5 허용불가 위험성: 허용할 수 없는 수준의 위험으로 감소대책이 필요한 위험성을 말한다.\n" +
+  "3.6 위험성 감소대책 수립 및 실행: 위험성 결정 결과 허용 불가능한 위험성을 합리적으로 실천 가능한 범위에서 가능한 한 낮은 수준으로 감소시키기 위한 대책을 수립하고 실행하는 것을 말한다.";
+
+const RISK_ASSESSMENT_RULES_BLOCK_2_TEXT =
+  "4. 조직의 구성\n" +
+  "안전보건관리책임자(안전보건총괄책임자, 현장소장) 아래 안전관리자(팀장)를 두고, 공무팀·공사팀(관리감독자)·품질팀 팀장과 협력업체·근로자가 위험성평가에 참여하는 안전보건협의체 구조로 운영한다. 구성원 성명은 아래 입력값을 따른다.\n\n" +
+  "5. 역할과 책임\n" +
+  "5.1 현장소장\n" +
+  "가. 위험성평가의 실시 및 실시에 관한 총괄관리\n" +
+  "나. 관리감독자 등에게 위험성평가 실무에 관한 권한 부여\n" +
+  "다. 위험성평가 결과의 개선대책 이행 및 이행상태 확인\n" +
+  "라. 위험성평가 관련 업무분장 및 조정, 예산집행 승인\n" +
+  "마. 위험성평가 후 개선에 필요한 초과예산의 승인요청\n" +
+  "바. 위험성평가 실시규정 작성 및 기타 위험성평가에 관한 사항\n\n" +
+  "5.2 관리감독자(공사팀장, 반장 등)\n" +
+  "가. 위험성평가(최초, 정기, 수시, 상시)의 계획수립, 회의실시, 평가실시 등 평가실무 진행\n" +
+  "나. 외주 협력업체의 위험성평가서 검토 및 개선\n" +
+  "다. 근로자 등 종사자 참여 독려, 지도, 지원\n" +
+  "라. 유해위험요인 파악, 위험성 결정, 개선대책 수립 및 개선확인\n" +
+  "마. 위험성평가에 관한 Feed-Back, 관련문서 및 기록 보관\n\n" +
+  "5.3 안전관리자\n" +
+  "가. 현장소장 보좌\n" +
+  "나. 관리감독자 및 근로자 등 종사자에 대한 협조 및 지도, 조언, 지원\n" +
+  "다. 위험성평가 관련 자료확보 및 정보제공, 관계자 교육\n" +
+  "라. 순회점검 및 개선대책 이행여부 확인\n" +
+  "마. 위험성평가 시 참여 및 Feed-Back 협조\n" +
+  "바. 감소대책 이행에 필요한 예산집행 등\n\n" +
+  "5.4 근로자 등 종사자\n" +
+  "가. 유해·위험요인의 위험성 수준을 판단하는 기준(위험성평가 규정 등)을 마련하는 데 참여\n" +
+  "나. 유해·위험요인별로 허용가능한 위험성 수준을 정하거나 변경 시 참여\n" +
+  "다. 유해·위험요인 파악 시 참여\n" +
+  "라. 유해·위험요인의 위험성이 허용 가능한 수준인지 여부를 결정하는 데 참여\n" +
+  "마. 위험성 감소대책을 수립하고 실행하는 데 참여\n" +
+  "바. 위험성 감소대책 개선 여부를 확인하는 데 참여\n" +
+  "사. Feed-Back 협조";
+
+const RISK_ASSESSMENT_RULES_BLOCK_3_TEXT =
+  "6. 위험성평가 실시주체 및 평가대상\n" +
+  "6.1 실시주체\n" +
+  "가. 현장소장은 현장에 대해 스스로 유해·위험요인을 파악하고 이를 평가하여 관리·개선하는 등 본 규정에서 정한 절차와 방법 등에 따라 위험성평가를 실시하여야 한다.\n" +
+  "나. 현장소장은 하도급(수급사업주) 업체에서 실시한 공종별 위험성평가서를 반드시 제출받아 검토해야 하고, 개선할 사항이 있는 경우에는 이를 개선하게 하는 등 근본적인 안전보건 확보를 위해 노력해야 한다.\n\n" +
+  "6.2 평가대상\n" +
+  "가. 전 공종에 대한 모든 유해·위험요인을 대상으로 위험성평가를 실시해야 한다.\n" +
+  "나. 산업안전보건기준에 관한 규칙 내용과 작업 중 근로자에게 노출된 것이 확인되었거나 노출될 것이 합리적으로 예견 가능한 모든 유해·위험요인 및 부상 또는 질병으로 이어질 가능성이 있었던 상황(“아차사고” 등)을 경험 또는 확인한 경우에는 반드시 평가대상에 포함하되, 매우 경미한 부상 및 질병만을 초래할 것으로 명백히 예상되는 유해·위험요인은 평가 대상에서 제외할 수 있다.\n\n" +
+  "7. 근로자 참여\n" +
+  "가. 현장소장은 위험성평가를 실시할 때 다음에 해당하는 경우 해당 작업에 종사하는 근로자를 반드시 참여시켜야 한다.\n" +
+  "  1) 유해·위험요인의 위험성 수준을 판단하는 기준을 마련하고(위험성평가 규정 작성 등), 유해·위험요인별로 허용 가능한 위험성 수준을 정하거나 변경하는 경우\n" +
+  "  2) 해당 건설현장의 유해·위험요인을 파악하는 경우\n" +
+  "  3) 유해·위험요인의 위험성이 허용 가능한 수준인지 여부를 결정하는 경우\n" +
+  "  4) 위험성 감소대책을 수립하여 실행하는 경우\n" +
+  "  5) 위험성 감소대책 실행 및 개선 여부를 확인하는 경우\n" +
+  "나. 현장소장은 해당 작업에 종사하는 근로자를 참여시킬 경우에는 가능한 최소경력 5년 이상의 경력 근로자를 참여시켜 평가를 진행해야 한다.";
+
+const RISK_ASSESSMENT_RULES_BLOCK_4_TEXT =
+  "8.1 위험성평가 종류 및 실시시기\n" +
+  "가. 최초 위험성평가: 현장소장은 건설공사 실착공일로부터 1개월이 되는 날까지 위험성평가의 대상이 되는 모든 작업공종을 대상으로 최초 위험성평가를 실시해야 한다.\n" +
+  "나. 수시 위험성평가: 사업장 건설물의 설치·이전·변경·해체, 기계·기구·설비·원재료 등의 신규 도입 또는 변경, 정비·보수, 작업방법·절차의 신규 도입 또는 변경, 중대산업사고 또는 산업재해(휴업 이상) 발생 등 추가적인 유해·위험요인이 생기는 경우 해당 유해·위험요인에 대해 실시한다. 중대산업사고·산업재해 발생 시에는 작업을 재개하기 전에 실시한다.\n" +
+  "다. 정기 위험성평가: 최초 위험성평가 결과의 적정성을 1년마다 정기적으로 재검토(수시 위험성평가 결과가 있으면 함께 재검토)하고, 허용 가능한 수준이 아니라고 검토된 유해·위험요인에 대해서는 위험성 감소대책을 수립하여 실행한다.\n" +
+  "라. 상시 위험성평가: 매월 1회 이상 근로자 제안제도·아차사고 확인·순회점검 등을 통해 유해·위험요인을 발굴하여 위험성결정 및 감소대책을 수립·실행하고, 매주 안전보건관리책임자·안전관리자·관리감독자 등이 그 결과를 논의·공유하며, 매 작업일 작업 전 안전점검회의(TBM)를 통해 근로자와 공유한다. 상시평가를 이행하는 경우 수시·정기평가를 실시하지 않을 수 있다.\n\n" +
+  "8.2 위험성평가 절차\n" +
+  "가. 절차: ① 사전준비 → ② 유해·위험요인 파악 → ③ 위험성 결정 → ④ 위험성 감소대책 수립 및 실행·개선확인 → ⑤ 실시내용 및 결과에 관한 기록 및 보존 (공사금액 1억원 미만인 경우 ①호 생략 가능)\n" +
+  "나. 사전준비: 작업표준·작업절차, 기계·기구·설비 사양서·물질안전보건자료(MSDS), 공정 흐름과 작업 주변 환경, 혼재작업의 위험성, 재해사례·재해통계, 작업환경측정결과·건강진단결과, 설계도서·안전보건관계법령 등 안전보건정보를 조사·검토한다.\n" +
+  "다. 유해·위험요인 파악: 사업장 순회점검, 근로자 상시 제안, 설문조사·인터뷰, 안전보건 자료(MSDS·작업환경측정·특수건강진단 결과 등), 안전보건 체크리스트 등의 방법 중 하나 이상(특별한 사정이 없으면 순회점검 포함)을 사용한다.\n" +
+  "라. 위험성 결정: 파악된 유해·위험요인이 근로자에게 노출되었을 때의 위험성 수준(빈도×강도)을 판단 기준에 따라 결정하고, 허용 가능한 위험성 수준인지 여부를 결정한다.\n" +
+  "마. 위험성 감소대책 수립·실행 및 개선확인: 허용 불가위험으로 판단된 경우 ① 위험한 작업의 폐지·변경, 유해·위험물질 대체 등 본질적 제거·저감조치 → ② 연동장치·환기장치·추락 및 낙하물 방지시설 등 공학적 대책 → ③ 작업절차서 정비, 교육·점검 강화 등 관리적 대책 → ④ 개인용 보호구 사용 순으로 대책을 수립·실행하고, 실행 후 위험성이 허용 가능한 수준인지 확인하며, 수준에 이르지 않으면 추가 감소대책을 수립·실행한다. 중대재해 우려가 있어 대책 실행에 많은 시간·비용이 필요한 경우 즉시 잠정조치를 시행하고 대표이사에게 자원을 요청한다. 감소대책 실행 및 개선 여부는 관리감독자와 근로자를 통해 반드시 확인·기록·보존한다.\n" +
+  "바. 감소대책 수립 시 우선순위: 위험작업 폐지·대체를 통한 본질적 제거 → 인터록·안전장치·방호문·국소배기장치 등 공학적 저감 → 작업매뉴얼 정비·출입금지/작업허가 등 관리적 방법 → 개인보호구 사용(최종 수단) 순으로 고려한다.\n" +
+  "사. 위험성평가의 공유: 근로자가 종사하는 작업과 관련된 유해·위험요인, 위험성 결정 결과, 감소대책과 실행계획·실행여부, 근로자 준수·주의사항 등을 게시·주지하고, 중대재해로 이어질 수 있는 유해·위험요인은 작업 전 안전점검회의(TBM)를 통해 상시 주지시킨다.\n\n" +
+  "8.3 위험성평가 방법\n" +
+  "빈도(가능성)와 강도(중대성)를 곱하여 위험성의 크기(1~9)를 산출하는 빈도·강도법을 사용한다. [빈도] 1일 1회 이상 빈번=3, 1주일 1회 가끔=2, 3개월 1회 이하 거의 없음=1. [강도] 사망·장애=3, 휴업 필요=2, 치료 불필요=1. 위험성 수준 6~9(고)는 허용 불가능(개선대책 반드시 마련), 3~5(중)는 허용 불가능(공학적·관리적 대책 마련), 1~2(저)는 허용 가능(현재상태 유지 또는 필요시 개선)으로 판정한다. 위험성 결정은 재해사례·안전관계법령 등 객관적 자료와 건설안전 전문가 의견을 반영하여 신중히 한다. 위험성평가서 양식에는 공정명, 유해·위험요인 파악, 개선 전·후 위험성(빈도·강도·위험성), 개선대책, 개선 예정일·완료일, 확인자(관리감독자·근로자) 등을 반드시 포함한다.\n\n" +
+  "8.4 위험성평가 교육 및 컨설팅\n" +
+  "현장소장은 위험성평가를 실시하는 구성원 전원(안전보건관리책임자, 안전관리자, 관리감독자, 해당 작업 근로자 등)에게 실시 전 2시간 이상 필요한 교육을 실시하고 기록을 유지·관리해야 한다. 교육강사는 안전보건공단·재해예방기관 등 전문기관이나 산업안전지도사·건설안전기술사 등 안전보건전문가에게 위탁할 수 있다. 외부교육 이수자나 관련 전공자는 필요한 부분만 교육하거나 생략할 수 있으며, 산업안전·보건 전문가 또는 전문기관의 컨설팅을 받을 수 있다.\n\n" +
+  "8.5 위험성평가 시 유의사항\n" +
+  "현장소장(안전보건관리책임자)이 전 과정을 총괄 관리감독하고, 안전관리자는 현장소장을 보좌하며 관리감독자·근로자에게 지도·조언·정보제공을 한다. 관리감독자는 유해위험요인 파악, 위험성 결정, 감소대책 수립·실행, 개선확인, 평가서 공유, 기록보존 등 실무를 수행한다. 기계·기구·설비 관련 평가 시에는 전문지식을 갖춘 사람과 경력 근로자(최소 5년 이상)를 반드시 참여시킨다. 안전보건관리자 선임의무가 없는 현장은 관리감독자 등을 지정하여 해당 역할을 수행하게 한다. 산업안전보건공단 위험성평가 지원시스템(kras.kosha.or.kr)을 활용할 수 있으며, 과거 사망재해 사례와 아차사고, 산업안전보건기준에 관한 규칙 반영 사항은 반드시 포함한다. 개선대책 실행 후에는 관리감독자와 근로자가 개선여부를 확인·서명하고 차기 평가에 반영(Feed-back)한다. 감소대책 수립 시에는 새로운 위험성 발생 여부, 근거 불분명한 조치로 위험성을 낮게 판단하지 않는지, 작업성·생산성·품질에 지장이 없는지를 확인하고, 현장의 노하우와 아이디어를 적극 활용한다.";
+
+const RISK_ASSESSMENT_RULES_BLOCK_5_TEXT =
+  "9. 점검 및 개선활동\n" +
+  "가. 위험성평가의 이행에 대한 점검은 위험성평가 담당자(관리감독자, 안전관리자, 근로자) 및 이행책임자(현장소장)가 수시로 확인하여야 한다.\n" +
+  "나. 이행 점검결과 미이행 사항이나 추가적 유해·위험요인이 발견된 경우 즉시 시정조치를 하여야 하며, 시정조치 내용은 차기 위험성평가에 반영되도록 하여야 한다.\n\n" +
+  "10. 기록 및 보존\n" +
+  "현장소장은 산업안전보건법 제36조제3항에 따라 위험성평가의 결과와 조치사항을 기록·보존할 때 다음 사항을 포함하여야 하며, 위험성평가를 완료한 날부터 3년간 보존해야 한다.\n" +
+  "① 위험성평가 대상의 유해·위험요인\n" +
+  "② 위험성 결정의 내용\n" +
+  "③ 위험성 결정에 따른 조치의 내용\n" +
+  "④ 위험성평가를 위해 사전조사한 안전보건정보\n" +
+  "⑤ 그 밖에 건설현장에서 필요하다고 정한 사항";
+
+const RISK_ASSESSMENT_RULES_FORM_1_TEXT =
+  "【서식 1】 위험성평가 교육일지\n" +
+  "교육대상: 위험성평가 참여자(현장소장, 관리감독자, 근로자 등)\n" +
+  "교육내용: 1. 위험성평가를 위한 사업주의 방침과 목표  2. 위험성평가 추진방법 및 내용  3. 위험성평가 절차(사전준비→유해위험요인 파악→위험성 결정→개선대책 수립·실행)  4. 기록  5. 위험성평가 실시시기 및 범위 등\n" +
+  "기재항목: 현장명, 교육장소, 교육일시, 교육강사, 참여자 직책·성명·서명, 사진\n" +
+  "※ 실제 교육 실시 시 현장에서 작성하여 첨부하는 서식입니다.";
+
+const RISK_ASSESSMENT_RULES_FORM_2_TEXT =
+  "【서식 2】 위험성평가 회의록\n" +
+  "평가종류: 최초위험성평가\n" +
+  "안건: 위험성평가 실시규정 및 최초위험성평가서 작성 등\n" +
+  "협의사항: 1. 위험성평가 실시규정의 검토·작성  2. 위험성평가 실시에 따른 책임과 역할 부여  3. 단위 공종별 유해위험요인 파악 및 위험성 결정  4. 개선대책 강구, 대책 실행방법 및 확인  5. 기록의 유지  6. 위험성평가 관련 관심사항 토론 등\n" +
+  "기재항목: 현장명, 회의장소, 회의일시, 참여자 직책·성명·서명, 사진\n" +
+  "※ 실제 회의 실시 시 현장에서 작성하여 첨부하는 서식입니다.";
+
+function buildRiskAssessmentRulesNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk_assessment_rules">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  07
+                </span>
+<span class="group-hover:text-neutral-900">위험성평가 실시규정</span>
+</div>
+</a>
+`;
+}
+
+function buildRiskAssessmentRulesSectionHtml(params: { projectTitle: string; reviewerDefaultName: string }): string {
+  const { projectTitle, reviewerDefaultName } = params;
+
+  const editableFieldsHtml = [
+    raRField("wizard-field-rar-site-name", "현장명", projectTitle),
+    raRField("wizard-field-rar-issue-date", "제·개정일", "", { type: "date" }),
+    raRField("wizard-field-rar-approver-name", "승인자(대표이사) 성명", "", { placeholder: "대표이사 성명" }),
+    raRField("wizard-field-rar-reviewer-name", "검토자(현장대리인) 성명", reviewerDefaultName),
+    raRField("wizard-field-rar-preparer-name", "작성자(안전관리자) 성명", "", { placeholder: "안전관리자 성명" }),
+    raRField("wizard-field-rar-participant-note", "참여자(근로자)", "참여예정"),
+    raRField("wizard-field-rar-org-general-name", "조직 - 공무팀장 성명", ""),
+    raRField("wizard-field-rar-org-construction-name", "조직 - 공사팀장(관리감독자 겸임) 성명", ""),
+    raRField("wizard-field-rar-org-quality-name", "조직 - 품질팀장 성명", ""),
+  ].join("\n");
+
+  const readonlyBlocksHtml = [
+    raRReadonlyBlock("1~3. 목적·적용범위·용어의 정의", RISK_ASSESSMENT_RULES_BLOCK_1_TEXT),
+    raRReadonlyBlock("4~5. 조직의 구성·역할과 책임", RISK_ASSESSMENT_RULES_BLOCK_2_TEXT),
+    raRReadonlyBlock("6~7. 실시주체 및 평가대상·근로자 참여", RISK_ASSESSMENT_RULES_BLOCK_3_TEXT),
+    raRReadonlyBlock("8. 위험성평가의 실시 (종류·시기/절차/방법/교육/유의사항)", RISK_ASSESSMENT_RULES_BLOCK_4_TEXT),
+    raRReadonlyBlock("9~10. 점검 및 개선활동·기록 및 보존", RISK_ASSESSMENT_RULES_BLOCK_5_TEXT),
+    raRReadonlyBlock("서식 1. 위험성평가 교육일지 (양식 안내)", RISK_ASSESSMENT_RULES_FORM_1_TEXT),
+    raRReadonlyBlock("서식 2. 위험성평가 회의록 (양식 안내)", RISK_ASSESSMENT_RULES_FORM_2_TEXT),
+  ].join("\n");
+
+  return `<!-- ════════ SECTION: 위험성평가 실시규정 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-risk_assessment_rules">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅶ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">위험성평가 실시규정</h2>
+</div>
+<div class="p-6">
+<p class="text-xs text-neutral-500 mb-3">산업안전보건법 제36조에 따른 위험성평가 실시규정 전문(붙임1)과 서식 2종입니다. 대부분 법정 표준 문구라 그대로 다운로드 문서에 포함되고, 제·개정일과 담당자 성명 등 몇 가지만 입력하면 됩니다. 분량이 많아 팝업에서 작성합니다.</p>
+<button type="button" data-open-modal="risk-assessment-rules" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition">
+<span class="material-symbols-outlined text-sm">edit_document</span>
+위험성평가 실시규정 작성하기
+</button>
+</div>
+<div data-modal="risk-assessment-rules" data-modal-backdrop="risk-assessment-rules" class="hidden fixed inset-0 z-[70] bg-black/50 flex justify-center p-4 md:p-8 overflow-y-auto">
+<div class="relative bg-white w-full max-w-3xl rounded-2xl shadow-xl my-4 md:my-8">
+<div class="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+<h3 class="font-headline font-bold text-sm text-neutral-900">위험성평가 실시규정 (붙임1) 작성</h3>
+<button type="button" data-modal-close="risk-assessment-rules" class="w-8 h-8 rounded-lg hover:bg-neutral-100 flex items-center justify-center text-neutral-500">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<div class="p-6 space-y-5">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+${editableFieldsHtml}
+</div>
+<div class="border-t border-neutral-200 pt-5 space-y-4">
+<p class="text-[11px] text-neutral-400">아래 규정 전문은 법정 표준 문구로 읽기 전용입니다(수정 불가). 그대로 다운로드 문서(붙임1)에 포함됩니다.</p>
+${readonlyBlocksHtml}
+</div>
+</div>
+<div class="sticky bottom-0 bg-white border-t border-neutral-200 px-6 py-3 flex justify-end rounded-b-2xl">
+<button type="button" data-modal-close="risk-assessment-rules" class="text-xs font-semibold px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition">완료</button>
+</div>
+</div>
+</div>
+</section>
+`;
+}
+
 export function buildWizardHtml(
   doc: WizardDocRow,
   announcement: WizardAnnouncementRow,
@@ -1267,7 +1483,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_management_policy ? 1 : 0) +
     (agencyTemplate?.show_org_chart ? 1 : 0) +
     (agencyTemplate?.show_role_responsibilities ? 1 : 0) +
-    (agencyTemplate?.show_education_plan ? 1 : 0);
+    (agencyTemplate?.show_education_plan ? 1 : 0) +
+    (agencyTemplate?.show_risk_assessment_rules ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -1313,6 +1530,18 @@ ${templateOptions
     : "";
   const educationPlanNavHtml = agencyTemplate?.show_education_plan ? buildEducationPlanNavHtml() : "";
   const educationPlanSectionHtml = agencyTemplate?.show_education_plan ? buildEducationPlanSectionHtml() : "";
+  const riskAssessmentRulesNavHtml = agencyTemplate?.show_risk_assessment_rules
+    ? buildRiskAssessmentRulesNavHtml()
+    : "";
+  // projectTitle/memberName은 이미 escapeHtml()이 적용된 채로 템플릿에 raw 삽입되는
+  // 값이라, escapeHtmlPolicy()를 한 번 더 거치는 raRField()에 그대로 넘기면 "&" 등이
+  // 이중 이스케이프된다 — 여기서는 원본 값을 따로 계산해서 넘긴다.
+  const riskAssessmentRulesSectionHtml = agencyTemplate?.show_risk_assessment_rules
+    ? buildRiskAssessmentRulesSectionHtml({
+        projectTitle: (doc.title ?? "").replace(/\s*계획서$/, "").trim() || "안전보건관리계획서",
+        reviewerDefaultName: member?.name?.trim() || "",
+      })
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -1335,6 +1564,10 @@ ${templateOptions
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
       `${educationPlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
+      `${riskAssessmentRulesNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">`
     )
     .replace("6개 대분류", `${totalSectionCount}개 대분류`)
     .replace(
@@ -1384,6 +1617,10 @@ ${templateOptions
 </div>
 </section>
 ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+    )
+    .replace(
+      '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
+      `${riskAssessmentRulesSectionHtml}<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->`
     );
 
   if (contractAmount) {
@@ -1426,6 +1663,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.org_chart = "안전보건관리 조직구성";
     commonLabels.role_responsibilities = "구성원별 안전보건 관리 역할";
     commonLabels.education_plan = "안전보건교육 계획";
+    commonLabels.risk_assessment_rules = "위험성평가 실시규정";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

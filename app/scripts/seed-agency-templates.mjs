@@ -64,6 +64,13 @@ const TEMPLATES = [
     // 표준서식에도 동일하게 켜둔다. 예전에는 sections의 자유서식 텍스트 2칸
     // (id: "education_plan")이었지만 실제 표 서식으로 바꿨다.
     show_education_plan: true,
+    // "위험성평가 실시규정"(붙임1, 실제 LH 샘플 화성동탄(2) 131~145p) 전문과 서식
+    // 2종(교육일지/회의록)을 팝업(모달)에서 작성하도록 보여준다. 15페이지 분량이라
+    // 위저드 본문에는 안내문구+"작성하기" 버튼만 두고, 실제 법정 표준 문구는 팝업
+    // 안에서 읽기전용으로 두며 제·개정일/담당자 성명 등 소수만 입력한다
+    // (wizardHtml.ts의 buildRiskAssessmentRulesSectionHtml 참고). 산업안전보건법
+    // 제36조에 따른 법정 내용이라 아래 한국전력공사 표준서식에도 동일하게 켜둔다.
+    show_risk_assessment_rules: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -81,7 +88,7 @@ const TEMPLATES = [
       { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency", "accident_procedure"] },
       { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "target", "misc_admin", "safety_cost"] },
       { roman: "Ⅵ", title: "재해발생 수준", members: ["accident_level"] },
-      { roman: "Ⅶ", title: "붙임", members: ["attachments"] },
+      { roman: "Ⅶ", title: "붙임", members: ["risk_assessment_rules", "attachments"] },
       { roman: "Ⅷ", title: "작업투입 인력 인적사항", members: ["workforce"] },
     ],
     disabled_common_sections: [],
@@ -315,6 +322,8 @@ const TEMPLATES = [
     // LH와 동일하게, 안전보건교육 계획도 모든 안전보건관리계획서에 공통으로
     // 들어가는 법정 내용이라 켜둔다.
     show_education_plan: true,
+    // 위험성평가 실시규정도 산업안전보건법 제36조에 따른 법정 내용이라 켜둔다.
+    show_risk_assessment_rules: true,
     disabled_common_sections: [],
     sections: [
       {
@@ -371,6 +380,7 @@ for (const t of TEMPLATES) {
   const showOrgChart = t.show_org_chart ?? false;
   const showRoleResponsibilities = t.show_role_responsibilities ?? false;
   const showEducationPlan = t.show_education_plan ?? false;
+  const showRiskAssessmentRules = t.show_risk_assessment_rules ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -387,6 +397,7 @@ for (const t of TEMPLATES) {
         show_org_chart: showOrgChart,
         show_role_responsibilities: showRoleResponsibilities,
         show_education_plan: showEducationPlan,
+        show_risk_assessment_rules: showRiskAssessmentRules,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -408,6 +419,7 @@ for (const t of TEMPLATES) {
         show_org_chart: showOrgChart,
         show_role_responsibilities: showRoleResponsibilities,
         show_education_plan: showEducationPlan,
+        show_risk_assessment_rules: showRiskAssessmentRules,
       })
       .select("id")
       .single();

@@ -46,6 +46,10 @@ export type AgencyTemplateRow = {
   // "안전보건교육 계획"을 표(종류/대상/교육시간/교육강사/교육내용/교육교재,
   // 헤드라인 음영)로 보여줄지 여부.
   show_education_plan?: boolean;
+  // "위험성평가 실시규정"(붙임1) 전문 + 서식 2종을 팝업(모달)에서 작성하는 절을
+  // 보여줄지 여부. 본문에는 안내문구 + "작성하기" 버튼만 두고, 실제 내용은
+  // 팝업 안에 있다.
+  show_risk_assessment_rules?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

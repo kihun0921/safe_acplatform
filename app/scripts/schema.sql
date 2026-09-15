@@ -181,6 +181,13 @@ alter table public.agency_templates add column if not exists show_role_responsib
 -- 나머지 칸은 사전 작성 문구가 채워진 채로 수정 가능하다.
 alter table public.agency_templates add column if not exists show_education_plan boolean not null default false;
 
+-- show_risk_assessment_rules: "위험성평가 실시규정"(붙임1, 실제 LH 샘플 화성동탄(2)
+-- 131~145p) 전문과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성하는 절을 보여줄지
+-- 여부. 15페이지 분량이라 위저드 본문에는 안내문구+"작성하기" 버튼만 두고, 실제
+-- 법정 표준 문구는 팝업 안에서 읽기전용으로 보여주며 제·개정일/담당자 성명 등
+-- 소수의 값만 입력 가능하다.
+alter table public.agency_templates add column if not exists show_risk_assessment_rules boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

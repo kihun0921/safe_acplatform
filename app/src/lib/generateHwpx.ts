@@ -280,7 +280,13 @@ function buildSection0Xml(
     paragraphs.push(textParagraph(section.heading, "5", i > 0));
     paragraphs.push(emptyParagraph());
     for (const field of section.fields) {
-      paragraphs.push(textParagraph(`${field.label}: ${field.value || "(미입력)"}`, "0", false));
+      // 한 <hp:p>는 한 줄이라, "\n"이 섞인 긴 텍스트(위험성평가 실시규정 등)는
+      // 줄마다 별도 문단으로 나눠야 실제로 줄바꿈이 보인다.
+      const lines = (field.value || "(미입력)").split("\n");
+      paragraphs.push(textParagraph(`${field.label}: ${lines[0]}`, "0", false));
+      for (const line of lines.slice(1)) {
+        paragraphs.push(textParagraph(line, "0", false));
+      }
     }
     if (section.table && section.table.rows.length > 0) {
       paragraphs.push(emptyParagraph());

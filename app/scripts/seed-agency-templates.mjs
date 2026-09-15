@@ -71,6 +71,13 @@ const TEMPLATES = [
     // (wizardHtml.ts의 buildRiskAssessmentRulesSectionHtml 참고). 산업안전보건법
     // 제36조에 따른 법정 내용이라 아래 한국전력공사 표준서식에도 동일하게 켜둔다.
     show_risk_assessment_rules: true,
+    // "유해·위험 기계·기구·물질의 방호조치 및 관리계획" 3개 절(위험기계·기구/
+    // 차량계건설기계·하역운반기계/유해·위험물질(MSDS), 실제 LH 샘플 화성동탄(2)
+    // 40~90p)을 항목별 체크리스트 개요표 + 항목별 "상세 작성" 팝업 형태로 보여준다
+    // (wizardHtml.ts의 buildHazardMachineryLikeSectionHtml/buildHazardSubstanceSectionHtml
+    // 참고). 산업안전보건법에 따른 법정 내용이라 아래 한국전력공사 표준서식에도
+    // 동일하게 켜둔다.
+    show_hazard_management: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -83,7 +90,11 @@ const TEMPLATES = [
         title: "안전보건관리 체계",
         members: ["overview", "management-policy", "org_chart", "role_responsibilities"],
       },
-      { roman: "Ⅱ", title: "실행계획", members: ["education_plan", "risk", "execution"] },
+      {
+        roman: "Ⅱ",
+        title: "실행계획",
+        members: ["education_plan", "hazard_machinery", "hazard_vehicle", "hazard_substance", "risk", "execution"],
+      },
       { roman: "Ⅲ", title: "운영관리", members: ["protection_equipment"] },
       { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency", "accident_procedure"] },
       { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "target", "misc_admin", "safety_cost"] },
@@ -324,6 +335,9 @@ const TEMPLATES = [
     show_education_plan: true,
     // 위험성평가 실시규정도 산업안전보건법 제36조에 따른 법정 내용이라 켜둔다.
     show_risk_assessment_rules: true,
+    // 유해·위험 기계·기구·물질 방호조치 및 관리계획도 산업안전보건법에 따른 법정
+    // 내용이라 켜둔다.
+    show_hazard_management: true,
     disabled_common_sections: [],
     sections: [
       {
@@ -381,6 +395,7 @@ for (const t of TEMPLATES) {
   const showRoleResponsibilities = t.show_role_responsibilities ?? false;
   const showEducationPlan = t.show_education_plan ?? false;
   const showRiskAssessmentRules = t.show_risk_assessment_rules ?? false;
+  const showHazardManagement = t.show_hazard_management ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -398,6 +413,7 @@ for (const t of TEMPLATES) {
         show_role_responsibilities: showRoleResponsibilities,
         show_education_plan: showEducationPlan,
         show_risk_assessment_rules: showRiskAssessmentRules,
+        show_hazard_management: showHazardManagement,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -420,6 +436,7 @@ for (const t of TEMPLATES) {
         show_role_responsibilities: showRoleResponsibilities,
         show_education_plan: showEducationPlan,
         show_risk_assessment_rules: showRiskAssessmentRules,
+        show_hazard_management: showHazardManagement,
       })
       .select("id")
       .single();

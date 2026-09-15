@@ -188,6 +188,12 @@ alter table public.agency_templates add column if not exists show_education_plan
 -- 소수의 값만 입력 가능하다.
 alter table public.agency_templates add column if not exists show_risk_assessment_rules boolean not null default false;
 
+-- show_hazard_management: "유해·위험 기계·기구·물질의 방호조치 및 관리계획" 3개 절
+-- (위험기계·기구/차량계건설기계·하역운반기계/유해·위험물질(MSDS), 실제 LH 샘플
+-- 화성동탄(2) 40~90p)을 항목별 체크리스트 개요표 + 항목별 "상세 작성" 팝업 형태로
+-- 보여줄지 여부. 세 절은 항상 함께 다뤄지는 하나의 장이라 플래그도 하나로 묶는다.
+alter table public.agency_templates add column if not exists show_hazard_management boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

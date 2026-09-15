@@ -50,6 +50,11 @@ export type AgencyTemplateRow = {
   // 보여줄지 여부. 본문에는 안내문구 + "작성하기" 버튼만 두고, 실제 내용은
   // 팝업 안에 있다.
   show_risk_assessment_rules?: boolean;
+  // "유해·위험 기계·기구·물질의 방호조치 및 관리계획" 3개 절(위험기계·기구/
+  // 차량계건설기계·하역운반기계/유해·위험물질(MSDS))을 항목별 체크리스트 개요표 +
+  // 항목별 "상세 작성" 팝업 형태로 보여줄지 여부. 세 절은 항상 함께 다뤄지는
+  // 하나의 장이라 플래그도 하나로 묶는다.
+  show_hazard_management?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

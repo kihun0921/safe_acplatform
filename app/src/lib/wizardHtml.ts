@@ -1200,6 +1200,539 @@ ${rows}
 `;
 }
 
+// "유해·위험 기계·기구·물질의 방호조치 및 관리계획" — 실제 LH 샘플(화성동탄(2),
+// 40~90p)은 기계·기구/차량계 건설기계·하역운반기계/유해·위험물질(MSDS) 3개
+// 카테고리마다 (1) 항목별 체크리스트 개요표 + (2) 항목 하나하나의 세부실행계획
+// 페이지로 구성돼 있다(경쟁사 서식처럼 표 하나에 다 욱여넣지 않음). 분량이
+// 항목당 1페이지씩이라 위저드에는 개요표만 두고, 항목별 "상세 작성" 버튼을
+// 누르면 그 항목 전용 팝업(모달)에서 세부실행계획(항목마다 4칸 + 관계법령
+// 비고)을 작성하도록 한다 — 위험성평가 실시규정과 같은 팝업 패턴이지만, 이번엔
+// 팝업이 섹션당 하나가 아니라 "항목마다 하나"다.
+type HazardItem = {
+  key: string;
+  name: string;
+  safetyCheck: string;
+  ppe: string;
+  education: string;
+  etc: string;
+  note: string;
+};
+
+type HazardSubstanceItem = {
+  key: string;
+  name: string;
+  ppe: string;
+  education: string;
+  signage: string;
+  etc: string;
+  note: string;
+};
+
+const HAZARD_MACHINERY_ITEMS: HazardItem[] = [
+  {
+    key: "grinder",
+    name: "핸드그라인더",
+    safetyCheck:
+      "1. 방호장치(덮개) 안전시설 설치\n2. 현장소장, 관리감독자에 의해 매일 작업 전 숫돌 날의 비산을 방지하기 위한 방호장치(덮개)의 적정설치 여부(180도 이내) 등을 반드시 점검\n3. 작업불편 등의 이유로 덮개를 해체하여 사용하는 경향이 있으나 해체사용 절대 금지하도록 점검 및 교육 철저\n4. 방호장치인 덮개의 고장, 훼손, 파손, 기능상실 및 숫돌의 마모상태, 안전사용 상태 등 매월 1회 이상 점검 및 이상발견 시 필요한 조치",
+    ppe:
+      "1. 보호구 지급 관리대장 운영\n2. 작업 중 관리감독자 등에 의해 보호구 착용 상태의 수시 확인점검 및 미착용 근로자 착용조치(불응 시 퇴출조치)\n3. 작업 시작 전 관리감독자(작업반장 등)에 의해 TBM 점검 등을 통하여 보호구 적정 지급 및 착용상태(보안경, 안전화, 안전모, 안전장갑, 방진마스크 등)를 반드시 확인한 후 작업\n4. 작업불편에 의한 착용기피 절대 금지, 미착용 근로자에 대해서는 작업배제",
+    education:
+      "1. 기초안전보건교육, 연삭기 취급근로자에 대해서 안전사용방법, 보호구 착용방법 착용중요성, 기능, 보호능력 등에 대하여 관계근로자 교육실시\n2. 취급근로자 정기·특별·일일교육 등 법정교육 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 위험성평가 반드시 반영\n3. 연삭기 관리대장 작성(종류, 구입일, 현장 반입일, 검교정일, 점검 및 수리일, 수리 내역, 사용년수, 담당자 등) 및 관리\n4. 시정조치 불응 근로자 퇴출조치",
+    note: "산업안전보건기준에 관한 규칙 187조·32조 / 산업안전보건법 29조",
+  },
+  {
+    key: "cutter",
+    name: "고속절단기",
+    safetyCheck:
+      "1. 방호장치(덮개) 안전시설 설치\n2. 현장소장, 관리감독자에 의해 매일 작업 전 방호장치(덮개)의 적정설치 여부(180도 이내) 등을 반드시 점검\n3. 작업불편 등의 이유로 덮개를 해체하여 사용하는 경향이 있으나 해체사용 절대 금지하도록 점검 및 교육 철저\n4. 방호장치인 덮개의 고장, 훼손, 파손, 기능상실 및 숫돌의 마모상태, 안전사용상태 등 매월 1회 이상 점검 및 이상발견 시 필요한 조치",
+    ppe:
+      "1. 보호구 지급 관리대장 운영\n2. 작업 중 관리감독자 등에 의해 보호구 착용 상태의 수시 확인점검 및 미착용 근로자 착용조치(불응 시 퇴출조치)\n3. 작업 시작 전 관리감독자(작업반장 등)에 의해 TBM 점검 등을 통하여 보호구 적정 지급 및 착용상태(보안경, 안전화, 안전모, 안전장갑, 방진마스크 등)를 반드시 확인한 후 작업\n4. 작업불편에 의한 착용기피 절대 금지, 미착용 근로자에 대해서는 작업배제",
+    education:
+      "1. 기초안전보건교육, 취급근로자에 대해서 안전사용방법, 보호구 착용방법 착용중요성, 기능, 보호능력 등에 대하여 관계근로자 교육실시\n2. 취급근로자 정기·특별·일일교육 등 법정교육 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 위험성평가 반드시 반영\n3. 마모상태, 시험운전 여부 등을 사용 전에 반드시 점검\n4. 작업 중 사용회전속도 초과금지, 덮개 해체상태 등을 수시 확인점검. 이상 발견 시 덮개 재설치, 정비 등 필요한 조치\n5. 시정조치 불응 근로자 퇴출조치",
+    note: "산업안전보건기준에 관한 규칙 187조·32조 / 산업안전보건법 29조",
+  },
+  {
+    key: "welder",
+    name: "용접기",
+    safetyCheck:
+      "1. 방호장치(자동전격방지장치) 안전시설 설치\n2. 현장소장, 관리감독자에 의해 매일 작업 전 방호장치(자동전격방지장치)의 설치 및 정상작동 여부 등을 점검\n3. 방호장치인 자동전격방지장치의 고장, 훼손, 파손, 기능상실 발생 시 즉시 신규제품 교체설치",
+    ppe:
+      "1. 보호구(용접장갑, 보안경, 보안면, 보호의 등) 지급 및 관리대장 운영\n2. 작업 중 관리감독자 등에 의해 보호구 착용 상태의 수시 확인점검 및 미착용 근로자 착용조치(불응 시 퇴출조치)\n3. 작업 시작 전 관리감독자(작업반장 등)에 의해 TBM 점검 등을 통하여 보호구 적정 지급 및 착용상태 등을 반드시 확인한 후 작업\n4. 작업불편에 의한 착용기피 절대 금지, 미착용 근로자에 대해서는 작업배제",
+    education:
+      "1. 기초안전보건교육, 취급근로자에 대해서 안전사용방법, 보호구 착용방법 착용중요성, 기능, 보호능력 등에 대하여 관계근로자 교육실시\n2. 취급근로자 정기·특별·일일교육 등 법정교육 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 위험성평가 반드시 반영\n3. 누전차단기, 접지, 가설전선 피복 손상 유무 등 작업 전 반드시 점검하고 이상 발견 시 정비 등 즉시 필요한 조치\n4. MSDS 자료 및 경고표지 부착",
+    note: "산업안전보건기준에 관한 규칙 187조·32조 / 산업안전보건법 29조",
+  },
+  {
+    key: "rebar-bender",
+    name: "철근 절곡기",
+    safetyCheck:
+      "1. 동력전달 구동부에 덮개 또는 울, 비상정지스위치 등의 방호장치 설치 후 작업\n2. 현장소장, 관리감독자에 의해 매일 사용 전·중·후 덮개 또는 울, 비상정지 스위치 등의 적정설치 여부와 해체 여부를 수시 점검하고, 작업불편 등의 이유로 덮개를 해체하여 사용하는 경향이 없도록 철저하게 관리\n3. 덮개 또는 울의 고장, 훼손, 파손, 기능상실, 안전사용 상태 등 매월 1회 이상 점검 및 이상발견 시 필요한 조치",
+    ppe:
+      "1. 보호구(안전화, 안전모, 귀마개 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 보호구 착용 상태의 수시 확인점검 및 미착용 근로자 반드시 착용 조치\n3. 작업 불편에 의한 착용기피 현상이 있으므로 미착용 근로자 없도록 철저하게 관리(불응 시 퇴출조치)",
+    education:
+      "1. 철근절곡기 취급근로자에 대해서 안전사용방법, 방호장치의 종류 및 기능, 보호구 착용방법, 보호능력 등에 대하여 일일교육, 정기교육, 특별교육 등 법정교육 반드시 실시\n2. 매일 작업 시작 전 TBM 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 위험점에서 근접작업 금지조치\n3. 비정상 작업 시 전원차단 조치\n4. 전원케이블의 손상여부 확인\n5. 전원 연결 시 누전차단기 설치 및 접지 상태를 확인\n6. 회전체 등 위험부분 근접작업 금지\n7. 조정 또는 준비 작업 중 풋 스위치에서 발을 제거 후 작업\n8. 불량품, 이물질 제거작업 시 전원차단\n9. 관리대장 작성(종류, 구입일, 현장 반입일, 검교정일, 점검 및 수리일, 수리 내역, 사용년수, 담당자 등) 및 관리",
+    note: "산업안전보건법 제35조·규칙 105조·106조 / 산업안전보건기준에 관한 규칙 32조 / 산업안전보건법 29조·규칙 제92조",
+  },
+  {
+    key: "hand-breaker",
+    name: "핸드브레이커\n(햄머드릴)",
+    safetyCheck:
+      "1. 안전 방호시설 설치\n2. 관리감독자, 현장소장에 의해 핸드브레이커 반입 시 금속제 외함 접지설치상태, 정상 작동상태 등 작업 전에 반드시 점검확인하고, 정상적으로 작동되지 않은 장비에 대해서는 절대 반입사용 금지, 정비 조치\n3. 사용 중에도 관리감독자에 의해 매일 수시 순회점검을 통하여 안전하게 사용하고 있는지의 여부를 확인하고, 불안전하게 사용 시에는 즉시 개선조치 시행",
+    ppe: "1. 보호구(안전장갑, 안전모, 보안경 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 착용상태 수시 확인, 미착용 근로자 작업배제",
+    education:
+      "1. 기초안전보건교육\n2. 일용근무자 특별교육 – 유해하거나 위험한 작업에 채용하거나 그 작업으로 작업내용을 변경할 때\n3. 작업 시작 전 현장소장에 의해 안전사용방법 등에 대해서 TBM, 위험성평가 내용 등을 주지\n4. 취급 근로자에 대해서 특별교육(2시간) 및 정기교육(분기별 6시간), 기초안전보건교육(4시간, 신규채용), 일일교육(건진법) 등 산업안전보건법령에 규정한 추가교육 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 작업 시 작업지휘자 배치\n3. 현장소장은 작업 시작 전까지 작업장 및 작업통로의 장애물 방치상태, 정리정돈 상태 등 점검\n4. 안전장갑, 안전모 등 보호구 지급 및 착용조치",
+    note: "산업안전보건기준에 관한 규칙 197조·198조 / 건설기술진흥법시행령 103조·산업안전보건법 29조 / 규칙 38조",
+  },
+  {
+    key: "air-compressor",
+    name: "에어 콤프레샤\n(공기압축기)",
+    safetyCheck:
+      "1. 공기압력 자동조절기, 안전밸브, 회전부위 덮개 또는 울 등의 방호장치에 대해 작업시작 전 점검\n2. 현장소장, 관리감독자에 의해 매일 방호장치 정상기능 유지상태, 호스 바닥 방치상태, 오일량, 안전사용상태, 원동기·축이음·벨트·풀리의 회전 부위에 덮개 또는 울 등 설치상태 등을 수시 확인 및 이상 발견 시 즉시 필요한 조치",
+    ppe:
+      "1. 보호구(안전화, 안전모, 방진마스크 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 보호구 착용 상태의 수시 확인점검 및 미착용 근로자 반드시 착용 조치\n3. 작업 불편에 의한 착용기피 현상이 있으므로 미착용 근로자 없도록 철저하게 관리(불응 시 퇴출조치)",
+    education:
+      "1. 공기압축기 취급근로자에 대해서 안전사용방법, 방호장치의 종류 및 기능, 보호구 착용방법, 보호능력 등에 대하여 일일교육, 정기교육, 특별교육 등 법정교육 반드시 실시\n2. 매일 작업 시작 전 TBM 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 소음 진동유무 확인 및 조치\n3. 호스 밟지 않도록 정리정돈, 안전통로 확보, 운전자 주의운전\n4. 화물자동차 후진 시 충돌 예방위해 유도 신호수 배치\n5. 회전체 등 위험부분 덮개 반드시 설치\n6. 관리대장 작성(종류, 구입일, 현장 반입일, 검교정일, 점검 및 수리일, 수리 내역, 사용년수, 담당자 등) 및 관리",
+    note: "산업안전보건법 제35조·규칙 87조 / 산업안전보건기준에 관한 규칙 32조 / 산업안전보건법 29조·규칙 제92조",
+  },
+];
+
+const HAZARD_VEHICLE_ITEMS: HazardItem[] = [
+  {
+    key: "forklift",
+    name: "지게차\n(하역운반기계)",
+    safetyCheck:
+      "1. 차량방호안전시설 설치\n2. 관리감독자, 현장소장, 안전관리자 등에 의해 지게차 등 하역운반기계의 사용 전 방호장치(전조등, 후미등, 헤드가드, 후진경보기, 경광등, 백레스트, 안전대 등)를 적절하게 갖추었는지, 정상기능이 유지되는지를 반드시 작업 전에 점검확인하고, 갖추지 않은 하역운반기계에 대해서는 절대 반입금지 조치\n3. 관리감독자 등에 의해 지게차 등 하역운반기계 사용 중에도 방호장치의 해체 여부, 정상기능 작동상태, 안전사용 상태 등 매월 1회 이상 점검 및 이상발견 시 필요한 조치",
+    ppe: "1. 보호구(안전모, 안전화 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 착용상태 수시 확인, 미착용 근로자 작업배제",
+    education:
+      "1. 기초안전보건교육\n2. 일용근무자 특별교육 – 유해하거나 위험한 작업에 채용하거나 그 작업으로 작업내용을 변경할 때\n3. 현장소장 및 관리감독자, 안전관리자에 의해 매일 작업 시작 전 지게차 등 하역운반기계에 대하여 안전사용방법, 운행경로, 방호장치의 종류 및 기능, 보호구 착용, 재해사례 등에 대한 안전교육 실시 후 작업\n4. 정기교육(분기별 6시간), 기초안전보건교육(4시간, 신규채용), 특별교육(2시간), 일일교육(건진법) 등 안전관계 법령에서 규정한 추가교육 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 위험구간 작업 시 유도자 배치\n3. 신호방법 및 신호할 사람 지정\n4. 작업계획서 작성하고, 내용을 해당 근로자에 알림\n5. 관리대장 작성(종류, 구입일, 현장 반입일, 검교정일, 점검 및 수리일, 수리 내역, 사용년수, 담당자 등) 및 관리",
+    note: "산업안전보건기준에 관한 규칙 179~183조 참고 / 건설기술진흥법시행령 103조·산업안전보건법 29조 / 규칙 38조",
+  },
+  {
+    key: "mobile-crane",
+    name: "이동식 크레인",
+    safetyCheck:
+      "1. 차량방호안전시설 설치\n2. 관리감독자, 안전관리자 등에 의해 이동식크레인 반입 시마다 방호장치(과부하방지장치, 권과방지장치, 비상정지장치, 제동장치 등)를 적절하게 갖추었는지, 정상 기능이 유지되는지의 여부를 사용 전에 반드시 점검확인하고, 갖추지 않은 이동식 크레인에 대해서는 절대 반입사용 금지조치\n3. 이동식 크레인 사용 중에도 매월 1회 이상 정기 점검을 통하여 방호장치의 기능이 정상적으로 작동하는지의 여부를 확인하고, 고장 시에나 미사용 시에는 즉시 개선조치 시행",
+    ppe:
+      "1. 보호구 지급 관리대장 운영\n2. 작업 중 관리감독자 등에 의해 보호구 착용상태의 수시 점검 및 착용조치\n3. 관리감독자, 안전관리자, 현장소장 등에 의해 매일 작업 전 TBM 등을 통하여 보호구 지급 및 올바른 착용상태(안전화, 안전모 등) 확인한 후 작업\n4. 미착용 근로자에 대해서는 작업배제 조치 강력 시행",
+    education:
+      "1. 기초안전보건교육\n2. 일용근무자 특별교육 – 유해하거나 위험한 작업에 채용하거나 그 작업으로 작업내용을 변경할 때\n3. 작업 시작 전 안전작업 계획서 내용에 대한 운전원, 근로자 등에게 특별교육(2시간) 실시\n4. 특수형태 근로종사자 등에게 안전관계 법령에서 정한 특별교육(2시간) 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 위험구간 작업 시 유도자 배치\n3. 신호방법 및 신호할 사람 지정\n4. 관리대장 작성(종류, 구입일, 현장 반입일, 검교정일, 점검 및 수리일, 수리 내역, 사용년수, 담당자 등) 및 관리",
+    note: "산업안전보건기준에 관한 규칙 134조·32조 / 건설기술진흥법시행령 103조·산업안전보건법 29조",
+  },
+  {
+    key: "excavator-breaker",
+    name: "굴착기\n대형 브레이커",
+    safetyCheck:
+      "1. 차량방호안전시설 설치\n2. 관리감독자, 현장소장, 안전관리자 등에 의해 굴착기 등 차량계건설기계 반입 시 방호장치인 전조등, 후미등, 후사경, 제동장치, 후방카메라, 후진경보장치, 협착방지봉, 안전핀, 헤드가드 등을 갖추었는지의 여부를 사용 전에 반드시 점검확인하고, 갖추지 않은 장비나 기능이 정상적으로 작동되지 않은 장비에 대해서는 절대 반입사용 금지, 정비 조치\n3. 굴착기 사용 중에도 매월 1회 이상 관리감독자에 의해 정기점검을 통하여 방호장치가 정상적으로 작동하는지의 여부를 확인하고, 고장 시에나 미사용 시에는 즉시 개선조치 시행",
+    ppe: "1. 보호구(안전모, 안전화 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 착용상태 수시 확인, 미착용 근로자 작업배제",
+    education:
+      "1. 기초안전보건교육\n2. 일용근무자 특별교육 – 유해하거나 위험한 작업에 채용하거나 그 작업으로 작업내용을 변경할 때\n3. 작업 시작 전 현장소장에 의해 차량계건설기계 작업계획서 내용(운행경로, 종류 및 능력, 안전작업방법 등)에 대해 운전원 등 관계 근로자 안전교육(2시간), 일일교육, TBM 실시\n4. 특수형태 근로종사자에 대해서 특별교육(2시간) 및 정기교육(분기별 6시간), 기초안전보건교육(4시간, 신규채용), 일일교육(건진법) 등 산업안전보건법령에 규정한 추가교육 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 위험구간 작업 시 유도자 배치\n3. 신호방법 및 신호할 사람 지정\n4. 사전조사를 실시하고, 그 결과를 고려하여 차량계건설기계 작업계획서 작성, 교육 및 그 계획에 따라 작업 실시\n5. 관리대장 작성(종류, 구입일, 현장 반입일, 검교정일, 점검 및 수리일, 수리 내역, 사용년수, 담당자 등) 및 관리",
+    note: "산업안전보건기준에 관한 규칙 197조·198조 / 건설기술진흥법시행령 103조·산업안전보건법 29조 / 규칙 38조",
+  },
+  {
+    key: "concrete-pump",
+    name: "콘크리트 펌프카",
+    safetyCheck:
+      "1. 후진경보음, 브레이크, 아웃트리거, 후진방지스토퍼 등 방호장치 설치\n2. 관리감독자, 현장소장 등에 의해 방호장치를 갖추었는지의 여부를 사용 전에 반드시 점검확인하고, 갖추지 않은 장비나 기능이 정상적으로 작동되지 않은 장비에 대해서는 절대 반입사용 금지, 정비 조치\n3. 펌프카 사용 중에도 관리감독자에 의해 매월 1회 이상 정기점검을 통하여 방호장치가 정상적으로 작동하는지의 여부를 확인하고, 고장 시에나 미사용 시에는 즉시 개선조치 시행",
+    ppe: "1. 보호구(안전모, 안전화 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 착용상태 수시 확인, 미착용 근로자 작업배제",
+    education:
+      "1. 작업 시작 전 현장소장에 의해 펌프카 등 차량계건설기계 작업계획서 내용(운행경로, 종류 및 능력, 안전작업방법 등)에 대해 운전원 등 관계 근로자 안전교육(2시간), 일일교육, TBM 실시\n2. 특수형태 근로종사자(펌프카 소유자에 의한 운전)에 대해서 특별교육(2시간) 및 정기교육(분기별 6시간), 기초안전보건교육(4시간, 신규채용), 일일교육(건진법) 등 산업안전보건법령에 규정한 추가교육 실시",
+    etc:
+      "1. 펌프카 사용 시 주변 충돌 예방위한 접근금지 표지판 설치, 접근금지 방지책 설치, 안전수칙 게시\n2. 유도자 배치하여 신호 유도하에 작업\n3. 난간 등에서 작업하는 근로자가 호스의 요동·선회로 인하여 추락하는 위험을 방지하기 위한 안전난간 설치\n4. 붐을 조정하는 경우에는 주변의 전선 등에 의한 위험을 예방하기 위한 적절한 조치 실시\n5. 관리대장 작성(종류, 구입일, 현장 반입일, 검교정일, 점검 및 수리일, 수리 내역, 사용년수, 담당자 등) 및 관리",
+    note: "안전보건기준에관한규칙 제622조 등 / 산업안전보건기준에 관한 규칙 335조",
+  },
+  {
+    key: "mixer-truck",
+    name: "콘크리트 믹서트럭",
+    safetyCheck:
+      "1. 차량방호안전시설 설치\n2. 콘크리트 믹서트럭 반입 시 현장소장, 안전관리자, 관리감독자 등에 의해 방호장치(전조등, 후미등, 후사경, 제동장치, 후방카메라, 후진경보장치, 경보음 등)를 갖추었는지의 여부를 사용 전에 반드시 점검확인하고, 갖추지 않은 장비나 정상기능이 유지되지 않은 트럭에 대해서는 절대 반입사용 금지조치\n3. 콘크리트 믹서트럭 사용 중에도 관리감독자에 의해 매월 1회 이상 정기점검을 통하여 방호장치가 정상적으로 작동하고 있는지의 여부를 확인하고, 고장 시에나 미사용, 난폭운전 시에는 즉시 개선조치 시행",
+    ppe: "1. 보호구(안전모, 안전화 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 착용상태 수시 확인, 미착용 근로자 작업배제",
+    education:
+      "1. 기초안전보건교육\n2. 일용근무자 특별교육 – 유해하거나 위험한 작업에 채용하거나 그 작업으로 작업내용을 변경할 때\n3. 작업 시작 전 현장소장, 관리감독자에 의해 매일 콘크리트 믹서트럭 등 차량계건설기계 작업계획서 내용(운행경로, 종류 및 능력, 안전작업방법 등), 산업안전보건기준에 관한 규칙, 설계도서 등에 대해 운전원 등 관계 근로자에게 일일교육, TBM 실시 후 작업\n4. 특수형태 근로종사자에 대해서 특별교육(2시간) 등 산업안전보건법령에 규정한 추가교육 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 위험구간 작업 시 유도자 배치\n3. 신호방법 및 신호할 사람 지정\n4. 사전조사를 실시하고, 그 결과를 고려하여 차량계건설기계 작업계획서 작성, 교육 및 그 계획에 따라 작업 실시\n5. 관리대장 작성(종류, 구입일, 현장 반입일, 검교정일, 점검 및 수리일, 수리 내역, 사용년수, 담당자 등) 및 관리",
+    note: "산업안전보건기준에 관한 규칙 197조·198조 / 건설기술진흥법시행령 103조·산업안전보건법 29조 / 규칙 38조",
+  },
+  {
+    key: "cargo-truck",
+    name: "화물자동차",
+    safetyCheck:
+      "1. 차량방호안전시설 설치\n2. 화물자동차 임대사용 시 현장소장, 안전관리자, 관리감독자 등에 의해 안전방호장치(운행기록장치, 첨단안전장치, 후방카메라, 경보장치, 제동장치, 센서 작동여부, 차로이탈경고장치, 전조등, 후미등, 후진경보장치, 안전벨트 부착 등) 적정 설치 및 정상작동상태, 화물자동차의 제원, 성능, 적재기준, 불법개조 유무, 면허 유자격 여부 등을 사용 전에 반드시 확인점검하고, 갖추지 않은 화물차나 정상기능이 유지되지 않은 화물자동차에 대해서는 절대 반입사용 금지조치\n3. 화물자동차 운행 중에도 관리감독자에 의해 매월 1회 이상 정기점검을 통하여 방호장치 및 각종 기능 정상작동 여부, 운행속도 준수, 안전운행수칙 준수 등 안전운행 여부를 반드시 확인점검하고, 고장 시에나 미사용, 난폭운전 시에는 즉시 필요한 개선조치(정비, 수리, 안전운행, 보호구 착용, 퇴출조치 등) 시행",
+    ppe: "1. 보호구(안전모, 안전화 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 착용상태 수시 확인, 미착용 근로자 작업배제",
+    education:
+      "1. 기초안전보건교육\n2. 일용근무자 특별교육 – 유해하거나 위험한 작업에 채용하거나 그 작업으로 작업내용을 변경할 때\n3. 작업 시작 전 현장소장, 관리감독자에 의해 운전원에게 매일 화물자동차 등 운반하역기계의 작업계획서 내용(운행경로, 종류 및 능력, 안전운행방법 등), 산업안전보건기준에 관한 규칙, 안전운행수칙 등에 대해 일일교육 및 TBM 실시\n4. 특수형태 근로종사자(화물자동차 소유자에 의한 운전)에 대해서 특별교육(2시간) 및 정기교육(분기별 6시간), 기초안전보건교육(4시간, 신규채용), 일일교육(건진법) 등 산업안전보건법령에 규정한 추가교육 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 위험구간 작업 시 유도자 배치\n3. 신호방법 및 신호할 사람 지정\n4. 화물 적재 시 한쪽으로 치우치지 않도록 적재\n5. 화물 붕괴 또는 낙하에 의한 위험을 방지하기 위하여 화물에 로프를 거는 등 필요한 조치\n6. 운전자의 시야를 가리지 않도록 적재\n7. 최대 적재량 초과적재 금지\n8. 바닥과 적재함의 짐 윗면 간을 안전하게 오르내리기 위한 승강설비 설치\n9. 꼬임이 끊어지거나 심하게 손상된 섬유로프 사용금지\n10. 화물자동차 적재함에 근로자 탑승 절대 금지\n11. 화물자동차에서 화물을 내리는 작업을 하는 경우에는 그 작업을 하는 근로자에게 쌓여있는 화물의 중간에서 화물을 빼내기 절대금지\n12. 적재 후 안전적재상태 반드시 점검 및 조치 후 운반\n13. 적재함에서 내리기 작업 중 추락예방 위해 보조용 안전작업발판 및 안전대 등 보호구 착용(가장자리)\n14. 지게차 등 하역운반기계 하역 시 작업구역 설정(접근방지휀스 등), 관계근로자 외 출입금지 조치\n15. 관리대장 작성(종류, 구입일, 현장 반입일, 검교정일, 점검 및 수리일, 수리 내역, 사용년수, 담당자 등) 및 관리",
+    note: "산업안전보건기준에 관한 규칙 197조·198조·95조·173조·187~190조",
+  },
+  {
+    key: "dump-truck",
+    name: "덤프트럭",
+    safetyCheck:
+      "1. 차량방호안전시설 설치\n2. 덤프트럭 반입 시 현장소장, 안전관리자, 관리감독자 등에 의해 방호장치(전조등, 후미등, 후사경, 제동장치, 후방카메라, 후진경보장치, 경보음 등)의 부착상태를 사용 전에 점검하고, 부착되지 않거나 정상기능이 유지되지 않은 덤프트럭에 대해서는 절대 반입사용 금지조치\n3. 덤프트럭 사용 중에도 관리감독자에 의해 매월 1회 이상 정기점검을 통하여 방호장치의 정상작동여부를 점검하고, 고장 시에나 미사용, 난폭운전 시에는 즉시 개선조치 시행",
+    ppe: "1. 보호구(안전모, 안전화 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 착용상태 수시 확인, 미착용 근로자 작업배제",
+    education:
+      "1. 기초안전보건교육\n2. 일용근무자 특별교육 – 유해하거나 위험한 작업에 채용하거나 그 작업으로 작업내용을 변경할 때\n3. 작업 시작 전 현장소장에 의해 매일 덤프트럭 안전운행계획서 내용(운행경로, 종류 및 능력, 안전작업방법 등), 산업안전보건기준에 관한 규칙 등 관계 근로자에게 일일교육, TBM 실시\n4. 특수형태 근로종사자에 대해서 특별교육(2시간) 등 산업안전보건법령에 규정한 추가교육 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 위험구간 작업 시 유도자 배치\n3. 신호방법 및 신호할 사람 지정\n4. 덤프트럭 관리대장 작성(종류, 구입일, 현장 반입일, 검교정일, 점검 및 수리일, 수리 내역, 사용년수, 담당자 등) 및 관리\n5. 운행계획서 내용을 해당 운전원 및 관계 근로자 전원에게 반드시 알려주어 안전운행 실시\n6. 적재함 덮개 반드시 덮고 운행\n7. 최대 적재량 초과적재 금지\n8. 과속금지, 운행속도 지정하여 운행",
+    note: "산업안전보건기준에 관한 규칙 197조·198조 / 건설기술진흥법시행령 103조·산업안전보건법 29조 / 규칙 38조",
+  },
+  {
+    key: "roller",
+    name: "로울러\n(다짐기계)",
+    safetyCheck:
+      "1. 현장소장, 관리감독자, 안전관리자 등에 의해 롤러기계의 방호장치(후방카메라, 후진 및 접근 시 경보장치, 협착방지봉, 경보장치 등)를 갖추었는지의 여부를 사용 전에 반드시 점검확인하고, 갖추지 않은 장비나 기능이 정상적으로 작동되지 않은 장비에 대해서는 절대 반입사용 금지, 정비 조치\n2. 다짐 작업 시에도 관리감독자에 의해 매월 1회 이상 정기점검을 통하여 방호장치가 정상적으로 작동하는지의 여부를 확인하고, 고장 시에나 미사용 시에는 즉시 개선조치 시행(수리, 부착, 교체 등)",
+    ppe: "1. 보호구(안전모, 안전화 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 착용상태 수시 확인, 미착용 근로자 작업배제",
+    education:
+      "1. 작업 시작 전 현장소장, 관리감독자에 의해 롤러 다짐기계의 작업계획서 내용(운행경로, 종류 및 능력, 안전작업방법 등)에 대해 운전원 등 관계 근로자 특별교육(2시간), 일일교육, TBM 실시\n2. 특수형태 근로종사자(다짐기계 소유자에 의한 운전) 등에 의한 특별교육(2시간) 및 정기교육(분기별 6시간), 기초안전보건교육(4시간, 신규채용), 일일교육(건진법) 등 추가교육 실시\n3. 교육 시 안전보건공단 자료를 활용하여 사망재해 사례, 포장공사(다짐) 안전작업지침 등을 이용하여 실질적이고 실효적인 교육 실시(형식적 교육 탈피)",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 현장소장 등은 작업 시작 전까지 롤러기에 의한 충돌, 협착 등의 위험을 방지하기 위하여 작업장의 지형, 지반 및 지층 상태 등에 대한 사전조사를 실시하고, 그 결과를 고려하여 롤러기에 대한 차량계건설기계 작업계획서 작성, 그 계획에 따라 작업 실시, 내용 근로자 주지\n3. 관리대장 작성(종류, 구입일, 현장 반입일, 검교정일, 점검 및 수리일, 수리 내역, 사용년수, 담당자 등) 및 관리",
+    note: "산업안전보건기준에 관한 규칙 197조·198조 / 건설기술진흥법시행령 103조·산업안전보건법 29조 / 규칙 38조",
+  },
+  {
+    key: "paver",
+    name: "아스팔트 휘니셔",
+    safetyCheck:
+      "1. 차량방호안전시설 설치\n2. 아스팔트 휘니셔 반입 시 현장소장, 관리감독자, 안전관리자 등에 의해 방호장치를 갖추었는지의 여부를 사용 전에 반드시 점검확인하고, 갖추지 않은 장비나 기능이 정상적으로 작동되지 않은 장비에 대해서는 절대 반입사용 금지, 정비 조치\n3. 사용 중에도 관리감독자에 의해 매일 수시 순회점검을 통하여 주행장치, 원동기, 유압장치, 조종장치, 작업장치, 각종 스위치 및 조종레버, 조향핸들, 계기장치가 정상적으로 작동하는지의 여부를 확인하고, 고장 시에나 미사용 시에는 즉시 개선조치",
+    ppe: "1. 보호구(안전모, 안전화 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 착용상태 수시 확인, 미착용 근로자 작업배제",
+    education:
+      "1. 작업 시작 전 현장소장, 관리감독자에 의해 아스팔트 휘니셔의 작업계획서 내용(운행경로, 종류 및 능력, 안전작업방법 등)에 대해 운전원 등 관계 근로자 일일교육, TBM 실시\n2. 특수형태 근로종사자(아스팔트 휘니셔 소유자에 의한 운전) 등에 의한 특별교육(2시간), 기초안전보건교육(4시간, 신규채용), 일일교육(건진법) 등 법령에 정한 추가교육 실시\n3. 교육 시 안전보건공단 자료를 활용하여 사망재해 사례, 굴착기 안전작업지침 등 실질적이고 실효적인 교육 실시(형식적 교육 탈피)",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 현장소장은 작업 시작 전까지 아스팔트 휘니셔 포장작업 근로자의 위험을 방지하기 위하여 포장구간 사전조사를 실시하고, 그 결과를 고려하여 작업계획서 작성, 그 계획에 따라 작업 실시\n3. 작업계획서 내용을 해당 근로자에게 교육 등의 방법으로 반드시 알려주고 작업을 실시",
+    note: "산업안전보건기준에 관한 규칙 197조·198조 / 건설기술진흥법시행령 103조·산업안전보건법 29조 / 규칙 38조",
+  },
+  {
+    key: "water-truck",
+    name: "살수차",
+    safetyCheck:
+      "1. 살수차량 방호안전시설 설치\n2. 살수차 임대사용 시 현장소장, 안전관리자, 관리감독자 등에 의해 안전방호장치(운행기록장치, 첨단안전장치, 후방카메라, 경보장치, 제동장치, 센서 작동여부, 차로이탈경고장치, 전조등, 후미등, 후진경보장치, 안전벨트 부착 등) 적정 설치 및 정상작동상태, 제원, 성능, 적재기준, 불법 개조유무, 면허 유자격 여부 등을 사용 전에 반드시 확인점검하고, 갖추지 않은 살수차나 정상기능이 유지되지 않은 살수차에 대해서는 절대 반입사용 금지조치\n3. 살수차 운행 중에도 관리감독자에 의해 매일 수시 순회점검을 통하여 방호장치 및 각종 기능 정상작동 여부 점검",
+    ppe: "1. 보호구(안전모, 안전화 등) 지급 및 착용관리\n2. 작업 중 관리감독자 등에 의해 착용상태 수시 확인, 미착용 근로자 작업배제",
+    education:
+      "1. 작업 전 신규채용자 교육\n2. 작업 시작 전 현장소장, 관리감독자에 의해 운전원에게 매일 살수차 등 운반하역기계의 작업계획서 내용(운행경로, 종류 및 능력, 안전운행방법 등), 산업안전보건기준에 관한 규칙, 안전운행수칙 등에 대해 일일교육 및 TBM 실시\n3. 특수형태 근로종사자(화물자동차 소유자에 의한 운전)에 대해서 특별교육(2시간) 및 정기교육(분기별 6시간), 기초안전보건교육(4시간, 신규채용), 일일교육(건진법) 등 산업안전보건법령에 규정한 추가교육 실시",
+    etc:
+      "1. 경고표지 부착 및 안전수칙 게시\n2. 위험구간 작업 시 유도자 배치\n3. 신호방법 및 신호할 사람 지정\n4. 최대 적재량 초과금지\n5. 바닥과 적재함 안전하게 오르내리기 위한 승강설비 설치\n6. 탑승좌석 이외 절대 탑승금지",
+    note: "산업안전보건기준에 관한 규칙 197조·198조·173조·187~190조 / 규칙 제95조",
+  },
+];
+
+const HAZARD_SUBSTANCE_ITEMS: HazardSubstanceItem[] = [
+  {
+    key: "paint-thinner",
+    name: "페인트, 신나",
+    ppe: "1. 호흡용 보호구: 송기마스크, 방독마스크\n2. 눈 보호구: 밀폐형 보안경\n3. 손 보호구: 보호장갑\n4. 신체 보호: 보호의",
+    education:
+      "안전관리자 등에 의해 페인트·신나 취급 전 취급 근로자에 대한 MSDS 내용, 유해성 및 위험성, 구성성분 및 함유량, 응급조치요령, 누출 시 대처방법, 취급 시 주의사항, 인체에 미치는 영향, 물리화학적 특성, 보호구 착용 등 내실 있는 교육실시(2시간 이상)",
+    signage: "페인트·신나 취급 보관 시 보관장소에 경고표지(안전보건표지) 및 안전수칙 부착",
+    etc: "물질안전보건자료(MSDS)를 보관장소(위험물 저장소 등), 사용장소 등에 부착하여 안전보건 확보",
+    note: "물질안전보건자료에 관한 기준(고용노동부고시 제2020-130호)",
+  },
+  {
+    key: "cement",
+    name: "시멘트",
+    ppe: "1. 호흡용 보호구: 방진마스크\n2. 눈 보호구: 밀폐형 보안경\n3. 손 보호구: 보호장갑\n4. 신체 보호: 보호의",
+    education:
+      "현장소장, 안전관리자 등에 의해 시멘트 취급 전 취급근로자(미장공 등)에 대한 MSDS 내용, 유해성 및 위험성, 구성성분 및 함유량, 응급조치요령, 누출 시 대처방법, 취급 시 주의사항, 인체에 미치는 영향, 물리화학적 특성, 보호구 착용 등 내실 있는 교육실시(2시간 이상)",
+    signage: "시멘트 취급 보관 시 보관장소에 경고표지(안전보건표지) 및 안전수칙 부착",
+    etc: "물질안전보건자료(MSDS)를 보관장소(위험물 저장소 등), 사용장소 등에 부착하여 안전보건 확보",
+    note: "물질안전보건자료에 관한 기준(고용노동부고시 제2020-130호)",
+  },
+  {
+    key: "dust",
+    name: "분진\n(금속·광물·목재·섬유 등)",
+    ppe: "1. 호흡용 보호구: 방진마스크\n2. 눈 보호구: 밀폐형 보안경",
+    education:
+      "현장소장, 안전관리자 등에 의해 분진작업장 작업 전 취급 근로자에 대한 호흡용 보호구 사용방법, 작업장 환기방법, 분진의 유해성 및 대처방법, 분진발생 재료의 취급 시 주의사항 등 내실 있는 교육실시(2시간 이상)",
+    signage: "분진발생 작업장에 경고표지(안전보건표지) 및 안전수칙 부착",
+    etc: "1. 국소배기장치, 전체환기장치, 습기유지설비 설치 등 환기설비 설치하여 신선한 공기 공급\n2. 작업 전 매일 작업장 청소",
+    note: "물질안전보건자료에 관한 기준(고용노동부고시 제2020-130호)",
+  },
+  {
+    key: "noise",
+    name: "과도한 소음",
+    ppe: "1. 귀 보호구: 귀마개, 귀덮개",
+    education:
+      "현장소장, 안전관리자 등에 의해 과도한 소음작업장 작업 전 취급 근로자에 대한 귀 보호용 보호구 사용방법, 소음의 유해성 및 대처방법, 소음발생 기계기구의 취급 시 주의사항 등 내실 있는 교육실시(2시간 이상)",
+    signage: "소음발생 작업장에 경고표지(안전보건표지) 및 안전수칙 부착",
+    etc: "1. 소음발생 기계기구의 소음원 제거조치\n2. 관계 근로자의 소음수준 등에 적합한 방음용 보호구 선택 착용하고 KC인증마크 반드시 확인",
+    note: "물질안전보건자료에 관한 기준(고용노동부고시 제2020-130호)",
+  },
+  {
+    key: "welding-fume",
+    name: "용접 흄",
+    ppe: "1. 호흡용 보호구: 송기마스크, 방독마스크\n2. 눈 보호구: 밀폐형 보안경\n3. 손 보호구: 보호장갑\n4. 신체 보호: 보호의",
+    education:
+      "현장소장, 안전관리자 등에 의해 용접봉 취급 전 취급 근로자에 대한 MSDS 내용, 유해성 및 위험성, 구성성분 및 함유량, 응급조치요령, 누출 시 대처방법, 취급 시 주의사항, 인체에 미치는 영향, 물리화학적 특성, 보호구 착용 등 내실 있는 교육실시(2시간 이상)",
+    signage: "용접 시 용접장소에 경고표지(안전보건표지) 및 안전수칙 부착",
+    etc: "물질안전보건자료(MSDS)를 보관장소(위험물 저장소 등), 사용장소 등에 부착하여 안전보건 확보",
+    note: "물질안전보건자료에 관한 기준(고용노동부고시 제2020-130호)",
+  },
+  {
+    key: "oxygen",
+    name: "산소",
+    ppe: "1. 호흡용 보호구: 송기마스크\n2. 눈 보호구: 밀폐형 보안경\n3. 신체 보호: 보호의",
+    education:
+      "안전관리자 등에 의해 산소 취급 전 취급근로자에 대한 MSDS 내용, 유해성 및 위험성, 구성성분 및 함유량, 응급조치요령, 누출 시 대처방법, 취급 시 주의사항, 인체에 미치는 영향, 물리화학적 특성, 보호구 착용 등 내실 있는 교육실시(2시간 이상)",
+    signage: "산소 취급 보관 시 보관장소에 경고표지(안전보건표지) 및 안전수칙 부착",
+    etc: "물질안전보건자료(MSDS)를 보관장소(위험물 저장소 등), 사용장소 등에 부착하여 안전보건 확보",
+    note: "물질안전보건자료에 관한 기준(고용노동부고시 제2020-130호)",
+  },
+  {
+    key: "acetylene",
+    name: "아세틸렌",
+    ppe: "1. 호흡용 보호구: 송기마스크, 방독마스크\n2. 눈 보호구: 밀폐형 보안경\n3. 손 보호구: 보호장갑\n4. 신체 보호: 보호의",
+    education:
+      "안전관리자 등에 의해 아세틸렌 취급 전 취급근로자에 대한 MSDS 내용, 유해성 및 위험성, 구성성분 및 함유량, 응급조치요령, 누출 시 대처방법, 취급 시 주의사항, 인체에 미치는 영향, 물리화학적 특성, 보호구 착용 등 내실 있는 교육실시(2시간 이상)",
+    signage: "아세틸렌 취급 보관 시 보관장소에 경고표지(안전보건표지) 및 안전수칙 부착",
+    etc: "물질안전보건자료(MSDS)를 보관장소(위험물 저장소 등), 사용장소 등에 부착하여 안전보건 확보",
+    note: "물질안전보건자료에 관한 기준(고용노동부고시 제2020-130호)",
+  },
+  {
+    key: "stripper",
+    name: "박리제",
+    ppe: "1. 호흡용 보호구: 송기마스크, 방독마스크\n2. 눈 보호구: 밀폐형 보안경\n3. 손 보호구: 보호장갑\n4. 신체 보호: 보호의",
+    education:
+      "안전관리자 등에 의해 박리제 취급 전 취급 근로자에 대한 MSDS 내용, 유해성 및 위험성, 구성성분 및 함유량, 응급조치요령, 누출 시 대처방법, 취급 시 주의사항, 인체에 미치는 영향, 물리화학적 특성, 보호구 착용 등 내실 있는 교육실시(2시간 이상)",
+    signage: "박리제 취급 보관 시 보관장소에 경고표지(안전보건표지) 및 안전수칙 부착",
+    etc: "물질안전보건자료(MSDS)를 보관장소(위험물 저장소 등), 사용장소 등에 부착하여 안전보건 확보",
+    note: "물질안전보건자료에 관한 기준(고용노동부고시 제2020-130호)",
+  },
+  {
+    key: "primer",
+    name: "프라이머",
+    ppe: "1. 호흡용 보호구: 송기마스크, 방독마스크\n2. 눈 보호구: 밀폐형 보안경\n3. 손 보호구: 보호장갑\n4. 신체 보호: 보호의",
+    education:
+      "안전관리자 등에 의해 프라이머(방수액) 취급 전 취급근로자에 대한 MSDS 내용, 유해성 및 위험성, 구성성분 및 함유량, 응급조치요령, 누출 시 대처방법, 취급 시 주의사항, 인체에 미치는 영향, 물리화학적 특성, 보호구 착용 등 내실 있는 교육실시(2시간 이상)",
+    signage: "프라이머 취급 보관 시 보관장소에 경고표지(안전보건표지) 및 안전수칙 부착",
+    etc: "물질안전보건자료(MSDS)를 보관장소(위험물 저장소 등), 사용장소 등에 부착하여 안전보건 확보",
+    note: "물질안전보건자료에 관한 기준(고용노동부고시 제2020-130호)",
+  },
+  {
+    key: "gasoline",
+    name: "휘발유",
+    ppe: "1. 호흡용 보호구: 송기마스크, 방독마스크\n2. 눈 보호구: 밀폐형 보안경\n3. 손 보호구: 보호장갑\n4. 신체 보호: 보호의",
+    education:
+      "안전관리자 등에 의해 휘발유 취급 전 취급근로자에 대한 MSDS 내용, 유해성 및 위험성, 구성성분 및 함유량, 응급조치요령, 누출 시 대처방법, 취급 시 주의사항, 인체에 미치는 영향, 물리화학적 특성, 보호구 착용 등 내실 있는 교육실시(2시간 이상)",
+    signage: "휘발유 취급 보관 시 보관장소에 경고표지(안전보건표지) 및 안전수칙 부착",
+    etc: "물질안전보건자료(MSDS)를 보관장소(위험물 저장소 등), 사용장소 등에 부착하여 안전보건 확보",
+    note: "물질안전보건자료에 관한 기준(고용노동부고시 제2020-130호)",
+  },
+  {
+    key: "diesel",
+    name: "경유",
+    ppe: "1. 호흡용 보호구: 송기마스크, 방독마스크\n2. 눈 보호구: 밀폐형 보안경\n3. 손 보호구: 보호장갑\n4. 신체 보호: 보호의",
+    education:
+      "안전관리자 등에 의해 경유 취급 전 취급근로자에 대한 MSDS 내용, 유해성 및 위험성, 구성성분 및 함유량, 응급조치요령, 누출 시 대처방법, 취급 시 주의사항, 인체에 미치는 영향, 물리화학적 특성, 보호구 착용 등 내실 있는 교육실시(2시간 이상)",
+    signage: "경유 취급 보관 시 보관장소에 경고표지(안전보건표지) 및 안전수칙 부착",
+    etc: "물질안전보건자료(MSDS)를 보관장소(위험물 저장소 등), 사용장소 등에 부착하여 안전보건 확보",
+    note: "물질안전보건자료에 관한 기준(고용노동부고시 제2020-130호)",
+  },
+];
+
+function buildHazardItemModalHtml(modalKey: string, title: string, fields: { label: string; value: string }[]): string {
+  const fieldsHtml = fields
+    .map(({ label, value }) => {
+      const rows = Math.min(14, Math.max(3, value.split("\n").length + 1));
+      return `<div>
+<label class="block text-xs font-bold text-neutral-700 mb-1">${escapeHtmlPolicy(label)}</label>
+<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 leading-relaxed" rows="${rows}">${escapeHtmlPolicy(
+        value
+      )}</textarea>
+</div>`;
+    })
+    .join("\n");
+
+  return `<div data-modal="${modalKey}" data-modal-backdrop="${modalKey}" class="hidden fixed inset-0 z-[70] bg-black/50 flex justify-center p-4 md:p-8 overflow-y-auto">
+<div class="relative bg-white w-full max-w-2xl rounded-2xl shadow-xl my-4 md:my-8">
+<div class="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+<h3 class="font-headline font-bold text-sm text-neutral-900">${escapeHtmlPolicy(title)} — 세부 실행계획</h3>
+<button type="button" data-modal-close="${modalKey}" class="w-8 h-8 rounded-lg hover:bg-neutral-100 flex items-center justify-center text-neutral-500">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<div class="p-6 space-y-4">
+${fieldsHtml}
+</div>
+<div class="sticky bottom-0 bg-white border-t border-neutral-200 px-6 py-3 flex justify-end rounded-b-2xl">
+<button type="button" data-modal-close="${modalKey}" class="text-xs font-semibold px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition">완료</button>
+</div>
+</div>
+</div>`;
+}
+
+function buildHazardOverviewRowHtml(modalKey: string, name: string, checkCount: number): string {
+  const nameHtml = escapeHtmlPolicy(name).replace(/\n/g, "<br/>");
+  const checks = Array.from(
+    { length: checkCount },
+    () =>
+      `<td class="p-2 text-center"><input checked="" class="rounded text-primary focus:ring-primary h-4 w-4" type="checkbox"/></td>`
+  ).join("");
+  return `<tr class="hover:bg-neutral-50/80 transition">
+<td class="p-2 text-xs font-medium text-neutral-800 whitespace-nowrap">${nameHtml}</td>
+${checks}
+<td class="p-2 text-center">
+<button class="text-xs font-semibold text-primary hover:underline" data-open-modal="${modalKey}" type="button">상세 작성</button>
+</td>
+</tr>`;
+}
+
+function buildHazardMachineryLikeSectionHtml(params: {
+  sectionId: string;
+  modalPrefix: string;
+  roman: string;
+  title: string;
+  itemColumnLabel: string;
+  items: HazardItem[];
+}): string {
+  const { sectionId, modalPrefix, roman, title, itemColumnLabel, items } = params;
+  const overviewRows = items
+    .map((item) => buildHazardOverviewRowHtml(`${modalPrefix}-${item.key}`, item.name, 5))
+    .join("\n");
+  const modals = items
+    .map((item) =>
+      buildHazardItemModalHtml(`${modalPrefix}-${item.key}`, item.name.replace(/\n/g, " "), [
+        { label: "안전점검", value: item.safetyCheck },
+        { label: "보호구 지급·착용", value: item.ppe },
+        { label: "안전보건교육", value: item.education },
+        { label: "안전보건표지부착·안전수칙게시 및 기타 대책", value: item.etc },
+        { label: "비고(관계법령)", value: item.note },
+      ])
+    )
+    .join("\n");
+
+  return `<!-- ════════ SECTION: ${title} ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-${sectionId}">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">${roman}</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">${title}</h2>
+</div>
+<div class="p-6">
+<p class="text-xs text-neutral-500 mb-3">항목별로 안전점검·보호구·교육·표지부착 등 적용 여부만 체크하고, "상세 작성" 버튼을 누르면 항목 전용 팝업에서 실제 세부실행계획을 작성합니다.</p>
+<div class="overflow-x-auto border border-neutral-200 rounded-lg">
+<table class="min-w-[720px] w-full text-left text-xs border-collapse">
+<thead>
+<tr class="bg-neutral-100 text-neutral-700 border-b border-neutral-200 font-semibold">
+<th class="p-2">${itemColumnLabel}</th>
+<th class="p-2 text-center">안전점검</th>
+<th class="p-2 text-center">보호구 지급·착용</th>
+<th class="p-2 text-center">안전보건 교육</th>
+<th class="p-2 text-center">안전보건 표지부착</th>
+<th class="p-2 text-center">기타 대책</th>
+<th class="p-2 text-center">관리</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-neutral-100">
+${overviewRows}
+</tbody>
+</table>
+</div>
+</div>
+${modals}
+</section>
+`;
+}
+
+function buildHazardSubstanceSectionHtml(params: { sectionId: string; modalPrefix: string; roman: string; title: string; items: HazardSubstanceItem[] }): string {
+  const { sectionId, modalPrefix, roman, title, items } = params;
+  const overviewRows = items
+    .map((item) => buildHazardOverviewRowHtml(`${modalPrefix}-${item.key}`, item.name, 5))
+    .join("\n");
+  const modals = items
+    .map((item) =>
+      buildHazardItemModalHtml(`${modalPrefix}-${item.key}`, item.name.replace(/\n/g, " "), [
+        { label: "보호구 지급·착용", value: item.ppe },
+        { label: "안전보건교육", value: item.education },
+        { label: "안전보건표지부착·안전수칙게시", value: item.signage },
+        { label: "기타 대책(물질안전보건자료(MSDS) 부착 등)", value: item.etc },
+        { label: "비고(관계법령)", value: item.note },
+      ])
+    )
+    .join("\n");
+
+  return `<!-- ════════ SECTION: ${title} ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-${sectionId}">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">${roman}</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">${title}</h2>
+</div>
+<div class="p-6">
+<p class="text-xs text-neutral-500 mb-3">물질별로 국소배기·보호구·교육·표지부착 등 적용 여부만 체크하고, "상세 작성" 버튼을 누르면 물질 전용 팝업에서 실제 세부실행계획(MSDS 기반)을 작성합니다.</p>
+<div class="overflow-x-auto border border-neutral-200 rounded-lg">
+<table class="min-w-[720px] w-full text-left text-xs border-collapse">
+<thead>
+<tr class="bg-neutral-100 text-neutral-700 border-b border-neutral-200 font-semibold">
+<th class="p-2">유해·위험물질명</th>
+<th class="p-2 text-center">국소배기 장치 설치</th>
+<th class="p-2 text-center">보호구 지급·착용</th>
+<th class="p-2 text-center">안전보건 교육</th>
+<th class="p-2 text-center">안전보건 표지부착</th>
+<th class="p-2 text-center">기타 대책</th>
+<th class="p-2 text-center">관리</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-neutral-100">
+${overviewRows}
+</tbody>
+</table>
+</div>
+</div>
+${modals}
+</section>
+`;
+}
+
+function buildHazardMachineryNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-hazard_machinery">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  02
+                </span>
+<span class="group-hover:text-neutral-900">위험기계·기구별 관리계획</span>
+</div>
+</a>
+`;
+}
+
+function buildHazardVehicleNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-hazard_vehicle">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  02
+                </span>
+<span class="group-hover:text-neutral-900">차량계 건설기계·하역운반기계 관리계획</span>
+</div>
+</a>
+`;
+}
+
+function buildHazardSubstanceNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-hazard_substance">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  02
+                </span>
+<span class="group-hover:text-neutral-900">유해·위험물질(MSDS) 관리계획</span>
+</div>
+</a>
+`;
+}
+
 // "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
 // 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
 // 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
@@ -1491,7 +2024,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_org_chart ? 1 : 0) +
     (agencyTemplate?.show_role_responsibilities ? 1 : 0) +
     (agencyTemplate?.show_education_plan ? 1 : 0) +
-    (agencyTemplate?.show_risk_assessment_rules ? 1 : 0);
+    (agencyTemplate?.show_risk_assessment_rules ? 1 : 0) +
+    (agencyTemplate?.show_hazard_management ? 3 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -1549,6 +2083,41 @@ ${templateOptions
         reviewerDefaultName: member?.name?.trim() || "",
       })
     : "";
+  // "유해·위험 기계·기구·물질의 방호조치 및 관리계획" — 기계·기구/차량계건설기계·
+  // 하역운반기계/유해·위험물질(MSDS) 3개 절을 한 세트로 켠다(실제 LH 샘플에서도
+  // 세 절이 항상 함께 다뤄지는 하나의 장이라 플래그도 하나로 묶는다).
+  const hazardMachineryNavHtml = agencyTemplate?.show_hazard_management ? buildHazardMachineryNavHtml() : "";
+  const hazardVehicleNavHtml = agencyTemplate?.show_hazard_management ? buildHazardVehicleNavHtml() : "";
+  const hazardSubstanceNavHtml = agencyTemplate?.show_hazard_management ? buildHazardSubstanceNavHtml() : "";
+  const hazardMachinerySectionHtml = agencyTemplate?.show_hazard_management
+    ? buildHazardMachineryLikeSectionHtml({
+        sectionId: "hazard_machinery",
+        modalPrefix: "haz-mc",
+        roman: "Ⅱ",
+        title: "위험기계·기구별 관리 및 세부실행계획",
+        itemColumnLabel: "기계·기구명",
+        items: HAZARD_MACHINERY_ITEMS,
+      })
+    : "";
+  const hazardVehicleSectionHtml = agencyTemplate?.show_hazard_management
+    ? buildHazardMachineryLikeSectionHtml({
+        sectionId: "hazard_vehicle",
+        modalPrefix: "haz-vh",
+        roman: "Ⅱ",
+        title: "차량계 건설기계·하역운반기계별 관리 및 세부실행계획",
+        itemColumnLabel: "차량계 건설기계·하역운반기계명",
+        items: HAZARD_VEHICLE_ITEMS,
+      })
+    : "";
+  const hazardSubstanceSectionHtml = agencyTemplate?.show_hazard_management
+    ? buildHazardSubstanceSectionHtml({
+        sectionId: "hazard_substance",
+        modalPrefix: "haz-sb",
+        roman: "Ⅱ",
+        title: "유해·위험물질(MSDS)별 관리 및 세부실행계획",
+        items: HAZARD_SUBSTANCE_ITEMS,
+      })
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -1571,6 +2140,18 @@ ${templateOptions
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
       `${educationPlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${hazardMachineryNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${hazardVehicleNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${hazardSubstanceNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
@@ -1623,7 +2204,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     )
     .replace(
       '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
@@ -1671,6 +2252,9 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.role_responsibilities = "구성원별 안전보건 관리 역할";
     commonLabels.education_plan = "안전보건교육 계획";
     commonLabels.risk_assessment_rules = "위험성평가 실시규정";
+    commonLabels.hazard_machinery = "위험기계·기구별 관리계획";
+    commonLabels.hazard_vehicle = "차량계 건설기계·하역운반기계 관리계획";
+    commonLabels.hazard_substance = "유해·위험물질(MSDS) 관리계획";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

@@ -28,6 +28,7 @@ export default function WizardScreen({
   const fieldsRef = useRef<Record<string, FieldValue>>({ ...initialFields });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hazardSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -53,10 +54,15 @@ export default function WizardScreen({
   useEffect(() => {
     const root = ref.current;
     if (!root) return;
+    // 클린업에서 hazardSaveTimers.current를 직접 읽으면(참조가 나중에 다른
+    // 객체로 바뀔 수 있다는) eslint 경고가 뜨므로, 같은 객체를 가리키는 로컬
+    // 변수를 잡아둔다 — 이 객체 자체는 이 effect 안에서 속성만 추가될 뿐
+    // 교체되지 않으므로 나중에 추가된 타이머도 그대로 보인다.
+    const hazardTimersMap = hazardSaveTimers.current;
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]), textarea:not([data-risk-field]), select:not([data-template-select]):not([data-risk-field])"
+        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -210,6 +216,109 @@ export default function WizardScreen({
       riskTbody.appendChild(tr);
       renumberRiskRows();
       if (options?.save !== false) saveRiskRows(true);
+    };
+
+    // ── 유해·위험 기계·기구·물질 방호조치 및 관리계획(3개 절): 위험성평가 표와
+    // 같은 이유로 행 개수가 가변적이라 documents.content.hazard{Machinery,Vehicle,
+    // Substance}Rows에 각각 별도 배열로 저장한다. 개요표의 체크박스 값은 행
+    // <tr>에, 세부실행계획 텍스트는 그 행과 짝지어진 팝업(모달)에 있으므로
+    // 저장 시 둘을 모두 읽어 하나의 행 객체로 합친다.
+    const hazardContentKey: Record<string, string> = {
+      hazard_machinery: "hazardMachineryRows",
+      hazard_vehicle: "hazardVehicleRows",
+      hazard_substance: "hazardSubstanceRows",
+    };
+
+    const serializeHazardRows = (section: HTMLElement) => {
+      const modalPrefix = section.dataset.hazardModalPrefix ?? "";
+      return Array.from(section.querySelectorAll<HTMLElement>("tr[data-hazard-id]")).map((tr) => {
+        const id = tr.dataset.hazardId ?? "";
+        const name = (tr.querySelector<HTMLInputElement>('[data-hazard-field="name"]')?.value ?? "").trim();
+        const checks: Record<string, boolean> = {};
+        tr.querySelectorAll<HTMLInputElement>("[data-hazard-check]").forEach((el) => {
+          const key = el.dataset.hazardCheck;
+          if (key) checks[key] = el.checked;
+        });
+        const modal = root.querySelector<HTMLElement>(`[data-modal="${modalPrefix}-${id}"]`);
+        const details: Record<string, string> = {};
+        let note = "";
+        modal?.querySelectorAll<HTMLTextAreaElement>("[data-hazard-field]").forEach((el) => {
+          const field = el.dataset.hazardField ?? "";
+          if (field === "note") note = el.value;
+          else if (field.startsWith("detail-")) details[field.slice("detail-".length)] = el.value;
+        });
+        return { id, name, checks, details, note };
+      });
+    };
+
+    const saveHazardRows = (sectionId: string, immediate = false): Promise<void> => {
+      const section = root.querySelector<HTMLElement>(`section[data-hazard-section="${sectionId}"]`);
+      const contentKey = hazardContentKey[sectionId];
+      if (!section || !contentKey) return Promise.resolve();
+      if (hazardSaveTimers.current[sectionId]) clearTimeout(hazardSaveTimers.current[sectionId]);
+      const run = async () => {
+        setSaving(true);
+        try {
+          await fetch(`/api/documents/${documentId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ [contentKey]: serializeHazardRows(section) }),
+          });
+          setSavedAt(new Date());
+        } finally {
+          setSaving(false);
+        }
+      };
+      if (immediate) return run();
+      hazardSaveTimers.current[sectionId] = setTimeout(run, 15000);
+      return Promise.resolve();
+    };
+
+    const addHazardRow = (sectionId: string) => {
+      const section = root.querySelector<HTMLElement>(`section[data-hazard-section="${sectionId}"]`);
+      const tbody = section?.querySelector<HTMLElement>("[data-hazard-tbody]");
+      const rowTemplate = section?.querySelector<HTMLTemplateElement>("template[data-hazard-row-template]");
+      const modalTemplate = section?.querySelector<HTMLTemplateElement>("template[data-hazard-modal-template]");
+      const modalPrefix = section?.dataset.hazardModalPrefix;
+      if (!section || !tbody || !rowTemplate || !modalTemplate || !modalPrefix) return;
+
+      const newId = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const rowFragment = rowTemplate.content.cloneNode(true) as DocumentFragment;
+      const tr = rowFragment.querySelector<HTMLElement>("tr[data-hazard-id]");
+      const modalFragment = modalTemplate.content.cloneNode(true) as DocumentFragment;
+      const modalEl = modalFragment.querySelector<HTMLElement>("[data-modal]");
+      if (!tr || !modalEl) return;
+
+      tr.dataset.hazardId = newId;
+      const openBtn = tr.querySelector<HTMLElement>("[data-open-modal]");
+      if (openBtn) openBtn.setAttribute("data-open-modal", `${modalPrefix}-${newId}`);
+      modalEl.setAttribute("data-modal", `${modalPrefix}-${newId}`);
+      modalEl.setAttribute("data-modal-backdrop", `${modalPrefix}-${newId}`);
+      modalEl.querySelectorAll<HTMLElement>("[data-modal-close]").forEach((el) => {
+        el.setAttribute("data-modal-close", `${modalPrefix}-${newId}`);
+      });
+
+      tbody.appendChild(tr);
+      section.appendChild(modalEl);
+      const nameInput = tr.querySelector<HTMLInputElement>('[data-hazard-field="name"]');
+      nameInput?.focus();
+      saveHazardRows(sectionId, true);
+    };
+
+    const flushAllHazardSaves = (): Promise<void[]> =>
+      Promise.all(Object.keys(hazardContentKey).map((sectionId) => saveHazardRows(sectionId, true)));
+
+    const deleteHazardRow = (tr: HTMLElement) => {
+      const section = tr.closest<HTMLElement>("section[data-hazard-section]");
+      if (!section) return;
+      if (!confirm("이 항목을 삭제하시겠습니까?")) return;
+      const sectionId = section.dataset.hazardSection ?? "";
+      const modalPrefix = section.dataset.hazardModalPrefix ?? "";
+      const id = tr.dataset.hazardId ?? "";
+      const modal = root.querySelector<HTMLElement>(`[data-modal="${modalPrefix}-${id}"]`);
+      tr.remove();
+      modal?.remove();
+      saveHazardRows(sectionId, true);
     };
 
     const onRiskDbSelectChange = (e: Event) => {
@@ -437,6 +546,11 @@ export default function WizardScreen({
         saveRiskRows(false);
         return;
       }
+      if (el.matches("[data-hazard-field], [data-hazard-check]")) {
+        const section = el.closest<HTMLElement>("section[data-hazard-section]");
+        if (section?.dataset.hazardSection) saveHazardRows(section.dataset.hazardSection, false);
+        return;
+      }
       if (el.matches("[data-template-select]")) return;
       const key = el.dataset.wizardKey;
       if (!key) return;
@@ -496,6 +610,18 @@ export default function WizardScreen({
         }
         return;
       }
+      if (btn.hasAttribute("data-hazard-add")) {
+        e.preventDefault();
+        const section = btn.closest<HTMLElement>("section[data-hazard-section]");
+        if (section?.dataset.hazardSection) addHazardRow(section.dataset.hazardSection);
+        return;
+      }
+      if (btn.hasAttribute("data-hazard-delete")) {
+        e.preventDefault();
+        const tr = btn.closest<HTMLElement>("tr[data-hazard-id]");
+        if (tr) deleteHazardRow(tr);
+        return;
+      }
       if (btn.hasAttribute("data-risk-tab")) {
         e.preventDefault();
         onRiskTabClick(btn);
@@ -546,6 +672,7 @@ export default function WizardScreen({
           // 방금 수정한 내용이 미리보기에 반영되도록 저장은 백그라운드로 진행.
           void doSave(true);
           saveRiskRows(true);
+          void flushAllHazardSaves();
           return;
         }
         void exportDocument(exportFormat!, btn as HTMLButtonElement);
@@ -556,6 +683,7 @@ export default function WizardScreen({
       if (text.includes("임시저장") || text.includes("최종계획서생성")) {
         doSave(true);
         saveRiskRows(true);
+        void flushAllHazardSaves();
       }
     };
 
@@ -566,6 +694,7 @@ export default function WizardScreen({
       try {
         await doSave(true);
         await saveRiskRows(true);
+        await flushAllHazardSaves();
         const res = await fetch(`/api/documents/${documentId}/export?format=${format}`);
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -687,6 +816,7 @@ export default function WizardScreen({
       sectionObserver.disconnect();
       if (saveTimer.current) clearTimeout(saveTimer.current);
       if (riskSaveTimer.current) clearTimeout(riskSaveTimer.current);
+      Object.values(hazardTimersMap).forEach((t) => clearTimeout(t));
     };
   }, [documentId, downloadsLocked, router]);
 

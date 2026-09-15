@@ -1545,154 +1545,197 @@ const HAZARD_SUBSTANCE_ITEMS: HazardSubstanceItem[] = [
   },
 ];
 
-function buildHazardItemModalHtml(modalKey: string, title: string, fields: { label: string; value: string }[]): string {
-  const fieldsHtml = fields
-    .map(({ label, value }) => {
-      const rows = Math.min(14, Math.max(3, value.split("\n").length + 1));
+// 항목을 추가·삭제할 수 있어야 하므로(회원 요청), 위험성평가 표(riskTemplates.ts)와
+// 같은 원리로 "행" 단위 데이터 모델로 통일한다 — 개요표의 체크박스와 팝업의
+// 세부실행계획 텍스트를 한 벌로 묶은 HazardRow가 문서마다 몇 개든 자유롭게
+// 추가·삭제될 수 있다. 위 HAZARD_MACHINERY_ITEMS 등 원본 데이터는 그대로 두고,
+// 이 행 모델로 변환해 최초 진입 시 기본값으로 채워 넣는다.
+type HazardRow = {
+  id: string;
+  name: string;
+  checks: Record<string, boolean>;
+  details: Record<string, string>;
+  note: string;
+};
+
+type HazardColumn = { key: string; label: string };
+
+const HAZARD_MC_CHECK_COLUMNS: HazardColumn[] = [
+  { key: "safetyCheck", label: "안전점검" },
+  { key: "ppe", label: "보호구 지급·착용" },
+  { key: "education", label: "안전보건 교육" },
+  { key: "signage", label: "안전보건 표지부착" },
+  { key: "etc", label: "기타 대책" },
+];
+const HAZARD_MC_DETAIL_FIELDS: HazardColumn[] = [
+  { key: "safetyCheck", label: "안전점검" },
+  { key: "ppe", label: "보호구 지급·착용" },
+  { key: "education", label: "안전보건교육" },
+  { key: "etc", label: "안전보건표지부착·안전수칙게시 및 기타 대책" },
+];
+const HAZARD_SB_CHECK_COLUMNS: HazardColumn[] = [
+  { key: "localExhaust", label: "국소배기 장치 설치" },
+  { key: "ppe", label: "보호구 지급·착용" },
+  { key: "education", label: "안전보건 교육" },
+  { key: "signage", label: "안전보건 표지부착" },
+  { key: "etc", label: "기타 대책" },
+];
+const HAZARD_SB_DETAIL_FIELDS: HazardColumn[] = [
+  { key: "ppe", label: "보호구 지급·착용" },
+  { key: "education", label: "안전보건교육" },
+  { key: "signage", label: "안전보건표지부착·안전수칙게시" },
+  { key: "etc", label: "기타 대책(물질안전보건자료(MSDS) 부착 등)" },
+];
+
+function hazardItemToRow(item: HazardItem): HazardRow {
+  return {
+    id: item.key,
+    name: item.name.replace(/\n/g, " "),
+    checks: { safetyCheck: true, ppe: true, education: true, signage: true, etc: true },
+    details: { safetyCheck: item.safetyCheck, ppe: item.ppe, education: item.education, etc: item.etc },
+    note: item.note,
+  };
+}
+
+function hazardSubstanceItemToRow(item: HazardSubstanceItem): HazardRow {
+  return {
+    id: item.key,
+    name: item.name.replace(/\n/g, " "),
+    checks: { localExhaust: true, ppe: true, education: true, signage: true, etc: true },
+    details: { ppe: item.ppe, education: item.education, signage: item.signage, etc: item.etc },
+    note: item.note,
+  };
+}
+
+function buildHazardRowHtml(modalPrefix: string, row: HazardRow, checkColumns: HazardColumn[]): string {
+  const id = escapeHtmlPolicy(row.id);
+  const checks = checkColumns
+    .map(
+      (c) =>
+        `<td class="p-2 text-center"><input class="rounded text-primary focus:ring-primary h-4 w-4" data-hazard-check="${c.key}" type="checkbox"${
+          row.checks[c.key] ? " checked" : ""
+        }/></td>`
+    )
+    .join("\n");
+  return `<tr class="hover:bg-neutral-50/80 transition" data-hazard-id="${id}">
+<td class="p-2">
+<input class="w-full text-xs font-medium text-neutral-800 bg-white border border-neutral-300 rounded px-2 py-1.5" data-hazard-field="name" placeholder="항목명" type="text" value="${escapeHtmlPolicy(
+    row.name
+  )}"/>
+</td>
+${checks}
+<td class="p-2 text-center whitespace-nowrap">
+<button class="text-xs font-semibold text-primary hover:underline" data-open-modal="${modalPrefix}-${id}" type="button">상세 작성</button>
+<button class="ml-2 align-middle text-neutral-400 hover:text-status-danger transition" data-hazard-delete title="항목 삭제" type="button">
+<span class="material-symbols-outlined text-base">delete</span>
+</button>
+</td>
+</tr>`;
+}
+
+function buildHazardRowModalHtml(modalPrefix: string, row: HazardRow, detailFields: HazardColumn[]): string {
+  const modalKey = `${modalPrefix}-${escapeHtmlPolicy(row.id)}`;
+  const fieldsHtml = detailFields
+    .map(({ key, label }) => {
+      const value = row.details[key] ?? "";
+      const rowsAttr = Math.min(14, Math.max(3, value.split("\n").length + 1));
       return `<div>
 <label class="block text-xs font-bold text-neutral-700 mb-1">${escapeHtmlPolicy(label)}</label>
-<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 leading-relaxed" rows="${rows}">${escapeHtmlPolicy(
+<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 leading-relaxed" data-hazard-field="detail-${key}" rows="${rowsAttr}">${escapeHtmlPolicy(
         value
       )}</textarea>
 </div>`;
     })
     .join("\n");
+  const noteRows = Math.min(6, Math.max(2, row.note.split("\n").length + 1));
 
-  return `<div data-modal="${modalKey}" data-modal-backdrop="${modalKey}" class="hidden fixed inset-0 z-[70] bg-black/50 flex justify-center p-4 md:p-8 overflow-y-auto">
+  return `<div class="hidden fixed inset-0 z-[70] bg-black/50 flex justify-center p-4 md:p-8 overflow-y-auto" data-modal="${modalKey}" data-modal-backdrop="${modalKey}">
 <div class="relative bg-white w-full max-w-2xl rounded-2xl shadow-xl my-4 md:my-8">
 <div class="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
-<h3 class="font-headline font-bold text-sm text-neutral-900">${escapeHtmlPolicy(title)} — 세부 실행계획</h3>
-<button type="button" data-modal-close="${modalKey}" class="w-8 h-8 rounded-lg hover:bg-neutral-100 flex items-center justify-center text-neutral-500">
+<h3 class="font-headline font-bold text-sm text-neutral-900" data-hazard-modal-title>${escapeHtmlPolicy(row.name || "새 항목")} — 세부 실행계획</h3>
+<button class="w-8 h-8 rounded-lg hover:bg-neutral-100 flex items-center justify-center text-neutral-500" data-modal-close="${modalKey}" type="button">
 <span class="material-symbols-outlined text-lg">close</span>
 </button>
 </div>
 <div class="p-6 space-y-4">
 ${fieldsHtml}
+<div>
+<label class="block text-xs font-bold text-neutral-700 mb-1">비고(관계법령)</label>
+<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 leading-relaxed" data-hazard-field="note" rows="${noteRows}">${escapeHtmlPolicy(
+    row.note
+  )}</textarea>
+</div>
 </div>
 <div class="sticky bottom-0 bg-white border-t border-neutral-200 px-6 py-3 flex justify-end rounded-b-2xl">
-<button type="button" data-modal-close="${modalKey}" class="text-xs font-semibold px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition">완료</button>
+<button class="text-xs font-semibold px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition" data-modal-close="${modalKey}" type="button">완료</button>
 </div>
 </div>
 </div>`;
 }
 
-function buildHazardOverviewRowHtml(modalKey: string, name: string, checkCount: number): string {
-  const nameHtml = escapeHtmlPolicy(name).replace(/\n/g, "<br/>");
-  const checks = Array.from(
-    { length: checkCount },
-    () =>
-      `<td class="p-2 text-center"><input checked="" class="rounded text-primary focus:ring-primary h-4 w-4" type="checkbox"/></td>`
-  ).join("");
-  return `<tr class="hover:bg-neutral-50/80 transition">
-<td class="p-2 text-xs font-medium text-neutral-800 whitespace-nowrap">${nameHtml}</td>
-${checks}
-<td class="p-2 text-center">
-<button class="text-xs font-semibold text-primary hover:underline" data-open-modal="${modalKey}" type="button">상세 작성</button>
-</td>
-</tr>`;
-}
-
-function buildHazardMachineryLikeSectionHtml(params: {
+// 항목 추가 시 클라이언트 JS가 그대로 복제해 새 행+팝업 쌍을 만들 수 있도록,
+// id="__NEW__"인 빈 행/팝업 템플릿을 <template> 태그로 감싸 심어둔다. <template>
+// 내부는 cheerio(export 추출)와 실제 DOM(querySelectorAll) 모두에서 일반
+// 자손으로 취급되지 않으므로, 값이 비어 있는 이 템플릿이 출력물에 새어나가거나
+// field-N 자동저장 대상에 잡히는 사고가 나지 않는다.
+function buildHazardCategorySectionHtml(params: {
   sectionId: string;
   modalPrefix: string;
   roman: string;
   title: string;
   itemColumnLabel: string;
-  items: HazardItem[];
+  description: string;
+  checkColumns: HazardColumn[];
+  detailFields: HazardColumn[];
+  rows: HazardRow[];
 }): string {
-  const { sectionId, modalPrefix, roman, title, itemColumnLabel, items } = params;
-  const overviewRows = items
-    .map((item) => buildHazardOverviewRowHtml(`${modalPrefix}-${item.key}`, item.name, 5))
-    .join("\n");
-  const modals = items
-    .map((item) =>
-      buildHazardItemModalHtml(`${modalPrefix}-${item.key}`, item.name.replace(/\n/g, " "), [
-        { label: "안전점검", value: item.safetyCheck },
-        { label: "보호구 지급·착용", value: item.ppe },
-        { label: "안전보건교육", value: item.education },
-        { label: "안전보건표지부착·안전수칙게시 및 기타 대책", value: item.etc },
-        { label: "비고(관계법령)", value: item.note },
-      ])
-    )
-    .join("\n");
+  const { sectionId, modalPrefix, roman, title, itemColumnLabel, description, checkColumns, detailFields, rows } = params;
+  const rowsHtml = rows.map((row) => buildHazardRowHtml(modalPrefix, row, checkColumns)).join("\n");
+  const modalsHtml = rows.map((row) => buildHazardRowModalHtml(modalPrefix, row, detailFields)).join("\n");
+
+  const blankRow: HazardRow = {
+    id: "__NEW__",
+    name: "",
+    checks: Object.fromEntries(checkColumns.map((c) => [c.key, true])),
+    details: Object.fromEntries(detailFields.map((f) => [f.key, ""])),
+    note: "",
+  };
+  const rowTemplateHtml = `<template data-hazard-row-template>${buildHazardRowHtml(modalPrefix, blankRow, checkColumns)}</template>`;
+  const modalTemplateHtml = `<template data-hazard-modal-template>${buildHazardRowModalHtml(modalPrefix, blankRow, detailFields)}</template>`;
+  const checkHeaders = checkColumns.map((c) => `<th class="p-2 text-center">${escapeHtmlPolicy(c.label)}</th>`).join("\n");
 
   return `<!-- ════════ SECTION: ${title} ════════ -->
-<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-${sectionId}">
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-${sectionId}" data-hazard-section="${sectionId}" data-hazard-modal-prefix="${modalPrefix}">
 <div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
 <span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">${roman}</span>
 <h2 class="font-headline font-bold text-base text-neutral-900">${title}</h2>
 </div>
 <div class="p-6">
-<p class="text-xs text-neutral-500 mb-3">항목별로 안전점검·보호구·교육·표지부착 등 적용 여부만 체크하고, "상세 작성" 버튼을 누르면 항목 전용 팝업에서 실제 세부실행계획을 작성합니다.</p>
+<p class="text-xs text-neutral-500 mb-3">${description}</p>
+<div class="flex justify-end mb-2">
+<button class="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary-soft hover:bg-primary/10 px-3 py-1.5 rounded-lg transition border border-primary/20" data-hazard-add type="button">
+<span class="material-symbols-outlined text-sm">add</span>
+                  항목 추가
+                </button>
+</div>
 <div class="overflow-x-auto border border-neutral-200 rounded-lg">
-<table class="min-w-[720px] w-full text-left text-xs border-collapse">
+<table class="min-w-[720px] w-full text-left text-xs border-collapse" data-hazard-table>
 <thead>
 <tr class="bg-neutral-100 text-neutral-700 border-b border-neutral-200 font-semibold">
 <th class="p-2">${itemColumnLabel}</th>
-<th class="p-2 text-center">안전점검</th>
-<th class="p-2 text-center">보호구 지급·착용</th>
-<th class="p-2 text-center">안전보건 교육</th>
-<th class="p-2 text-center">안전보건 표지부착</th>
-<th class="p-2 text-center">기타 대책</th>
+${checkHeaders}
 <th class="p-2 text-center">관리</th>
 </tr>
 </thead>
-<tbody class="divide-y divide-neutral-100">
-${overviewRows}
+<tbody class="divide-y divide-neutral-100" data-hazard-tbody>
+${rowsHtml}
 </tbody>
 </table>
 </div>
 </div>
-${modals}
-</section>
-`;
-}
-
-function buildHazardSubstanceSectionHtml(params: { sectionId: string; modalPrefix: string; roman: string; title: string; items: HazardSubstanceItem[] }): string {
-  const { sectionId, modalPrefix, roman, title, items } = params;
-  const overviewRows = items
-    .map((item) => buildHazardOverviewRowHtml(`${modalPrefix}-${item.key}`, item.name, 5))
-    .join("\n");
-  const modals = items
-    .map((item) =>
-      buildHazardItemModalHtml(`${modalPrefix}-${item.key}`, item.name.replace(/\n/g, " "), [
-        { label: "보호구 지급·착용", value: item.ppe },
-        { label: "안전보건교육", value: item.education },
-        { label: "안전보건표지부착·안전수칙게시", value: item.signage },
-        { label: "기타 대책(물질안전보건자료(MSDS) 부착 등)", value: item.etc },
-        { label: "비고(관계법령)", value: item.note },
-      ])
-    )
-    .join("\n");
-
-  return `<!-- ════════ SECTION: ${title} ════════ -->
-<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-${sectionId}">
-<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
-<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">${roman}</span>
-<h2 class="font-headline font-bold text-base text-neutral-900">${title}</h2>
-</div>
-<div class="p-6">
-<p class="text-xs text-neutral-500 mb-3">물질별로 국소배기·보호구·교육·표지부착 등 적용 여부만 체크하고, "상세 작성" 버튼을 누르면 물질 전용 팝업에서 실제 세부실행계획(MSDS 기반)을 작성합니다.</p>
-<div class="overflow-x-auto border border-neutral-200 rounded-lg">
-<table class="min-w-[720px] w-full text-left text-xs border-collapse">
-<thead>
-<tr class="bg-neutral-100 text-neutral-700 border-b border-neutral-200 font-semibold">
-<th class="p-2">유해·위험물질명</th>
-<th class="p-2 text-center">국소배기 장치 설치</th>
-<th class="p-2 text-center">보호구 지급·착용</th>
-<th class="p-2 text-center">안전보건 교육</th>
-<th class="p-2 text-center">안전보건 표지부착</th>
-<th class="p-2 text-center">기타 대책</th>
-<th class="p-2 text-center">관리</th>
-</tr>
-</thead>
-<tbody class="divide-y divide-neutral-100">
-${overviewRows}
-</tbody>
-</table>
-</div>
-</div>
-${modals}
+${modalsHtml}
+${rowTemplateHtml}
+${modalTemplateHtml}
 </section>
 `;
 }
@@ -2089,33 +2132,55 @@ ${templateOptions
   const hazardMachineryNavHtml = agencyTemplate?.show_hazard_management ? buildHazardMachineryNavHtml() : "";
   const hazardVehicleNavHtml = agencyTemplate?.show_hazard_management ? buildHazardVehicleNavHtml() : "";
   const hazardSubstanceNavHtml = agencyTemplate?.show_hazard_management ? buildHazardSubstanceNavHtml() : "";
+  // 항목을 추가·삭제할 수 있어야 하므로(위험성평가 표와 동일한 이유로) 문서마다
+  // documents.content에 실제 행 배열을 저장한다 — 아직 한 번도 저장된 적 없으면
+  // (신규 문서) 원본 데이터를 기본값으로 채운다.
+  const hazardMachineryRows =
+    (doc.content?.hazardMachineryRows as HazardRow[] | undefined) ?? HAZARD_MACHINERY_ITEMS.map(hazardItemToRow);
+  const hazardVehicleRows =
+    (doc.content?.hazardVehicleRows as HazardRow[] | undefined) ?? HAZARD_VEHICLE_ITEMS.map(hazardItemToRow);
+  const hazardSubstanceRows =
+    (doc.content?.hazardSubstanceRows as HazardRow[] | undefined) ?? HAZARD_SUBSTANCE_ITEMS.map(hazardSubstanceItemToRow);
   const hazardMachinerySectionHtml = agencyTemplate?.show_hazard_management
-    ? buildHazardMachineryLikeSectionHtml({
+    ? buildHazardCategorySectionHtml({
         sectionId: "hazard_machinery",
         modalPrefix: "haz-mc",
         roman: "Ⅱ",
         title: "위험기계·기구별 관리 및 세부실행계획",
         itemColumnLabel: "기계·기구명",
-        items: HAZARD_MACHINERY_ITEMS,
+        description:
+          '항목별로 안전점검·보호구·교육·표지부착 등 적용 여부만 체크하고, "상세 작성" 버튼을 누르면 항목 전용 팝업에서 실제 세부실행계획을 작성합니다. 현장에 없는 장비는 삭제하고, 목록에 없는 장비는 "항목 추가"로 새로 넣을 수 있습니다.',
+        checkColumns: HAZARD_MC_CHECK_COLUMNS,
+        detailFields: HAZARD_MC_DETAIL_FIELDS,
+        rows: hazardMachineryRows,
       })
     : "";
   const hazardVehicleSectionHtml = agencyTemplate?.show_hazard_management
-    ? buildHazardMachineryLikeSectionHtml({
+    ? buildHazardCategorySectionHtml({
         sectionId: "hazard_vehicle",
         modalPrefix: "haz-vh",
         roman: "Ⅱ",
         title: "차량계 건설기계·하역운반기계별 관리 및 세부실행계획",
         itemColumnLabel: "차량계 건설기계·하역운반기계명",
-        items: HAZARD_VEHICLE_ITEMS,
+        description:
+          '항목별로 안전점검·보호구·교육·표지부착 등 적용 여부만 체크하고, "상세 작성" 버튼을 누르면 항목 전용 팝업에서 실제 세부실행계획을 작성합니다. 현장에 없는 장비는 삭제하고, 목록에 없는 장비는 "항목 추가"로 새로 넣을 수 있습니다.',
+        checkColumns: HAZARD_MC_CHECK_COLUMNS,
+        detailFields: HAZARD_MC_DETAIL_FIELDS,
+        rows: hazardVehicleRows,
       })
     : "";
   const hazardSubstanceSectionHtml = agencyTemplate?.show_hazard_management
-    ? buildHazardSubstanceSectionHtml({
+    ? buildHazardCategorySectionHtml({
         sectionId: "hazard_substance",
         modalPrefix: "haz-sb",
         roman: "Ⅱ",
         title: "유해·위험물질(MSDS)별 관리 및 세부실행계획",
-        items: HAZARD_SUBSTANCE_ITEMS,
+        itemColumnLabel: "유해·위험물질명",
+        description:
+          '물질별로 국소배기·보호구·교육·표지부착 등 적용 여부만 체크하고, "상세 작성" 버튼을 누르면 물질 전용 팝업에서 실제 세부실행계획(MSDS 기반)을 작성합니다. 현장에서 쓰지 않는 물질은 삭제하고, 목록에 없는 물질은 "항목 추가"로 새로 넣을 수 있습니다.',
+        checkColumns: HAZARD_SB_CHECK_COLUMNS,
+        detailFields: HAZARD_SB_DETAIL_FIELDS,
+        rows: hazardSubstanceRows,
       })
     : "";
 

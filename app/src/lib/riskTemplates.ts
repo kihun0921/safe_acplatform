@@ -355,8 +355,40 @@ function buildRiskRowHtml(row: RiskRow, rowIndex: number | null): string {
 </tr>`;
 }
 
+// 기존(예전 컬럼: level/afterLevel/status)에 저장된 문서를 열면 hazardType/
+// currentAction/frequency/severity/afterRisk/dueDate/completeDate/confirmedBy가
+// 전부 undefined라 riskEscapeHtml(undefined)에서 그대로 죽는 사고가 실제로
+// 발생했다 — 새 컬럼으로 서식을 바꾸기 전에 저장된 문서도 깨지지 않고 열리도록,
+// 렌더링 직전에 항상 이 함수를 거쳐 누락된 필드를 안전한 기본값(가능하면 예전
+// level/afterLevel 값을 재활용)으로 채운다.
+const LEGACY_LEVEL_TO_FREQ_SEVERITY: Record<string, { frequency: number; severity: number }> = {
+  상: { frequency: 3, severity: 3 },
+  중: { frequency: 2, severity: 3 },
+  하: { frequency: 1, severity: 2 },
+};
+const LEGACY_LEVEL_TO_AFTER_RISK: Record<string, number> = { 상: 6, 중: 4, 하: 1 };
+
+export function normalizeRiskRow(row: Partial<RiskRow> & { id: string; process?: string }): RiskRow {
+  const legacy = row as Partial<RiskRow> & { level?: string; afterLevel?: string };
+  const legacyFreqSeverity = legacy.level ? LEGACY_LEVEL_TO_FREQ_SEVERITY[legacy.level] : undefined;
+  return {
+    id: row.id,
+    process: row.process ?? "",
+    hazardType: row.hazardType ?? classifyHazardType(row.hazard ?? ""),
+    hazard: row.hazard ?? "",
+    currentAction: row.currentAction ?? "",
+    frequency: row.frequency ?? legacyFreqSeverity?.frequency ?? 1,
+    severity: row.severity ?? legacyFreqSeverity?.severity ?? 2,
+    countermeasure: row.countermeasure ?? "",
+    afterRisk: row.afterRisk ?? (legacy.afterLevel ? LEGACY_LEVEL_TO_AFTER_RISK[legacy.afterLevel] : undefined) ?? 1,
+    dueDate: row.dueDate ?? "",
+    completeDate: row.completeDate ?? "",
+    confirmedBy: row.confirmedBy ?? "",
+  };
+}
+
 export function buildRiskRowsHtml(rows: RiskRow[]): string {
-  return rows.map((row, i) => buildRiskRowHtml(row, i)).join("\n");
+  return rows.map((row, i) => buildRiskRowHtml(normalizeRiskRow(row), i)).join("\n");
 }
 
 // WizardScreen이 "행 추가" 클릭 시 그대로 복제해 새 행을 만들 수 있도록,

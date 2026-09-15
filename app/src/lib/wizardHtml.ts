@@ -1028,6 +1028,171 @@ ${rows}
 `;
 }
 
+// "안전보건교육 계획" — 경쟁사 서식(종류/대상/교육시간/교육강사/교육내용/교육교재)과
+// 실제 LH 샘플(화성동탄(2), 23~27p "1.2 교육종류 등") 내용을 통합한 표준 문구다.
+// 종류(교육명)는 고정값, 나머지 칸은 표준 문구가 채워진 채로 수정 가능하다.
+const EDUCATION_PLAN_ROWS: {
+  key: string;
+  category: string;
+  target: string;
+  hours: string;
+  instructor: string;
+  content: string;
+  material: string;
+}[] = [
+  {
+    key: "manager-appointment",
+    category: "안전보건관리책임자\n직무교육",
+    target: "현장소장",
+    hours: "선임일로부터 3개월 이내 6시간",
+    instructor: "교육기관(전문강사)",
+    content: "1. 현장소장의 직무내용\n2. 산업안전보건법령에 관한 사항 등",
+    material: "유인물",
+  },
+  {
+    key: "supervisor-regular",
+    category: "관리감독자\n정기교육",
+    target: "현장소속 관리감독자",
+    hours: "매월 분산실시(연 16시간, 반기 8시간)",
+    instructor: "자체 교육장\n(현장소장 또는 외부강사)",
+    content:
+      "1. 산업안전보건법령에 관한 사항\n2. 작업안전지도요령에 관한 사항\n3. 기계·기구 또는 설비의 안전·보건점검에 관한 사항\n4. 관리감독자의 역할과 임무에 관한 사항",
+    material: "유인물",
+  },
+  {
+    key: "special-worker",
+    category: "특수형태근로종사자\n특별교육",
+    target: "건설기계 운전원",
+    hours: "채용 시마다 2시간",
+    instructor: "자체 교육장\n(현장소장·관리감독자·안전관리자)",
+    content:
+      "1. 산업안전 및 사고 예방에 관한 사항\n2. 유해·위험 작업환경 관리에 관한 사항\n3. 기계·기구의 위험성과 작업순서 및 동선에 관한 사항\n4. 보호구 착용에 관한 사항",
+    material: "유인물",
+  },
+  {
+    key: "msds",
+    category: "화학물질(MSDS)\n취급근로자 교육",
+    target: "취급 근로자",
+    hours: "취급 전 1시간",
+    instructor: "자체 교육장\n(현장소장·관리감독자·안전관리자)",
+    content:
+      "1. 대상화학물질의 명칭(또는 제품명)\n2. 물리적 위험성 및 건강 유해성\n3. 취급상의 주의사항\n4. 적절한 보호구\n5. 응급조치 요령 및 사고 시 대처방법",
+    material: "유인물",
+  },
+  {
+    key: "risk-assessment",
+    category: "위험성평가 교육",
+    target: "평가 담당자",
+    hours: "착공 전 4시간",
+    instructor: "교육기관(전문강사)",
+    content: "1. 위험성평가 종류 및 절차\n2. 위험성평가 진행방법 및 위험성 결정\n3. 감소대책의 수립방법 등",
+    material: "유인물",
+  },
+  {
+    key: "daily-tbm",
+    category: "일일 안전교육\n(TBM)",
+    target: "전 근로자",
+    hours: "매일 10분 이상",
+    instructor: "자체 교육장\n(현장소장·관리감독자·안전관리자)",
+    content: "1. 당일 작업의 공법 이해\n2. 시공상세도면에 따른 세부 시공순서 및 시공기술상의 주의사항\n3. 안전보건에 관한 사항 등",
+    material: "유인물",
+  },
+  {
+    key: "regular",
+    category: "근로자\n정기안전보건교육",
+    target: "전 근로자",
+    hours: "매월 25일 2시간 이상",
+    instructor: "자체 교육장\n(현장소장·관리감독자·안전관리자)",
+    content:
+      "1. 산업안전보건법령에 관한 사항\n2. 작업공정의 유해·위험에 관한 사항\n3. 안전작업방법에 관한 사항\n4. 보호구/안전장치 취급과 사용에 관한 사항\n5. 안전사고사례 및 산업재해예방 대책에 관한 사항",
+    material: "유인물",
+  },
+  {
+    key: "new-hire",
+    category: "신규채용자교육\n(기초안전보건교육)",
+    target: "신규채용자\n작업내용변경작업자",
+    hours: "신규채용 시 4시간\n작업내용변경 시 1시간",
+    instructor: "교육기관(전문강사)\n자체 교육장",
+    content:
+      "1. 산업안전보건법령에 관한 사항\n2. 작업 안전방법에 관한 사항\n3. 기계·기구 또는 설비의 안전·취급방법\n4. 보호구 착용 및 취급방법\n5. 근로자의 의무에 관한 사항",
+    material: "유인물",
+  },
+  {
+    key: "special-safety",
+    category: "특별안전보건교육",
+    target: "유해·위험작업자",
+    hours: "유해·위험작업 시 2시간",
+    instructor: "자체 교육장\n(현장소장·관리감독자·안전관리자)",
+    content:
+      "1. 유해·위험공종에 따른 표준작업방법 및 안전작업방법에 관한 사항\n2. 특별안전교육 대상 작업별 세부내용에 관한 사항",
+    material: "유인물",
+  },
+];
+
+function buildEducationPlanNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-education_plan">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  02
+                </span>
+<span class="group-hover:text-neutral-900">안전보건교육 계획</span>
+</div>
+</a>
+`;
+}
+
+function buildEducationPlanSectionHtml(): string {
+  const rows = EDUCATION_PLAN_ROWS.map(({ key, category, target, hours, instructor, content, material }) => {
+    const categoryHtml = escapeHtmlPolicy(category).replace(/\n/g, "<br/>");
+    const contentRowCount = Math.min(10, Math.max(3, content.split("\n").length + 1));
+    return `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top whitespace-nowrap">${categoryHtml}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top"><textarea id="wizard-field-edu-${key}-target" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5 leading-relaxed" rows="2">${escapeHtmlPolicy(
+      target
+    )}</textarea></td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top"><textarea id="wizard-field-edu-${key}-hours" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5 leading-relaxed" rows="2">${escapeHtmlPolicy(
+      hours
+    )}</textarea></td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top"><textarea id="wizard-field-edu-${key}-instructor" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5 leading-relaxed" rows="2">${escapeHtmlPolicy(
+      instructor
+    )}</textarea></td>
+<td class="px-3 py-2 border-b border-neutral-100"><textarea id="wizard-field-edu-${key}-content" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5 leading-relaxed" rows="${contentRowCount}">${escapeHtmlPolicy(
+      content
+    )}</textarea></td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top"><input id="wizard-field-edu-${key}-material" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" type="text" value="${escapeHtmlPolicy(
+      material
+    )}"/></td>
+</tr>`;
+  }).join("\n");
+
+  return `<!-- ════════ SECTION: 안전보건교육 계획 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-education_plan">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅱ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">안전보건교육 계획</h2>
+</div>
+<div class="p-6">
+<p class="text-xs text-neutral-500 mb-3">교육 종류별 대상·교육시간·교육강사·교육내용·교육교재 — 종류(교육명)는 고정되어 있고, 나머지 칸은 표준 문구가 채워져 있어 그대로 두거나 현장 실정에 맞게 고쳐 쓰면 됩니다.</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[13%]">종류</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[13%]">대상</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[14%]">교육시간</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[15%]">교육강사</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">교육내용</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[9%]">교육교재</th>
+</tr>
+</thead>
+<tbody>
+${rows}
+</tbody>
+</table>
+</div>
+</section>
+`;
+}
+
 export function buildWizardHtml(
   doc: WizardDocRow,
   announcement: WizardAnnouncementRow,
@@ -1101,7 +1266,8 @@ export function buildWizardHtml(
     templateSections.length +
     (agencyTemplate?.show_management_policy ? 1 : 0) +
     (agencyTemplate?.show_org_chart ? 1 : 0) +
-    (agencyTemplate?.show_role_responsibilities ? 1 : 0);
+    (agencyTemplate?.show_role_responsibilities ? 1 : 0) +
+    (agencyTemplate?.show_education_plan ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -1145,6 +1311,8 @@ ${templateOptions
   const roleResponsibilitiesSectionHtml = agencyTemplate?.show_role_responsibilities
     ? buildRoleResponsibilitiesSectionHtml()
     : "";
+  const educationPlanNavHtml = agencyTemplate?.show_education_plan ? buildEducationPlanNavHtml() : "";
+  const educationPlanSectionHtml = agencyTemplate?.show_education_plan ? buildEducationPlanSectionHtml() : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -1163,6 +1331,10 @@ ${templateOptions
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
       `${roleResponsibilitiesNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${educationPlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace("6개 대분류", `${totalSectionCount}개 대분류`)
     .replace(
@@ -1211,7 +1383,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     );
 
   if (contractAmount) {
@@ -1253,6 +1425,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels["management-policy"] = "안전보건 경영방침 및 목표";
     commonLabels.org_chart = "안전보건관리 조직구성";
     commonLabels.role_responsibilities = "구성원별 안전보건 관리 역할";
+    commonLabels.education_plan = "안전보건교육 계획";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

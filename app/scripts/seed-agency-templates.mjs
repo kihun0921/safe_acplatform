@@ -55,6 +55,15 @@ const TEMPLATES = [
     // 참고). 특정 발주처 전용 내용이 아니라 모든 안전보건관리계획서에 공통으로
     // 들어가는 법정 내용이라 아래 한국전력공사 표준서식에도 동일하게 켜둔다.
     show_role_responsibilities: true,
+    // "안전보건교육 계획"을 경쟁사 서식 및 실제 LH 샘플(화성동탄(2), 23~27p
+    // "1.2 교육종류 등") 내용을 통합한 표(종류/대상/교육시간/교육강사/교육내용/
+    // 교육교재, 헤드라인 음영)로 보여준다. 종류(교육명)는 고정값, 나머지 칸은
+    // 표준 문구가 채워진 채로 수정 가능하다(wizardHtml.ts의
+    // buildEducationPlanSectionHtml 참고). 특정 발주처 전용 내용이 아니라 모든
+    // 안전보건관리계획서에 공통으로 들어가는 법정 내용이라 아래 한국전력공사
+    // 표준서식에도 동일하게 켜둔다. 예전에는 sections의 자유서식 텍스트 2칸
+    // (id: "education_plan")이었지만 실제 표 서식으로 바꿨다.
+    show_education_plan: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -137,34 +146,6 @@ const TEMPLATES = [
               "실시시기: 정기 간담회 — 현장소장 주재, 매월 2회 이상 / 수시 간담회 — 현장소장이 필요하다고 판단 시\n" +
               "회의내용: 안전보건경영방침 및 목표 달성 모니터링, 안전보건관련 규정의 효율적인 작동상태 확인, 중대재해처벌법·산업안전보건법·건설기술진흥법 등 준수여부 확인, 유해위험요인의 제거·대체 및 통제 방안 검토, 인력 및 예산 등 자원지원 방안, 평가 및 개선활동 결과내용 검토, 종사자 의견청취\n" +
               "사후관리: 결정사항 즉시 실행, 전 조직 전파 및 공유, 경영방침·목표·계획에 반영",
-          },
-        ],
-      },
-      {
-        id: "education_plan",
-        label: "안전보건교육 계획",
-        fields: [
-          {
-            key: "education_schedule",
-            label: "교육 종류별 대상·시기·시간 계획",
-            type: "textarea",
-            placeholder: "안전보건관리책임자 직무교육/관리감독자 교육/기초안전보건교육(신규채용)/정기교육/특별교육/TBM(일일교육) 등 종류별 대상·시기·시간을 입력하세요",
-            default:
-              "· 안전보건관리책임자 직무교육: 현장소장 / 선임일로부터 3개월 이내 6시간\n" +
-              "· 관리감독자 교육: 현장소속 관리감독자 / 매월 분산실시(연 16시간, 반기 8시간)\n" +
-              "· 기초안전보건교육(신규채용): 신규 채용자 / 작업 투입 전 4시간\n" +
-              "· 근로자 정기교육: 전근로자 / 매월 2시간 이상\n" +
-              "· 근로자 특별교육: 유해위험작업자 / 작업 투입 전 2시간\n" +
-              "· 일일 안전교육(TBM): 전근로자 / 매 작업일 10분 이상, 작업 전 위험성 평가 내용 및 공유",
-          },
-          {
-            key: "education_tracking",
-            label: "교육 이수현황 관리 및 성과분석 방법",
-            type: "textarea",
-            placeholder: "교육 이수자/미이수자 명단 관리, 이수증 보관 방법, 교육 성과지표(재해율 등) 분석 및 차기 계획 반영 방법을 입력하세요",
-            default:
-              "교육 실시 후 교육 수료자와 미이수자에 대한 재해현황 및 원인·대책을 분석하여 교육 실시의 실효성을 파악하고 피드백을 실시한다.\n" +
-              "교육 종류별 실시결과 기록, 성과지표, 성과분석, 이수자 현황분석, 실시사진, 교육자료 등 관련 결과물을 안전관리자(안전담당자)가 현장에 보관하되, 준공 시에는 본사로 이관하여 3년간 보관한다.",
           },
         ],
       },
@@ -331,6 +312,9 @@ const TEMPLATES = [
     // "구성원별 안전보건 관리 역할"은 특정 발주처 전용이 아니라 모든 안전보건
     // 관리계획서에 공통으로 들어가는 법정 내용이라 LH와 동일하게 켜둔다.
     show_role_responsibilities: true,
+    // LH와 동일하게, 안전보건교육 계획도 모든 안전보건관리계획서에 공통으로
+    // 들어가는 법정 내용이라 켜둔다.
+    show_education_plan: true,
     disabled_common_sections: [],
     sections: [
       {
@@ -386,6 +370,7 @@ for (const t of TEMPLATES) {
   const showManagementPolicy = t.show_management_policy ?? false;
   const showOrgChart = t.show_org_chart ?? false;
   const showRoleResponsibilities = t.show_role_responsibilities ?? false;
+  const showEducationPlan = t.show_education_plan ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -401,6 +386,7 @@ for (const t of TEMPLATES) {
         show_management_policy: showManagementPolicy,
         show_org_chart: showOrgChart,
         show_role_responsibilities: showRoleResponsibilities,
+        show_education_plan: showEducationPlan,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -421,6 +407,7 @@ for (const t of TEMPLATES) {
         show_management_policy: showManagementPolicy,
         show_org_chart: showOrgChart,
         show_role_responsibilities: showRoleResponsibilities,
+        show_education_plan: showEducationPlan,
       })
       .select("id")
       .single();

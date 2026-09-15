@@ -175,6 +175,12 @@ alter table public.agency_templates add column if not exists show_org_chart bool
 -- 채워진 채로 수정 가능, 비고는 빈 칸으로 시작한다.
 alter table public.agency_templates add column if not exists show_role_responsibilities boolean not null default false;
 
+-- show_education_plan: "안전보건교육 계획"을 라벨+텍스트박스 2칸이 아니라, 실제
+-- LH 샘플(화성동탄(2), 23~27p)과 경쟁사 서식처럼 표(종류/대상/교육시간/교육강사/
+-- 교육내용/교육교재, 헤드라인 음영)로 보여줄지 여부. 종류(교육명)는 고정값,
+-- 나머지 칸은 사전 작성 문구가 채워진 채로 수정 가능하다.
+alter table public.agency_templates add column if not exists show_education_plan boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

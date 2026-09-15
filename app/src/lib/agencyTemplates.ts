@@ -43,6 +43,9 @@ export type AgencyTemplateRow = {
   // "구성원별 안전보건 관리 역할"을 표(구분/주요업무/비고, 헤드라인 음영)로
   // 보여줄지 여부.
   show_role_responsibilities?: boolean;
+  // "안전보건교육 계획"을 표(종류/대상/교육시간/교육강사/교육내용/교육교재,
+  // 헤드라인 음영)로 보여줄지 여부.
+  show_education_plan?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

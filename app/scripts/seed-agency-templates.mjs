@@ -394,6 +394,201 @@ const TEMPLATES = [
       },
     ],
   },
+  {
+    agency: "한국수자원공사",
+    name: "한국수자원공사(K-water) 표준 서식",
+    // 실제 K-water 붙임2 "안전보건관리계획서 작성양식"(5개 장 구성: Ⅰ.과업개요 →
+    // Ⅱ.안전보건관리체제 → Ⅲ.안전보건관리 실행 → Ⅳ.안전보건 운영관리 →
+    // Ⅴ.재해발생 수준)을 기준으로 만들었다. LH·KEPCO에 이미 만들어 둔 범용
+    // 절(경영방침/조직도/역할/교육계획/위험성평가실시규정/기계기구물질관리계획/
+    // 안전점검·순회계획/PTW)은 K-water 샘플에도 동일한 법정 내용으로 등장하므로
+    // 그대로 재사용하고, K-water 고유 항목(보호구 지급계획, 신호·연락체계,
+    // 기계·장비 안전검사표, 장비 안전관리대책, 합동 안전·보건점검)만 아래
+    // sections에 새로 추가했다.
+    cover_style: "generic",
+    overview_label: "과업 개요",
+    show_management_policy: true,
+    show_org_chart: true,
+    show_role_responsibilities: true,
+    show_education_plan: true,
+    show_risk_assessment_rules: true,
+    show_hazard_management: true,
+    show_daily_inspection_plan: true,
+    show_ptw_plan: true,
+    // 실제 목차 순서(Ⅰ.과업개요 → Ⅱ.안전보건관리체제 → Ⅲ.안전보건관리 실행 →
+    // Ⅳ.안전보건 운영관리 → Ⅴ.재해발생 수준)에 맞춰 공통 절과 K-water 전용
+    // 절을 장(章)별로 묶는다.
+    section_order: [
+      { roman: "Ⅰ", title: "과업 개요", members: ["overview"] },
+      {
+        roman: "Ⅱ",
+        title: "안전보건관리체제",
+        members: ["management-policy", "hazard_machinery", "hazard_vehicle", "hazard_substance", "org_chart", "role_responsibilities"],
+      },
+      {
+        roman: "Ⅲ",
+        title: "안전보건관리 실행",
+        members: [
+          "risk",
+          "risk_assessment_rules",
+          "education_plan",
+          "protection_equipment",
+          "daily_inspection_plan",
+          "joint_inspection_kwater",
+          "ptw_plan",
+        ],
+      },
+      {
+        roman: "Ⅳ",
+        title: "안전보건 운영관리",
+        members: ["signal_contact_kwater", "machinery_inspection_kwater", "equipment_safety_measures_kwater", "emergency"],
+      },
+      { roman: "Ⅴ", title: "재해발생 수준", members: ["accident_level", "attachments"] },
+    ],
+    disabled_common_sections: [],
+    sections: [
+      {
+        id: "protection_equipment",
+        label: "보호구 지급, 착용 및 관리계획",
+        fields: [
+          {
+            key: "ppe_list",
+            label: "품명·수량·지급계획 및 대상",
+            type: "textarea",
+            placeholder: "품명별 지급수량과 지급 대상을 입력하세요",
+            default:
+              "· 안전모: 5개 — 근로자 전원 지급\n" +
+              "· 안전화: 5개 — 근로자 전원 지급\n" +
+              "· 신호수용 반사조끼: 5개 — 신호수·유도자 지급\n" +
+              "· 각반: 5개 — 근로자 전원 지급",
+          },
+          {
+            key: "ppe_management",
+            label: "유지 및 관리계획",
+            type: "textarea",
+            placeholder: "지급대장 관리, 착용상태 확인 절차, 훼손 보호구 폐기·재지급 기준을 입력하세요",
+            default:
+              "현장소장·관리감독자는 보호구 지급대장을 운영하고, 작업 전·중 착용상태를 수시 확인한다. 훼손되거나 성능이 저하된 보호구는 즉시 폐기하고 재지급하며, 개인별 보관·관리 원칙을 교육한다.",
+          },
+        ],
+      },
+      {
+        id: "joint_inspection_kwater",
+        label: "합동 안전·보건점검 이행",
+        fields: [
+          {
+            key: "inspection_overview",
+            label: "점검 개요",
+            type: "textarea",
+            placeholder: "점검 일정, 점검방법, 점검내용을 입력하세요",
+            default: "작업 장소에 대한 점검 일정, 점검방법, 점검내용을 정하여 도급인·수급인 합동으로 정기 점검을 실시한다.",
+          },
+          {
+            key: "corrective_action",
+            label: "점검결과 조치이행",
+            type: "textarea",
+            placeholder: "점검결과 위험요인 발견 시 조치계획을 입력하세요",
+            default: "점검 결과 위험요인 발견 시 즉시 시정조치하고, 조치 내용과 완료일을 기록·관리하며 차기 점검계획에 반영한다.",
+          },
+        ],
+      },
+      {
+        id: "signal_contact_kwater",
+        label: "신호 및 연락체계",
+        fields: [
+          {
+            key: "contact_and_signal",
+            label: "비상연락체계 · LOTO · 신호체계",
+            type: "textarea",
+            placeholder: "비상연락망, LOTO 절차, 신호체계(신호수·무전기·수신호 등)를 입력하세요",
+            default:
+              "□ 비상연락체계\n" +
+              "관련기관: K-water 담당부서 / 관할 지방고용노동청 / 관할 소방서 / 관할 경찰서 / 인근 병원 — 각 담당자·연락처를 표로 정리하여 현장에 게시\n\n" +
+              "□ LOTO(Lock Out, Tag Out) 작업절차 준수\n" +
+              "대상: 정비·점검·수리 등 비정형작업\n" +
+              "목적: 기계설비의 정비·청소·수리 작업 중 타 근로자가 그 설비를 운전하는 것을 방지\n" +
+              "방법: ① 작업 전 전원부 등에 잠금장치 및 표지판 설치 → ② 작업 완료 후 직접 잠금장치 및 표지판 해제 → ③ 관련 작업자에게 공지\n\n" +
+              "□ 신호체계\n" +
+              "신호수·무전기·깃발 등을 이용한 신호체계를 구축하고, 건설현장 표준 수신호(작업시작/멈춤/비상멈춤/주행방향/포크 올리기·내리기/작업중지 등)를 전 근로자에게 교육한다.",
+          },
+        ],
+      },
+      {
+        id: "machinery_inspection_kwater",
+        label: "기계·장비 안전검사",
+        fields: [
+          {
+            key: "inspection_list",
+            label: "종류별 점검사항 및 점검주기",
+            type: "textarea",
+            placeholder: "현장에 반입되는 기계·장비별 안전검사 항목·주기·관리계획을 입력하세요",
+            default:
+              "※ 설치 끝난 날(신규 등록)부터 3년 이내 최초 안전검사 실시, 그 이후 2년마다 점검\n" +
+              "· 크레인: 과부하방지장치, 권과방지장치, 안전장치, 훅해지장치 등 — 2년에 1회\n" +
+              "· 압력용기: 압력방출장치(안전밸브), 압력계 등 — 2년에 1회\n" +
+              "· 리프트: 과부하방지장치, 권과방지장치, 낙하방지장치, 비상정지장치 등 — 2년에 1회\n" +
+              "· 프레스: 방호장치, 비상정지장치 등 — 2년에 1회\n" +
+              "· 전단기: 방호장치(가드식, 광전자식), 비상정지장치 등 — 2년에 1회\n" +
+              "· 곤돌라: 비상정지장치, 권과방지장치, 과부하방지장치, 낙하방지장치, 수평조절장치 등 — 2년에 1회\n" +
+              "· 국소배기장치: 흡인성능(제어풍속), 댐퍼, 배풍기의 작동상태 등 — 2년에 1회\n" +
+              "· 원심기: 비상정지장치, 덮개 브레이크 등 — 2년에 1회\n" +
+              "· 롤러기: 급정지장치, 비상정지장치, 안전캡 등 — 2년에 1회\n" +
+              "· 사출성형기: 출입문 리미트방호장치, 비상정지장치, 고온부 덮개 등 — 2년에 1회\n" +
+              "· 고소작업대: 안전장치 부착 및 작동 유무, 작업대 고정볼트 체결 및 안전난간 설치 상태, 아웃트리거 설치 상태 등 — 2년에 1회\n" +
+              "· 컨베이어: 원동기 및 풀리 기능 이상 유무, 이탈 등의 방지장치 기능 이상 유무, 비상정지장치의 기능 이상 유무 등 — 2년에 1회\n" +
+              "· 산업용 로봇: 안전매트, 광전자식 안전장치, 안전방책 등 각종 방호장치 작동상태, 비상정지 스위치 작동 상태 등 — 2년에 1회",
+          },
+        ],
+      },
+      {
+        id: "equipment_safety_measures_kwater",
+        label: "장비 안전관리대책",
+        fields: [
+          {
+            key: "measures",
+            label: "구분·위험요소·안전대책",
+            type: "textarea",
+            placeholder: "장비별 위험요소와 안전대책을 입력하세요",
+            default:
+              "· 고소작업차 — 위험요소: 고소작업차 전도 / 안전대책: 아웃트리거 전개 확인, 작업 전 지반 지내력 확인, 유도자 배치\n" +
+              "※ 사용 장비별로 작업 전 체크리스트·안전점검표 작성 및 조치, 작업계획 수립·검토 내용을 추가로 작성하고, 안전작업허가 대상 장비는 안전작업계획서도 함께 첨부한다.",
+          },
+        ],
+      },
+      {
+        // LH는 이 id를 자체 sections에 정의해 두었지만(안전보건경영시스템 인증
+        // 현황 등), K-water는 별도로 정의한 적이 없어 section_order에서 참조만
+        // 하고 실제로는 어디에도 나오지 않는 채로 조용히 빠지는 문제가 있었다 —
+        // K-water 샘플(Ⅴ.재해발생 수준)에 맞춰 새로 정의한다.
+        id: "accident_level",
+        label: "재해발생 수준",
+        fields: [
+          {
+            key: "accident_handling",
+            label: "산업재해 처리에 관한 사항",
+            type: "textarea",
+            placeholder: "산업재해 처리 및 산업재해보상보험과 관련된 절차 및 내용을 입력하세요",
+            default:
+              "산업재해 발생 시 산업재해보상보험법에 따라 근로복지공단에 요양급여를 신청하고, 발생 경위·원인·재발방지대책을 기록·보관한다. 중대재해에 해당하는 경우 관할 지방고용노동청 및 K-water 담당부서에 즉시 보고한다.",
+          },
+          {
+            key: "accident_history",
+            label: "산업재해 발생 현황",
+            type: "textarea",
+            placeholder: "업체명별 최근 3년간 산업재해 현황(건수)을 입력하세요",
+            default: "업체명: (미입력) / 최근 3년간 산업재해 현황: 0건",
+          },
+          {
+            key: "insurance_certificate",
+            label: "산재보험 가입 증명원",
+            type: "textarea",
+            placeholder: "산재보험 가입을 증명할 수 있는 서류(스캔본) 첨부 여부를 입력하세요",
+            default: "산재보험 가입증명원(스캔본)을 첨부한다.",
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 for (const t of TEMPLATES) {

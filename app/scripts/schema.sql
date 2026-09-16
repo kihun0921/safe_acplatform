@@ -194,6 +194,12 @@ alter table public.agency_templates add column if not exists show_risk_assessmen
 -- 보여줄지 여부. 세 절은 항상 함께 다뤄지는 하나의 장이라 플래그도 하나로 묶는다.
 alter table public.agency_templates add column if not exists show_hazard_management boolean not null default false;
 
+-- show_daily_inspection_plan: "안전점검 및 일일 순회계획"(실제 LH 샘플 화성동탄(2)
+-- 91~93p, "5.1 공정별 안전점검 계획" — TBM 절차 + 작업 전·중·후·특별점검 항목표)을
+-- 고정값 서식으로 보여줄지 여부. 산업안전보건법령에 따른 표준 절차·항목이라 입력
+-- 요소 없이 그대로 다운로드 문서에 포함된다.
+alter table public.agency_templates add column if not exists show_daily_inspection_plan boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

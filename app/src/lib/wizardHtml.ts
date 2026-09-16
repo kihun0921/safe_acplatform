@@ -1776,6 +1776,164 @@ function buildHazardSubstanceNavHtml(): string {
 `;
 }
 
+// "안전점검·안전순찰·안전검사 등의 안전보건활동 계획" 중 "안전점검 및 일일
+// 순회계획"(실제 LH 샘플 화성동탄(2) 91~93p, "5.1 공정별 안전점검 계획") —
+// 회원 요청대로 고정값 서식이다. TBM 절차(준비·실행·환류)는 법정 표준 문구라
+// 읽기전용 텍스트로, 작업 전·중·후·특별점검 항목표는 실제 항목 그대로 고정된
+// 표(입력요소 없음)로 보여준다. wizardExport.ts의 테이블 추출은 <td> 안에
+// input/textarea/select가 없으면 그 셀의 순수 텍스트를 그대로 읽으므로, 이런
+// 완전 정적 표도 별도 export 코드 없이 다운로드 문서에 그대로 반영된다.
+function dipReadonlyBlock(label: string, text: string): string {
+  const rows = Math.min(20, Math.max(3, text.split("\n").length + 1));
+  return `<div>
+<label class="block text-xs font-bold text-neutral-700 mb-1">${escapeHtmlPolicy(label)}</label>
+<textarea readonly class="w-full text-xs bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-neutral-700 leading-relaxed" rows="${rows}">${escapeHtmlPolicy(
+    text
+  )}</textarea>
+</div>`;
+}
+
+const DAILY_INSPECTION_TBM_INTRO =
+  "회의준비: 위험성평가 결과, 현장 내 사건사고, 안전지침, 보호구 착용상태 확인 등\n" +
+  "이행계획: 전 작업자에게 안전보건 자료를 제공하고 건강상태, 위험성평가 내용, 현장 내 사건사고, 보호구 착용상태 등을 확인하여 위험요인예방대책을 확인";
+
+const DAILY_INSPECTION_TBM_PREP =
+  "TBM 전달자료 작성 및 내용 숙지\n" +
+  "① 위험성평가 결과(유해위험요인 및 개선대책 등)\n" +
+  "② 사건사고 보고서\n" +
+  "③ 안전작업 지침 및 규정\n" +
+  "④ 보호구 확보\n" +
+  "⑤ 당일 작업과 관련 안전교육 자료\n" +
+  "⑥ 당일 안전작업계획서, 안전지침 등 자료";
+
+const DAILY_INSPECTION_TBM_EXECUTE =
+  "1. 작업자 건강 상태 확인(과도한 음주, 37℃ 이상 체온, 약물 복용 여부, 혈압, 당뇨 등 이상유무)\n" +
+  "2. 위험성평가 내용(당일 작업과 관련한 파악된 유해위험요인 및 개선대책 등)\n" +
+  "3. 안전모(턱끈 포함), 안전화, 안전대 등 보호구의 올바른 착용여부\n" +
+  "4. 당일 작업내용/위험요인/안전작업절차 및 안전작업계획서/안전대책 등 근로자 교육·공유·전달\n" +
+  "5. 작업자가 TBM 내용 숙지하였는지 확인(외국인 포함 시 통·번역 등 효과적인 전달 방안 마련)\n" +
+  "6. 위험요인, 불안전한 상태 발견 시 행동요령 확인: ① 멈춘다(Stop) → ② 확인한다(Look) → ③ 평가한다(Assess) → ④ 관리한다(Manage)";
+
+const DAILY_INSPECTION_TBM_FEEDBACK =
+  "1. 작업자의 불만, 질문, 제안사항 검토\n" +
+  "2. 위험성평가 결과 개선대책의 이행여부 확인 및 불이행 시 원인/대책\n" +
+  "3. 당일 작업과 관련된 안전교육 실효성 검증\n" +
+  "4. TBM 결과의 충실한 기록·보관\n" +
+  "5. 관련 조치 결과 피드백";
+
+const DAILY_INSPECTION_TABLE_ROWS: { type: string; frequency: string; items: string; checker: string }[] = [
+  {
+    type: "작업 전",
+    frequency: "매일",
+    items:
+      "1. 안전보호구 지급 및 착용유무 확인(착용 불응자 작업배제 조치)\n" +
+      "2. 안전체조 실시\n" +
+      "3. 근로자의 건강상태 확인\n" +
+      "4. 신규자 및 숙련공의 작업조 구성확인\n" +
+      "5. 선 안전조치 시행 확인\n" +
+      "6. TBM 준비 및 실행\n" +
+      "7. 위험성평가결과 유해위험요인 및 개선내용 확인\n" +
+      "8. 기타 유해위험요인, 기계기구의 방호장치 부착",
+    checker: "관리감독자\n안전담당자",
+  },
+  {
+    type: "작업 중",
+    frequency: "수시",
+    items:
+      "1. 안전보호구 착용상태 확인\n" +
+      "2. 공정별 화재, 폭발, 질식, 중독, 붕괴, 추락, 낙하, 감전 등 대형사고 존재여부 및 안전작업 상태\n" +
+      "3. 위험기계기구의 안전사용 상태\n" +
+      "4. 위험성평가 결과 개선내용 이행상태\n" +
+      "5. 안전수칙, 안전작업계획서, 설계도서, 안전관계법령 준수상태\n" +
+      "6. 안전시설물 설치 및 관리상태\n" +
+      "7. 기타 유해위험요인 안전확보 상태",
+    checker: "관리감독자\n안전담당자",
+  },
+  {
+    type: "작업 후",
+    frequency: "매일",
+    items:
+      "1. 금일 및 명일 불안전요소에 대한 안전대책 강구\n" +
+      "2. 공사 현장 내 정리정돈 상태\n" +
+      "3. 기계기구의 안전보관상태\n" +
+      "4. 안전시설물의 제거 또는 훼손상태\n" +
+      "5. 기타 유해위험요인",
+    checker: "관리감독자\n안전담당자",
+  },
+  {
+    type: "특별점검",
+    frequency: "수시",
+    items:
+      "1. 재해발생 원인 및 개선대책 강구 및 적용상태\n" +
+      "2. 보호구 착용상태\n" +
+      "3. 화재, 폭발, 질식, 중독, 붕괴, 추락, 낙하, 감전 등 대형사고 존재여부 및 안전작업 상태\n" +
+      "4. 기타 유해위험요인 등",
+    checker: "관리감독자\n안전담당자",
+  },
+];
+
+function buildDailyInspectionPlanNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-daily_inspection_plan">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  02
+                </span>
+<span class="group-hover:text-neutral-900">안전점검 및 일일 순회계획</span>
+</div>
+</a>
+`;
+}
+
+function buildDailyInspectionPlanSectionHtml(): string {
+  const tbmBlocks = [
+    dipReadonlyBlock("가. 작업 전 TBM 개요", DAILY_INSPECTION_TBM_INTRO),
+    dipReadonlyBlock("준비 단계", DAILY_INSPECTION_TBM_PREP),
+    dipReadonlyBlock("실행 단계", DAILY_INSPECTION_TBM_EXECUTE),
+    dipReadonlyBlock("환류 단계", DAILY_INSPECTION_TBM_FEEDBACK),
+  ].join("\n");
+
+  const tableRows = DAILY_INSPECTION_TABLE_ROWS.map(
+    ({ type, frequency, items, checker }) => `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top whitespace-nowrap">${escapeHtmlPolicy(
+      type
+    )}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top whitespace-nowrap">${escapeHtmlPolicy(frequency)}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top whitespace-pre-line">${escapeHtmlPolicy(items)}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">${escapeHtmlPolicy(checker).replace(/\n/g, "<br/>")}</td>
+</tr>`
+  ).join("\n");
+
+  return `<!-- ════════ SECTION: 안전점검 및 일일 순회계획 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-daily_inspection_plan">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅲ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">안전점검 및 일일 순회계획</h2>
+</div>
+<div class="p-6 space-y-5">
+<p class="text-xs text-neutral-500">산업안전보건법령에 따른 표준 절차·점검항목으로 고정되어 있으며, 별도 입력 없이 그대로 다운로드 문서에 포함됩니다.</p>
+${tbmBlocks}
+<div>
+<p class="font-bold text-neutral-800 mb-2">나. 작업 전·중·후 안전점검 및 모니터링</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[10%]">종류</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[8%]">횟수</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">안전점검 항목</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[14%]">실시 및 조치상태 확인자</th>
+</tr>
+</thead>
+<tbody>
+${tableRows}
+</tbody>
+</table>
+<p class="text-[11px] text-neutral-400 mt-2">※ 보호구 미착용 근로자 또는 착용 불응자에 대해서는 퇴출 등 강력조치</p>
+</div>
+</div>
+</section>
+`;
+}
+
 // "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
 // 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
 // 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
@@ -2068,7 +2226,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_role_responsibilities ? 1 : 0) +
     (agencyTemplate?.show_education_plan ? 1 : 0) +
     (agencyTemplate?.show_risk_assessment_rules ? 1 : 0) +
-    (agencyTemplate?.show_hazard_management ? 3 : 0);
+    (agencyTemplate?.show_hazard_management ? 3 : 0) +
+    (agencyTemplate?.show_daily_inspection_plan ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -2183,6 +2342,12 @@ ${templateOptions
         rows: hazardSubstanceRows,
       })
     : "";
+  const dailyInspectionPlanNavHtml = agencyTemplate?.show_daily_inspection_plan
+    ? buildDailyInspectionPlanNavHtml()
+    : "";
+  const dailyInspectionPlanSectionHtml = agencyTemplate?.show_daily_inspection_plan
+    ? buildDailyInspectionPlanSectionHtml()
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -2217,6 +2382,10 @@ ${templateOptions
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
       `${hazardSubstanceNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${dailyInspectionPlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
@@ -2269,7 +2438,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     )
     .replace(
       '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
@@ -2320,6 +2489,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.hazard_machinery = "위험기계·기구별 관리계획";
     commonLabels.hazard_vehicle = "차량계 건설기계·하역운반기계 관리계획";
     commonLabels.hazard_substance = "유해·위험물질(MSDS) 관리계획";
+    commonLabels.daily_inspection_plan = "안전점검 및 일일 순회계획";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

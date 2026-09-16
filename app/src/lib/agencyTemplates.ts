@@ -55,6 +55,10 @@ export type AgencyTemplateRow = {
   // 항목별 "상세 작성" 팝업 형태로 보여줄지 여부. 세 절은 항상 함께 다뤄지는
   // 하나의 장이라 플래그도 하나로 묶는다.
   show_hazard_management?: boolean;
+  // "안전점검 및 일일 순회계획"(TBM 절차 + 작업 전·중·후·특별점검 항목표)을
+  // 고정값 서식으로 보여줄지 여부. 산업안전보건법령에 따른 표준 절차·항목이라
+  // 입력 요소 없이 그대로 다운로드 문서에 포함된다.
+  show_daily_inspection_plan?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

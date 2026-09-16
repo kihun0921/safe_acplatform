@@ -84,6 +84,13 @@ const TEMPLATES = [
     // 보건법령에 따른 표준 절차·항목이라 아래 한국전력공사 표준서식에도 동일하게
     // 켜둔다.
     show_daily_inspection_plan: true,
+    // "중점 위험작업허가제(PTW)"(실제 LH 샘플 화성동탄(2) 33~37p, 허가대상 작업·
+    // 허가절차·이행주체 역할표 등)를 고정값 서식으로 보여준다(wizardHtml.ts의
+    // buildPtwPlanSectionHtml 참고). 위저드 기본 템플릿의 데모 카드("1. 안전점검
+    // 및 일일 순회계획", "2. 중점 위험작업허가제")와 내용이 겹쳐 그 두 카드는 아예
+    // 제거했다 — 산업안전보건법령에 따른 표준 절차라 아래 한국전력공사
+    // 표준서식에도 동일하게 켜둔다.
+    show_ptw_plan: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -101,7 +108,7 @@ const TEMPLATES = [
         title: "실행계획",
         members: ["education_plan", "hazard_machinery", "hazard_vehicle", "hazard_substance", "risk", "execution"],
       },
-      { roman: "Ⅲ", title: "운영관리", members: ["daily_inspection_plan", "protection_equipment"] },
+      { roman: "Ⅲ", title: "운영관리", members: ["daily_inspection_plan", "ptw_plan", "protection_equipment"] },
       { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency", "accident_procedure"] },
       { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "target", "misc_admin", "safety_cost"] },
       { roman: "Ⅵ", title: "재해발생 수준", members: ["accident_level"] },
@@ -347,6 +354,8 @@ const TEMPLATES = [
     // 안전점검 및 일일 순회계획(TBM 절차 등)도 산업안전보건법령에 따른 표준
     // 절차라 켜둔다.
     show_daily_inspection_plan: true,
+    // 중점 위험작업허가제(PTW)도 산업안전보건법령에 따른 표준 절차라 켜둔다.
+    show_ptw_plan: true,
     disabled_common_sections: [],
     sections: [
       {
@@ -406,6 +415,7 @@ for (const t of TEMPLATES) {
   const showRiskAssessmentRules = t.show_risk_assessment_rules ?? false;
   const showHazardManagement = t.show_hazard_management ?? false;
   const showDailyInspectionPlan = t.show_daily_inspection_plan ?? false;
+  const showPtwPlan = t.show_ptw_plan ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -425,6 +435,7 @@ for (const t of TEMPLATES) {
         show_risk_assessment_rules: showRiskAssessmentRules,
         show_hazard_management: showHazardManagement,
         show_daily_inspection_plan: showDailyInspectionPlan,
+        show_ptw_plan: showPtwPlan,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -449,6 +460,7 @@ for (const t of TEMPLATES) {
         show_risk_assessment_rules: showRiskAssessmentRules,
         show_hazard_management: showHazardManagement,
         show_daily_inspection_plan: showDailyInspectionPlan,
+        show_ptw_plan: showPtwPlan,
       })
       .select("id")
       .single();

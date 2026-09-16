@@ -200,6 +200,14 @@ alter table public.agency_templates add column if not exists show_hazard_managem
 -- 요소 없이 그대로 다운로드 문서에 포함된다.
 alter table public.agency_templates add column if not exists show_daily_inspection_plan boolean not null default false;
 
+-- show_ptw_plan: "중점 위험작업허가제(PTW)"(실제 LH 샘플 화성동탄(2) 33~37p,
+-- 허가대상 작업·허가절차·이행주체 역할표 등)를 고정값 서식으로 보여줄지 여부.
+-- 위저드 기본 템플릿에 있던 Stitch 데모 카드("1. 안전점검 및 일일 순회계획",
+-- "2. 중점 위험작업허가제")는 이 내용과 겹쳐서 아예 제거했다(wizardHtml.ts
+-- HTML_documents_wizard) — 새 발주처를 추가할 때는 이 플래그와
+-- show_daily_inspection_plan을 반드시 켤 것.
+alter table public.agency_templates add column if not exists show_ptw_plan boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

@@ -59,6 +59,13 @@ export type AgencyTemplateRow = {
   // 고정값 서식으로 보여줄지 여부. 산업안전보건법령에 따른 표준 절차·항목이라
   // 입력 요소 없이 그대로 다운로드 문서에 포함된다.
   show_daily_inspection_plan?: boolean;
+  // "중점 위험작업허가제(PTW)"(허가대상 작업·허가절차·이행주체 역할표 등)를
+  // 고정값 서식으로 보여줄지 여부. 위저드 기본 템플릿에 있던 Stitch 데모 카드
+  // ("1. 안전점검 및 일일 순회계획", "2. 중점 위험작업허가제")는 이 내용과 겹쳐서
+  // 아예 제거했으므로(wizardHtml.ts HTML_documents_wizard), 이 플래그가 꺼진
+  // 발주처 서식에는 해당 내용이 어느 쪽에도 나오지 않는다 — 새 발주처를 추가할
+  // 때는 반드시 이 두 플래그(및 show_daily_inspection_plan)를 켤 것.
+  show_ptw_plan?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

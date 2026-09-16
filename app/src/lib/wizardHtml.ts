@@ -418,74 +418,17 @@ __RISK_ROW_TEMPLATE__
 <p class="text-[11px] text-neutral-500 mt-0.5">발주처 특기시방서에 명시되지 않은 조항은 토글을 꺼서 제외할 수 있습니다.</p>
 </div>
 </div>
-<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">선택항목 3 / 4 활성화</span>
+<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">선택항목 1 / 2 활성화</span>
 </div>
 <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-<!-- Card 1: 안전점검 및 조치계획 (ON) -->
-<div class="rounded-xl border border-neutral-200 p-4 bg-white hover:border-neutral-300 transition">
-<div class="flex items-center justify-between mb-3">
-<div class="flex items-center gap-2">
-<span class="w-7 h-7 rounded bg-primary-soft text-primary flex items-center justify-center">
-<span class="material-symbols-outlined text-lg" data-icon="fact_check">fact_check</span>
-</span>
-<span class="text-xs font-bold text-neutral-900">1. 안전점검 및 일일 순회계획</span>
-</div>
-<!-- Active Toggle -->
-<label class="relative inline-flex items-center cursor-pointer">
-<input checked="" class="sr-only peer" type="checkbox"/>
-<div class="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-</label>
-</div>
-<div class="space-y-2.5 text-xs">
-<div>
-<span class="text-neutral-500 block mb-1">점검 주기 설정:</span>
-<div class="flex gap-4">
-<label class="inline-flex items-center gap-1.5 text-neutral-700">
-<input checked="" class="text-primary focus:ring-primary h-3.5 w-3.5" name="insp_cycle" type="radio"/> 일일 순회 (작업 전/후)
-                    </label>
-<label class="inline-flex items-center gap-1.5 text-neutral-700">
-<input class="text-primary focus:ring-primary h-3.5 w-3.5" name="insp_cycle" type="radio"/> 주간 합동점검
-                    </label>
-</div>
-</div>
-<div>
-<span class="text-neutral-500 block mb-1">총괄점검자 지정:</span>
-<input class="w-full text-xs bg-neutral-50 border border-neutral-300 rounded px-2 py-1.5 text-neutral-900" type="text" value="안전총괄부장 김안전 (건설안전기사 보유)"/>
-</div>
-</div>
-</div>
-<!-- Card 2: 중점 위험작업 허가제 (PTW) (ON) -->
-<div class="rounded-xl border border-neutral-200 p-4 bg-white hover:border-neutral-300 transition">
-<div class="flex items-center justify-between mb-3">
-<div class="flex items-center gap-2">
-<span class="w-7 h-7 rounded bg-primary-soft text-primary flex items-center justify-center">
-<span class="material-symbols-outlined text-lg" data-icon="assignment_late">assignment_late</span>
-</span>
-<span class="text-xs font-bold text-neutral-900">2. 중점 위험작업허가제 (PTW)</span>
-</div>
-<label class="relative inline-flex items-center cursor-pointer">
-<input checked="" class="sr-only peer" type="checkbox"/>
-<div class="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-</label>
-</div>
-<div class="space-y-2 text-xs">
-<span class="text-neutral-500 block">허가제 적용 대상 공종:</span>
-<div class="grid grid-cols-2 gap-2 text-neutral-700">
-<label class="flex items-center gap-1.5"><input checked="" class="rounded text-primary focus:ring-primary h-3.5 w-3.5" type="checkbox"/> 화기작업 (용접·용단)</label>
-<label class="flex items-center gap-1.5"><input checked="" class="rounded text-primary focus:ring-primary h-3.5 w-3.5" type="checkbox"/> 밀폐공간 진입작업</label>
-<label class="flex items-center gap-1.5"><input checked="" class="rounded text-primary focus:ring-primary h-3.5 w-3.5" type="checkbox"/> 5m 이상 고소작업</label>
-<label class="flex items-center gap-1.5"><input checked="" class="rounded text-primary focus:ring-primary h-3.5 w-3.5" type="checkbox"/> 정전·단수 수전작업</label>
-</div>
-</div>
-</div>
-<!-- Card 3: 건설기계·장비 안전관리 (ON) -->
+<!-- Card 1: 건설기계·장비 안전관리 (ON) -->
 <div class="rounded-xl border border-neutral-200 p-4 bg-white hover:border-neutral-300 transition">
 <div class="flex items-center justify-between mb-3">
 <div class="flex items-center gap-2">
 <span class="w-7 h-7 rounded bg-primary-soft text-primary flex items-center justify-center">
 <span class="material-symbols-outlined text-lg" data-icon="precision_manufacturing">precision_manufacturing</span>
 </span>
-<span class="text-xs font-bold text-neutral-900">3. 건설기계·장비 안전검사 관리</span>
+<span class="text-xs font-bold text-neutral-900">1. 건설기계·장비 안전검사 관리</span>
 </div>
 <label class="relative inline-flex items-center cursor-pointer">
 <input checked="" class="sr-only peer" type="checkbox"/>
@@ -500,14 +443,14 @@ __RISK_ROW_TEMPLATE__
 </div>
 </div>
 </div>
-<!-- Card 4: 협력업체 안전보건 협의체 (OFF - Disabled State) -->
+<!-- Card 2: 협력업체 안전보건 협의체 (OFF - Disabled State) -->
 <div class="rounded-xl border border-neutral-200 p-4 bg-neutral-50/70 opacity-75 hover:opacity-100 transition">
 <div class="flex items-center justify-between mb-3">
 <div class="flex items-center gap-2">
 <span class="w-7 h-7 rounded bg-neutral-200 text-neutral-500 flex items-center justify-center">
 <span class="material-symbols-outlined text-lg" data-icon="groups">groups</span>
 </span>
-<span class="text-xs font-bold text-neutral-600">4. 하도급 협력업체 협의체 운영</span>
+<span class="text-xs font-bold text-neutral-600">2. 하도급 협력업체 협의체 운영</span>
 </div>
 <!-- Inactive Toggle -->
 <label class="relative inline-flex items-center cursor-pointer">
@@ -1934,6 +1877,134 @@ ${tableRows}
 `;
 }
 
+// "중점 위험작업허가제(PTW)" — 실제 LH 샘플 화성동탄(2) 33~37p("2. 안전작업(화기
+// 작업, 굴착작업, 고소작업, 중장비작업 등)에 관한 작업계획")을 회원 요청대로
+// 고정값 서식으로 반영한다. 위저드에 원래 있던 Stitch 데모 카드("1. 안전점검 및
+// 일일 순회계획", "2. 중점 위험작업허가제(PTW)")는 가짜 예시값("안전총괄부장
+// 김안전" 등)이었고, 이 실제 고정값 서식과 내용이 겹친다는 지적을 받아
+// buildWizardHtml 안에서 그 두 카드를 제거하고(중복 제거) 이 서식 하나로
+// 통일했다 — "표시는 두 곳, 값은 하나만 고정으로 불러온다" 대신 애초에
+// 중복 자체를 없애는 방향을 택함.
+function buildPtwPlanNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-ptw_plan">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  02
+                </span>
+<span class="group-hover:text-neutral-900">중점 위험작업허가제(PTW)</span>
+</div>
+</a>
+`;
+}
+
+const PTW_TARGET_WORK_TEXT =
+  "다음의 유해·위험작업은 안전작업허가서 발급 대상이다.\n" +
+  "○ 유해·위험물질이 들어있거나 들어있었던 용기, 펌프 또는 배관 등과 같은 기기의 개방 또는 분해 시\n" +
+  "○ 인화성물질 주변 용접·절단 또는 불티 등이 발생하는 화기작업 시\n" +
+  "○ 굴착작업 시\n" +
+  "○ 충전부작업 시\n" +
+  "○ 고소작업 시\n" +
+  "○ 열차충돌 우려작업 시(위험지역에서 시행하는 작업)\n" +
+  "○ 방사능 사용작업 시 등\n" +
+  "○ 밀폐공간 출입 시\n" +
+  "○ 위험지역 내에서의 내연기관 운전 시\n" +
+  "○ 중장비 사용작업 시\n" +
+  "※ 관련근거: 도급사업 안전보건관리 운영 매뉴얼(고용노동부), KOSHA GUIDE 안전작업허가지침(한국산업안전보건공단)";
+
+const PTW_PURPOSE_TEXT =
+  "목적: 유해·위험도가 상대적으로 높은 작업에 대해 작업 전에 유해·위험성을 파악하여 제거 또는 차단할 수 있는 체제를 구축(작업허가제)하여 근원적인 안전성을 확보한다.\n\n" +
+  "해당공사 허가대상 작업 종류:\n" +
+  "○ 인화성물질 주변 용접·절단 또는 불티 등이 발생하는 화기작업 시\n" +
+  "○ 굴착작업 시\n" +
+  "○ 고소작업 시\n" +
+  "○ 중장비 사용작업 시";
+
+const PTW_PROCESS_TEXT =
+  "① 위험성평가 실시 → ② 작업허가서 승인요청(수급인, 작성자는 작업 1~2일 전까지 현장소장 또는 공사감독원 제출) → ③ 작업허가서 승인(작업 전까지 승인) → ④ 작업실시(승인조건에 따른 작업 실시) → ⑤ 작업허가 준수확인(허가내용 미준수 시 작업중지)\n" +
+  "※ 작업허가제 대상 확인은 수시로 실시한다.";
+
+const PTW_IMPLEMENTATION_TEXT =
+  "1. 작업허가 전 확인점검: 이행주체 등은 허가서를 작성·검토·승인(발급) 단계에 따라 허가대상 작업종류, 현장여건, 공종별 특성, 안전작업계획서, 설계도서, 위험성평가 결과서, 안전보건관계 법령, 현장 확인 등을 통하여 허가작업 대상과 안전조치 사항을 반드시 확인·점검\n" +
+  "2. 승인(발급): 현장소장 또는 공사감독원은 내용이 적절하다고 판단 시 작업 전일까지 작업허가서를 승인\n" +
+  "3. 보충작업 확인·점검: 보충작업을 병행하여 수행하는 경우에는 각 보충 작업별 전문지식을 갖춘 자나 관계 전문가, 관계 경력근로자 등이 참여하여 확인·점검 실시\n" +
+  "4. 입회: 작업의 위험 정도, 규모 및 복잡성에 따라 작업 중에 특별히 안전관리가 필요하다고 판단될 경우 공사감독자(감리)가 입회하여 제반 안전요구사항에 대한 조치를 확인\n" +
+  "5. 연장: 작업이 허가시간 이후까지 연장될 경우에는 발급자 또는 업무를 위임받은 자가 작업 현장을 재확인한 후 허가서에 명시된 사항과 일치하는지 등을 파악하고 안전하다는 판단에 따라 안전작업허가서의 작업시간을 연장하고 서명\n" +
+  "6. 이행여부 확인 및 조치: 작업허가서에 의해 작업하고 있는지의 여부와 안전보건을 담보하고 있는지를 작업 전·중·후에 반드시 확인점검하고, 미이행 시 즉시 필요한 조치(공사중지, 자원의 지원, 추가 개선조치, 기술적 지도조언, 퇴출 등) 강력 시행\n" +
+  "7. 모니터링 피드백 실시: 해당작업 종료 시에는 반드시 재해발생 여부, 허가서 내용의 적정성, 실행의 실효성, 경제성, 위험성평가(최초, 수시) 시 추가 반영사항, 기타 안전보건 확보에 관한 내용 등을 모니터링 분석하여 추후 위험작업 허가 시 반영";
+
+const PTW_ARCHIVE_TEXT =
+  "허가서 사본 1부를 해당작업 관계자 전원의 경유(공람)를 통하여 작업 현장에 게시하여 안전작업 관리하고, 관련 기록 등은 현장에 보관하되 준공 시에는 본사로 이관하여 1년간 보관한다.";
+
+const PTW_FORM_NOTE_TEXT =
+  "위험작업 허가서(일일/연장)에는 신청인·허가기간·위험작업 종류(화기/밀폐공간/정전/굴착/고소/중량물 등)·작업개요·안전조치 요구사항 체크리스트(작업구역 설정, 가스농도 측정, 환기·조명·소화기 등 장비, 화재감시자 배치, 가스농도 측정결과 등)·작성자/검토자/승인자 서명란을 포함한다.\n" +
+  "연장 시에는 연장 허가기간과 연장사유, 일자별 검토자·승인자 서명란을 추가로 기재한다.\n" +
+  "※ 실제 작업 시 현장에서 작성하여 첨부하는 서식입니다.";
+
+const PTW_ROLE_ROWS: { role: string; text: string }[] = [
+  {
+    role: "허가서 작성자",
+    text:
+      "직영 해당공사 관리감독자 및 협력회사(하도급) 관리감독자는 등록된 서식에 의거 작성하되, 작성 전 허가대상 작업종류, 현장여건, 공종별 특성, 안전작업계획서, 설계도서, 재해사례, 공종별 작업지침(안전보건공단 지침), 위험성평가서(최초, 수시), 안전보건관계법령 등과 현장 검토확인을 거쳐 성실하게 작성하며, 최소한 작업시작 전일까지 검토자에게 제출한다. 작업허가서의 효력이 발생되는 시점부터 종료될 때까지 안전하게 작업을 수행할 수 있도록 작업허가서에 의거 관리하고, 공사 종료 시 적정성에 대한 모니터링 후 기록보관하며, 해당작업 시작 전에 관계 근로자를 대상으로 작업허가서 내용에 대한 TBM, 사전교육을 실시한다.",
+  },
+  {
+    role: "허가서 검토자",
+    text:
+      "원도급 업체의 해당 공사팀장 및 안전보건관리자(선임 시)는 작성자가 제출한 허가서에 대하여 가능한 조속한 시일 내에 적정성을 검토하여 현장소장 또는 공사감독원(현장소장 경유)에게 승인(발급) 요청하되, 적정성 검토 시 해당 작업에서 요구되는 전체적인 요구사항에 대한 조치 반영 등을 정밀하게 검토하여야 하고, 미흡사항 발견 시 추가요구 반영하여 근원적인 안전성을 확보한다. 해당작업 수행 중 수시로 순회점검 등을 통하여 허가서의 이행(안전조치 요구사항 등) 여부를 확인점검하고, 미이행 시 이행에 필요한 추가조치(자원의 지원, 기술적인 지도조언 등)를 권고한다.",
+  },
+  {
+    role: "승인(발급)자",
+    text:
+      "허가서 최종 발급은 현장소장 또는 공사감독원이 승인한다. 현장소장은 작업허가에 관한 작성, 검토, 승인(발급), 이행여부 확인점검 및 조치, 연장, 모니터링, 기록유지 등 허가에 관한 전반적인 책임을 진다.",
+  },
+];
+
+function buildPtwPlanSectionHtml(): string {
+  const readonlyBlocks = [
+    dipReadonlyBlock("안전작업허가서 발급 대상 유해·위험작업(참고사항)", PTW_TARGET_WORK_TEXT),
+    dipReadonlyBlock("2.1 안전작업 목적 / 허가대상 작업 종류", PTW_PURPOSE_TEXT),
+    dipReadonlyBlock("2.2 안전작업 허가 업무흐름(허가절차)", PTW_PROCESS_TEXT),
+    dipReadonlyBlock("2.3-다. 안전작업 허가 이행계획", PTW_IMPLEMENTATION_TEXT),
+    dipReadonlyBlock("2.3-라. 허가서 경유·게시·보관계획", PTW_ARCHIVE_TEXT),
+    dipReadonlyBlock("2.4 안전작업허가서 양식 안내", PTW_FORM_NOTE_TEXT),
+  ].join("\n");
+
+  const roleRows = PTW_ROLE_ROWS.map(
+    ({ role, text }) => `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top whitespace-nowrap">${escapeHtmlPolicy(
+      role
+    )}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">${escapeHtmlPolicy(text)}</td>
+</tr>`
+  ).join("\n");
+
+  return `<!-- ════════ SECTION: 중점 위험작업허가제(PTW) ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-ptw_plan">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅲ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">중점 위험작업허가제(PTW)</h2>
+</div>
+<div class="p-6 space-y-5">
+<p class="text-xs text-neutral-500">산업안전보건법령 및 KOSHA GUIDE에 따른 표준 절차·항목으로 고정되어 있으며, 별도 입력 없이 그대로 다운로드 문서에 포함됩니다.</p>
+${readonlyBlocks}
+<div>
+<p class="font-bold text-neutral-800 mb-2">2.3-나. 이행주체 지정 및 역할</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[16%]">구분</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">역할</th>
+</tr>
+</thead>
+<tbody>
+${roleRows}
+</tbody>
+</table>
+</div>
+</div>
+</section>
+`;
+}
+
 // "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
 // 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
 // 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
@@ -2227,7 +2298,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_education_plan ? 1 : 0) +
     (agencyTemplate?.show_risk_assessment_rules ? 1 : 0) +
     (agencyTemplate?.show_hazard_management ? 3 : 0) +
-    (agencyTemplate?.show_daily_inspection_plan ? 1 : 0);
+    (agencyTemplate?.show_daily_inspection_plan ? 1 : 0) +
+    (agencyTemplate?.show_ptw_plan ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -2348,6 +2420,8 @@ ${templateOptions
   const dailyInspectionPlanSectionHtml = agencyTemplate?.show_daily_inspection_plan
     ? buildDailyInspectionPlanSectionHtml()
     : "";
+  const ptwPlanNavHtml = agencyTemplate?.show_ptw_plan ? buildPtwPlanNavHtml() : "";
+  const ptwPlanSectionHtml = agencyTemplate?.show_ptw_plan ? buildPtwPlanSectionHtml() : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -2386,6 +2460,10 @@ ${templateOptions
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
       `${dailyInspectionPlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${ptwPlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
@@ -2438,7 +2516,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     )
     .replace(
       '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
@@ -2490,6 +2568,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.hazard_vehicle = "차량계 건설기계·하역운반기계 관리계획";
     commonLabels.hazard_substance = "유해·위험물질(MSDS) 관리계획";
     commonLabels.daily_inspection_plan = "안전점검 및 일일 순회계획";
+    commonLabels.ptw_plan = "중점 위험작업허가제(PTW)";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

@@ -20,13 +20,14 @@ export interface WizardSection {
 function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string | boolean>) {
   // WizardScreen.tsx의 field-N 인덱싱 쿼리(input:not([type=hidden]):not([data-risk-field])
   // :not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field])
-  // :not([data-hazard-check]):not([data-ppe-qty]), textarea:not([data-risk-field])
-  // :not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field]))와
-  // 반드시 동일한 요소 집합·순서를 훑어야 한다 — 위험성평가 표 입력요소, 표준서식 선택
-  // 드롭다운, 안전보건경영방침 이미지 파일 입력, 현장설명서 공정추출용 파일 입력, 유해·위험
-  // 기계기구물질 관리계획의 항목별 체크박스/세부실행계획 입력, 보호구 지급 예정수량은
-  // 각각 별도 저장 경로(riskRows, template_id, content.safetyPolicy, 즉시 처리 후 폐기,
-  // hazard*Rows, ppeQuantities)를 쓰므로 애초에 field-N 인덱스 대상에서 빠지는데, 여기서
+  // :not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]),
+  // textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select])
+  // :not([data-risk-field]))와 반드시 동일한 요소 집합·순서를 훑어야 한다 — 위험성평가 표
+  // 입력요소, 표준서식 선택 드롭다운, 안전보건경영방침 이미지 파일 입력, 현장설명서
+  // 공정추출용 파일 입력, 유해·위험 기계기구물질 관리계획의 항목별 체크박스/세부실행계획
+  // 입력, 보호구 지급 예정수량, 유관기관 비상연락체계는 각각 별도 저장 경로(riskRows,
+  // template_id, content.safetyPolicy, 즉시 처리 후 폐기, hazard*Rows, ppeQuantities,
+  // emergencyContactRows)를 쓰므로 애초에 field-N 인덱스 대상에서 빠지는데, 여기서
   // 다르게 세면 그 뒤에 나오는 모든 필드의 인덱스가 밀려서 엉뚱한 값이 출력물에 들어간다.
   // readonly 필드(공고 정보 자동 채움 값, 법정 고정문구 안내 textarea 등)는 인덱스
   // 집계에는 그대로 포함시키되(기존 문서들의 field-N 매핑이 밀리지 않도록) 저장된
@@ -41,6 +42,7 @@ function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string |
     if ($el.attr("data-hazard-field") !== undefined) return false;
     if ($el.attr("data-hazard-check") !== undefined) return false;
     if ($el.attr("data-ppe-qty") !== undefined) return false;
+    if ($el.attr("data-emergency-contact-field") !== undefined) return false;
     if (el.tagName === "select" && $el.attr("data-template-select") !== undefined) return false;
     return true;
   });
@@ -315,7 +317,7 @@ export function extractWizardSections(
           .find("td")
           .each((_, td) => {
             const $td = $(td);
-            if ($td.find("[data-risk-delete]").length) return;
+            if ($td.find("[data-risk-delete], [data-emergency-contact-delete]").length) return;
             // 위험성평가 표처럼 셀 안에 실제 입력요소(input/textarea/select)가 있으면
             // 그 값을 읽고, 아니면(정적 텍스트 셀) 기존처럼 텍스트를 읽는다.
             const control = $td.find("input, textarea, select").first();

@@ -2129,6 +2129,415 @@ ${readonlyBlocks}
 `;
 }
 
+// "Ⅳ. 중대산업재해 등 비상 상황시 조치계획" — 실제 LH 샘플 화성동탄(2) 109~121p.
+// 1) 비상대책반 구성은 다이어그램(박스+연결선) 형태로 직책은 고정, 성명·연락처만
+// 입력한다(기존 org_chart와 동일하게 개수 고정이라 field-N 인덱스 대상이어도
+// 무방). 2) 유관기관 비상연락체계는 프로젝트마다 실제 관할 기관·번호가 전혀
+// 다르므로(예: 화성 현장의 관할 경찰서 번호를 다른 지역 현장에 고정값으로 넣으면
+// 오히려 잘못된 정보가 된다) riskRows와 동일한 방식으로 항목을 자유롭게
+// 추가·삭제할 수 있게 하고, 112/119처럼 전국 공통인 번호만 기본값으로 채운다.
+// 3) 나머지(비상사태 대응계획, 발생유형별 대응 시나리오, 재해조사 및 대책수립,
+// 발생보고, 처리계통도, 응급처치요령)는 산업안전보건법령에 따른 표준 절차라
+// 고정 서식이다. 기존 base 템플릿의 "sec-emergency"(Stitch 데모 카드 — "AI 현장
+// 반경 5km 이내 지정 응급의료기관 자동 연동" 등 가짜 내용)와 겹치므로, 이 플래그를
+// 켜는 발주처는 반드시 disabled_common_sections에 "emergency"를 추가해 그 데모
+// 카드를 꺼야 한다(seed-agency-templates.mjs 참고).
+const EMERGENCY_TEAM_ROLES: { key: string; role: string }[] = [
+  { key: "chief", role: "대책반장\n(현장소장)" },
+  { key: "safety-manager", role: "안전관리자\n(안전보건협의체 팀장)" },
+  { key: "control-team", role: "통제반\n(품질1팀 팀장)" },
+  { key: "rescue-team", role: "구조·후송·복구반\n(공사팀 팀장)" },
+  { key: "support-team", role: "지원반\n(품질2팀 팀장)" },
+];
+
+export interface EmergencyContactRow {
+  id: string;
+  name: string;
+  department: string;
+  phone: string;
+}
+
+// 112/119는 전국 공통이라 기본값으로 채우고, 나머지는 현장마다 실제 관할 기관·
+// 번호가 달라 이름만 카테고리로 안내하고 번호는 빈 칸으로 둔다(잘못된 지역 기관의
+// 번호가 고정값으로 들어가면 실제 비상시 오히려 위험하다).
+const DEFAULT_EMERGENCY_CONTACTS: EmergencyContactRow[] = [
+  { id: "ec-1", name: "발주처 담당 사업본부", department: "", phone: "" },
+  { id: "ec-2", name: "관할 지방고용노동관서", department: "건설산재예방감독과", phone: "" },
+  { id: "ec-3", name: "관할 시·구청", department: "안전건설과", phone: "" },
+  { id: "ec-4", name: "관할 경찰서", department: "", phone: "112" },
+  { id: "ec-5", name: "관할 소방서", department: "", phone: "119" },
+  { id: "ec-6", name: "안전보건공단 관할 지역본부", department: "건설안전부", phone: "" },
+  { id: "ec-7", name: "관할 지정 응급의료기관", department: "", phone: "" },
+  { id: "ec-8", name: "원도급사 본사", department: "", phone: "" },
+  { id: "ec-9", name: "재해예방기관 및 감리", department: "협력업체", phone: "" },
+];
+
+function buildEmergencyContactRowHtml(row: EmergencyContactRow): string {
+  return `<tr data-emergency-contact-id="${escapeHtmlPolicy(row.id)}">
+<td class="p-2"><input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-emergency-contact-field="name" placeholder="기관명 (예: OO경찰서)" type="text" value="${escapeHtmlPolicy(
+    row.name
+  )}"/></td>
+<td class="p-2"><input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-emergency-contact-field="department" placeholder="담당부서/구분" type="text" value="${escapeHtmlPolicy(
+    row.department
+  )}"/></td>
+<td class="p-2"><input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-emergency-contact-field="phone" data-phone-format placeholder="전화번호" type="text" inputmode="numeric" value="${escapeHtmlPolicy(
+    row.phone
+  )}"/></td>
+<td class="p-2 text-center">
+<button class="text-neutral-400 hover:text-status-danger transition" data-emergency-contact-delete type="button" title="행 삭제">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
+</td>
+</tr>`;
+}
+
+const EMERGENCY_RESPONSE_PROCEDURE_TEXT =
+  "① 작업중지 → ② 근로자 등 종사자 대피 및 구호조치 → ③ 추가 피해 방지 조치 → ④ 현장조사 및 관계기관 신고 → ⑤ 위험요인 제거 → ⑥ 확인 및 기록보관 → ⑦ 발생 원인분석 및 대책 수립 → ⑧ 비상대응 모의훈련 실시";
+
+const EMERGENCY_TEAM_DUTIES_TEXT =
+  "1) 통제반: 재해상황 파악 및 비상연락망 관련 기관 통보, 전 종사자에게 방송시설·무전기·핸드폰 등을 이용한 전파 및 공유, 작업중지 및 근로자 대피 지원\n" +
+  "2) 구조·후송·복구반: 작업중지, 근로자 대피, 119 및 지정병원 신고·후송, 2차 재해 예방조치(출입통제, 신호수 배치 등) 및 현장보존, 재해자 구호조치(의식유무 확인, 심폐소생, 지혈, 보온조치, 구조 등), 추가 피해방지 조치(원인조사 및 대책강구, 공유), CCTV·사진·동영상 촬영 등 증거자료 확보\n" +
+  "3) 지원반: 작업중지 및 근로자 대피 지원, 인력·장비지원 등 공사팀 행정지원, 안전한 장소 지정 및 대피 지원, 위험요인 제거에 대한 지도·조언, 고용노동부 및 대표이사 보고, 재해 원인조사 및 재발방지 대책 수립, 복구에 필요한 인력·장비 확보, 피해자 가족 연락 및 합의";
+
+const EMERGENCY_WORK_STOP_TEXT =
+  "현장소장은 다음 상황 발생 시 신속하게 작업을 중지한다.\n" +
+  "1) 중대재해 및 중대산업재해 발생 시\n" +
+  "2) 재해가 발생할 급박한 위험상황 발생 시\n" +
+  "3) 근로자 등 종사자에 의한 작업중지 또는 요청 시\n" +
+  "4) 기타 작업 중지할 상황 발생 시";
+
+const EMERGENCY_EVACUATION_TEXT =
+  "1) 현장소장은 비상사태 발생 시 종사자의 추가피해를 예방하기 위하여 안내방송·확성기·수신호·핸드폰·비상연락체계·SNS(카톡·문자)·무전기 등을 이용하여 사전 지정된 안전한 장소에 신속하게 대피하도록 조치한다.\n" +
+  "2) 현장소장은 중대산업재해 피재자 발생 시 즉시 119 구조대에 신고하고, 의식상태 확인, 호흡 정지 여부 확인 및 심폐소생술 실시, 지혈, 보온조치, 골절 시 부목고정, 전원차단, 질식 시 공기호흡기 착용 후 구조, 출입통제 등 적절한 구호조치를 취한다.\n" +
+  "3) 건축물의 붕괴 등으로 추가 피해가 예상되는 경우에는 직접적인 구호조치를 보류하고 출입통제 등 필요한 조치를 한 후, 추가 피해가 예상되지 않음을 확인한 후 구호조치를 실시한다.";
+
+const EMERGENCY_ADDITIONAL_PREVENTION_TEXT =
+  "1) 비상사태 발생 장소나 2차 재해가 발생할 위험장소, 급박한 위험이 있는 장소 등에 종사자 등이 출입할 수 없도록 출입금지방지책(휀스, 안전난간, 로프 등) 및 출입금지용 경고표지판 등 안전시설물을 설치한다.\n" +
+  "2) 안전시설물 설치와 별도로 안전한 장소에 신호수를 배치하여 비상사태의 추이 관찰과 보고, 종사자들의 위험장소 접근통제 등 비상업무를 수행할 수 있도록 조치한다.";
+
+const EMERGENCY_INVESTIGATION_REPORT_TEXT =
+  "1) 현장소장은 비상사태 발생 시 신속한 대응과 상황전파, 추가피해 최소화, 응급구호 및 복구 등을 위하여 사고의 개요·종류·발생장소·재해자 정보·피해상황·발생원인 및 대책 등을 조사하여 관계기관(발주처, 119소방서, 경찰서, 고용노동부, 근로복지공단, 본사 대표이사 등)에 신고한다.\n" +
+  "2) 필요하다고 판단 시 종사자 이외의 인근 주민이나 대중에게도 SNS(단톡, 밴드, 문자, 홈페이지, 블로그 등), 안내방송, 핸드폰, 무전기 등 통신시설을 이용하여 공유한다.";
+
+const EMERGENCY_HAZARD_REMOVAL_TEXT =
+  "1) 위험요인의 제거는 근본적인 제거와 대체를 원칙으로 하되, 불가피할 경우에는 공학적 통제와 행정적 통제, 개인 보호구 지급 및 착용 순서로 조치한다.\n" +
+  "2) 현장에 존재하는 유해위험에 대한 사고 가능성 차단 및 피해 최소화 조치: 통로·계단·기계기구에 의한 위험, 인화성 물질 등 위험정도 파악 및 확인·개선, 가스·분진·미스트·산소결핍 등 유해요인 노출수준 파악·개선, 사고 위험이 높은 작업은 관리감독자를 지정하여 관리감독하에 작업 실시.";
+
+const EMERGENCY_RECORD_AND_ANALYSIS_TEXT =
+  "가. 확인 및 기록보관: 현장소장은 위험요인을 완벽하게 제거한 후 추가적인 피해를 초래하지 않는 경우에만 작업을 진행하고, 사진 등 증거자료를 보관한다.\n" +
+  "나. 발생 원인분석 및 대책수립: 현장소장은 사고조사 결과에 따라 정확하고 객관적으로 원인분석 및 대책을 수립하여 이행하고, 재발방지를 위해 안전교육·협의체 회의·위험성평가·합동점검·TBM 등을 통해 동종 및 유사재해를 예방한다. 대표이사는 동종·유사 비상사태가 재발하지 않도록 회사 시공 전 현장에 전파 교육한다.";
+
+const EMERGENCY_DRILL_PLAN_TEXT =
+  "[조치계획 요약] 중대재해 및 급박한 위험상황 발생 시 즉시 작업을 중지하고 근로자를 안전한 장소로 대피시킨 후, 119 신고 및 구호조치, 위험요인 제거, 관계기관(발주처·지방고용노동관서 등) 신고, 원인분석 및 재발방지대책 수립 순으로 대응한다.\n" +
+  "가. 원·하수급인 모든 근로자, 특수형태근로자 등 모든 종사자를 대상으로 모의훈련 계획을 수립하고 누락 인원이 발생하지 않도록 1주일 이전에 알려주고 실시한다.\n" +
+  "나. 모의훈련은 반기(상반기 1.1~6.30, 하반기 7.1~12.31) 1회 이상 주기적으로 실시하고 실시결과서를 작성하여 현장에 보관한다.\n" +
+  "다. 모의훈련 실시시간은 1회당 최소 4시간 이상 실시한다.\n" +
+  "라. 모의훈련은 재해 발생 유형별로 피해 최소화를 위한 비상대응절차(발생유형별 비상대응절차 시나리오 참조)를 구비하고 훈련을 실시한다.";
+
+interface EmergencyScenario {
+  title: string;
+  prevention: string;
+  steps: { stage: string; detail: string }[];
+}
+
+const EMERGENCY_SCENARIOS: EmergencyScenario[] = [
+  {
+    title: "1) 굴착기·덤프트럭·지게차 등에 의한 충돌·협착",
+    prevention:
+      "충돌 위험 관리: 굴착기·크레인·덤프트럭·지게차 등 차량계 건설기계 통행로와 종사자 통행로 구분 및 신호수 배치, 작업계획서 작성 및 작업 전 근로자 교육, 유자격자 운전.\n" +
+      "협착 위험 관리: 기어·롤러 등 물림점 방호덮개 설치, 회전체 취급 작업 시 면장갑 착용 금지, 차량계 하역운반기계 고장 시 정차 후 전문가 연락, 작업 절차 준수.",
+    steps: [
+      { stage: "① 비상상황 인지", detail: "충돌 혹은 협착 사고 상황 인지, 사내방송·비상경보로 전파 및 지원요청" },
+      { stage: "② 작업중지 및 대피·상황전파", detail: "해당 설비 운전 정지 및 피해자 구조, 작업중지·대피 지시, 종사자 의식 상태 확인, 119 신고/대표이사 보고, 중대재해 시 지방고용노동청 등 신고" },
+      { stage: "③ 2차 사고 예방조치", detail: "전원 차단(대상 기계 전원 공급 차단), 안전휀스 등 출입금지 조치, 통제표지판 설치, 신호수 배치" },
+      { stage: "④ 피해자 구조 및 응급조치", detail: "피해자 구조 및 응급조치(전원 미차단 상태 구조활동 금지), 상태에 따른 응급조치(심폐소생술, 안정 유지, 지혈)" },
+      { stage: "⑤ 피해자 후송·외부기관 연계", detail: "119 등 외부구조기관 인계 및 후송(사고 상황 설명), 재해자 가족 연락" },
+      { stage: "⑥ 현장 보존조치", detail: "작업장 통제(출입금지), 사고조사 시작 전까지 현장 보존, CCTV 확보·사진 촬영 등 증거 보존" },
+      { stage: "⑦ 위험요인 제거 및 추가피해 방지조치", detail: "지방고용노동청·안전보건공단·경찰 등 조사 협조, 사고조사 TFT 구성 및 원인분석·재발방지 대책 수립, 위험성평가 반영·근로자 교육·현장 안전보건 활동 수평 전개, 타 현장 사고사례 전파 공유" },
+    ],
+  },
+  {
+    title: "2) 추락",
+    prevention:
+      "설계·시공 시 작업발판 설치, 개구부 최소화, 위험성평가 실시를 통한 추락위험 장소 최소화. 추락 위험 장소에 안전난간·덮개·추락방호망(Safety net) 설치, 시스템비계 활용. 작업 전 안전대 부착설비와 추락방호망 점검, 안전대 착용 지시, 추락위험 표지판 설치. 모든 작업자는 언제나 안전모·안전대 등 보호구 착용.",
+    steps: [
+      { stage: "① 비상상황 인지", detail: "작업자 추락 확인, 사내방송·비상경보로 전파 및 지원요청, 안전대 매달림·방망 걸침 여부 확인" },
+      { stage: "② 작업중지 및 대피·상황전파", detail: "작업중지·대피 지시, 상황 전파(장소, 피해상황), 119 신고, 중대재해 시 지방고용노동청 등 신고" },
+      { stage: "③ 2차 사고 예방조치", detail: "추가 추락·추락방지시설 붕괴 우려 시 출입금지, 통제표지판 설치, 신호수 배치" },
+      { stage: "④ 피해자 구조 및 응급조치", detail: "구조장비·이동식크레인·고소작업대 등으로 신속한 구조, 호흡정지 확인·심폐소생술·지혈·기도확보·보온조치·골절 시 부목고정" },
+      { stage: "⑤ 피해자 후송·외부기관 연계", detail: "119 등 외부구조기관 인계 및 후송, 재해자 가족 연락" },
+      { stage: "⑥ 현장 보존조치", detail: "작업장 통제, 현장 보존, CCTV·사진 촬영 등 증거 보존" },
+      { stage: "⑦ 위험요인 제거 및 추가피해 방지조치", detail: "유관 조사기관 협조, 사고조사 TFT 구성 및 원인분석·재발방지 대책 수립, 위험성평가 반영·교육·수평 전개, 사고사례 전파 공유" },
+    ],
+  },
+  {
+    title: "3) 낙하·비래",
+    prevention:
+      "설계·시공 시 낙하위험 최소화, 위험성평가 실시를 통한 낙하위험 장소 최소화. 낙하 위험 장소에 낙하물방지망·방호선반·수직보호망·낙하위험지역 출입금지 방지책 등 설치. 작업 전 낙하방지시설 점검 및 안전모 착용 지시, 낙하위험 표지판 설치, 낙하위험지역 감시인 배치. 모든 작업자는 언제나 안전모·안전대 등 보호구 착용.",
+    steps: [
+      { stage: "① 비상상황 인지", detail: "낙하·비래 피해 작업자 상태 확인, 사내방송·비상경보로 전파 및 지원요청, 단순 낙하물 부딪힘/중량물 깔림 여부 확인" },
+      { stage: "② 작업중지 및 대피·상황전파", detail: "작업중지·대피 지시, 상황 전파, 119 신고/대표이사 보고, 중대재해 시 지방고용노동청 등 신고" },
+      { stage: "③ 2차 사고 예방조치", detail: "추가 낙하·비래 요소 발생 예상 시 출입금지, 통제표지판 설치, 신호수 배치" },
+      { stage: "④ 피해자 구조 및 응급조치", detail: "구조장비·이동식크레인 등으로 신속한 구조, 상태에 따른 심폐소생술·지혈·기도확보·안정 유지" },
+      { stage: "⑤ 피해자 후송·외부기관 연계", detail: "119 등 외부구조기관 인계 및 후송, 재해자 가족 연락" },
+      { stage: "⑥ 현장 보존조치", detail: "작업장 통제, 현장 보존, CCTV·사진 촬영 등 증거 보존" },
+      { stage: "⑦ 위험요인 제거 및 추가피해 방지조치", detail: "유관 조사기관 협조, 사고조사 TFT 구성 및 원인분석·재발방지 대책 수립, 위험성평가 반영·교육·수평 전개, 사고사례 전파 공유" },
+    ],
+  },
+  {
+    title: "4) 화재·폭발",
+    prevention:
+      "화기작업 시 내부 인화성 물질 및 인근 가연물 제거, 비가연성 자재로 대체. 용접작업 시 용접불티 비산방지덮개 또는 방화포 설치. 화기작업 시 가스·분진 농도 측정 및 주기적 확인, 화재감시인 배치. 개인 보호구: 제전작업복 착용, 가스검지기 휴대, 방폭공구 사용. 정기적인 소화훈련 실시, 인화성 가스·산소 사용 용접·용단·가열 작업 시 취업제한 확인.",
+    steps: [
+      { stage: "① 비상상황 인지", detail: "유증기 발생·냄새 감지, 인화성 물질 발화/폭발, 화재경보기 동작 시 사내방송·비상경보로 전파 및 지원요청" },
+      { stage: "② 작업중지 및 대피·상황전파", detail: "작업중지 지시 및 상황전파, 초기진화 실패 시 대피, 119 신고/대표이사 보고, 중대재해 시 지방고용노동청 등 신고" },
+      { stage: "③ 2차 사고 예방조치", detail: "인화성 물질 공급 차단(밸브 잠금, 안전한 장소 이동, 전기 차단), 출입금지·통제표지판 설치, 신호수 배치" },
+      { stage: "④ 진화·구조 및 응급조치", detail: "관리감독자 판단하 진화·대피·구조장비 투입, 소화기/소화전으로 진화 가능 시 진화 후 불가 시 신속 대피, 심폐소생술·안정 유지·불필요한 이동 금지" },
+      { stage: "⑤ 피해자 후송·외부기관 연계", detail: "119 등 외부구조기관 인계 및 후송, 재해자 가족 연락" },
+      { stage: "⑥ 현장 보존조치", detail: "작업장 통제, 현장 보존, CCTV·사진 촬영 등 증거 보존" },
+      { stage: "⑦ 위험요인 제거 및 추가피해 방지조치", detail: "유관 조사기관 협조, 사고조사 TFT 구성 및 원인분석·재발방지 대책 수립, 위험성평가 반영·교육·수평 전개, 사고사례 전파 공유" },
+    ],
+  },
+  {
+    title: "5) 감전",
+    prevention:
+      "전기기계기구 취급 시 감전 위험이 없도록 작업방법 개선, 전기기계기구 대체사용, 위험성평가 실시를 통한 감전위험 최소화. 접지 설치 및 접지저항 측정, 누전차단기 설치 및 수시 작동여부 점검, 피복 절연조치, 습윤지역 제거, 가설전선 공중거치 설치. 작업 전 감전예방시설 점검. 개인보호구: 감전방지용 안전화·안전모·절연장갑 등 착용.",
+    steps: [
+      { stage: "① 비상상황 인지", detail: "누전·잔류전기·충전부 접촉으로 감전, 전기 충격으로 인한 부상, 사내방송·비상경보로 전파 및 지원요청" },
+      { stage: "② 작업중지 및 대피·상황전파", detail: "작업중지·대피 지시, 상황 전파, 119 신고/대표이사 보고, 중대재해 시 지방고용노동청 등 신고" },
+      { stage: "③ 2차 사고 예방조치", detail: "전원 차단(2차 감전 방지 방법으로 전원 공급 차단), 필요 시 전원 차단 요청, 전도체 제거" },
+      { stage: "④ 피해자 구조 및 응급조치", detail: "피해자 구조 및 응급조치(전원 미차단 상태 구조활동 금지), 심폐소생술·안정 유지·불필요한 이동 금지" },
+      { stage: "⑤ 피해자 후송·외부기관 연계", detail: "119 등 외부구조기관 인계 및 후송, 재해자 가족 연락" },
+      { stage: "⑥ 현장 보존조치", detail: "작업장 통제, 현장 보존, CCTV·사진 촬영 등 증거 보존" },
+      { stage: "⑦ 위험요인 제거 및 추가피해 방지조치", detail: "유관 조사기관 협조, 사고조사 TFT 구성 및 원인분석·재발방지 대책 수립, 위험성평가 반영·교육·수평 전개, 사고사례 전파 공유" },
+    ],
+  },
+];
+
+const EMERGENCY_INCIDENT_ANALYSIS_TEXT =
+  "가. 재해 원인조사: 재해발생(경미한 반복적 재해, 아차사고 포함) 시 재해발생 개요(6하 원칙), 피재자 인적사항, 피해상황 및 전망, 목격자 진술서 및 증빙사진, 재해발생 원인(기계설비 문제점, 작업환경, 관리상 문제점 등)을 포함하여 철저히 분석·조사한다. 조사 방법은 4M 분석(Man·Machine·Media·Management)과 6하원칙(5W1H) 등 다양한 방법을 적용한다.\n" +
+  "나. 대책수립: 재해발생 원인을 4M 등으로 철저히 분석한 후 유해위험요인의 제거·대체, 통제(공학적·행정적), 개인 보호구 착용 순서로 근본적 대책을 수립하며, 현장실무자·종사자·건설안전기술사 등 전문가 의견을 수렴한다.\n" +
+  "다. 전파 교육: 대표이사는 재해원인 및 대책을 회사 시공 전 건설현장에 전파 교육하고, 현장소장은 재해사례를 위험성평가·순회점검·종사자 교육·유해위험요인 확인 및 개선 절차에 반영한다.\n" +
+  "라. 안전사고 발생 시 응급조치: 즉시 119 구조대에 신고하고, 도착 전 의식상태 확인·호흡정지 여부 확인 및 심폐소생술 실시·지혈·보온조치·골절 시 부목고정 등 적절한 응급처치를 취한다. 출혈 시 압박붕대로 지혈하고 부상부위를 심장보다 높게 유지하며, 의식이 없는 경우 평평한 바닥에 눕히고 필요 시 심폐소생술을 실시한다.";
+
+const EMERGENCY_REPORTING_ROWS: { category: string; agency: string; method: string; content: string }[] = [
+  {
+    category: "재해발생\n(사망, 3일 이상 휴업 부상재해)",
+    agency: "발주청 및 인허가기관",
+    method: "지체 없이 전화·팩스 등의 방법으로 보고",
+    content: "사고발생 일시 및 장소, 사고발생 경위, 조치사항, 향후 조치계획 등",
+  },
+  {
+    category: "중대재해\n(사망 등)",
+    agency: "현장 소재지 관할 지방노동관서",
+    method: "지체 없이 전화·팩스 등의 방법으로 보고",
+    content: "발생개요 및 피해상황, 조치 및 전망, 그 밖의 중요한 사항 등",
+  },
+  {
+    category: "부상재해\n(3일 이상의 휴업 부상)",
+    agency: "현장 소재지 관할 지방노동관서",
+    method: "발생일로부터 1개월 이내",
+    content: "산업재해 조사표에 의거 팩스, 우편, 직접방문 등의 방법으로 보고",
+  },
+  {
+    category: "재해발생 보상신고\n(사망, 4일 이상 요양)",
+    agency: "관할 근로복지공단",
+    method: "3년 이내(근로자가 신청)",
+    content: "신속한 치료와 보상을 목적으로 피재자 등에게 관할 근로복지공단에 산재요양신청서(유족급여신청 포함) 제출을 안내하고, 추후 근로복지공단 확인요청 시 신속하게 동의",
+  },
+];
+
+const EMERGENCY_PROCESS_FLOW_TEXT =
+  "① 119 신고, 병원 응급신고 → ② 작업중지 → ③ 근로자 등 종사자 대피 및 구호조치 → ④ 보고 → ⑤ 위험요인의 제거, 작업중지 해제요청 → ⑥ 추가 피해 방지를 위한 조치(원인 및 대책수립, 공유) → ⑦ 합의 및 전파교육\n" +
+  "[보고 대상] 발주처(관할 사업본부) / 지방고용노동청 / 본사 대표이사 / 경찰서 / 소방서\n" +
+  "※ 산업안전보건법 제54조의 중대재해가 발생하여 해당 작업을 중지시키고 근로자를 안전한 장소에 대피시킨 때에는 지체 없이 발생개요, 피해상황, 조치 및 전망 등을 관할 지방고용노동관서와 발주처 및 대표이사에게 신속하게 보고한다.";
+
+const EMERGENCY_FIRST_AID_TEXT =
+  "1) 재해발생 등 비상시 즉시 119 구조대에 신고하고, 119 구조대가 도착하기 전 피재자에 대한 의식상태 확인, 호흡 정지 여부 확인 및 심폐소생술 실시, 지혈, 보온조치, 골절 시 부목고정 등의 적절한 응급처치를 취해야 하며, 대응 시나리오와 교육훈련에 따라 차분하고 신속하게 대응한다.\n" +
+  "2) 출혈 시 과다출혈을 예방하기 위해 출혈 주변부 소독 후 압박붕대로 지혈하고 부상 부위를 심장 높이보다 위로 유지한다.\n" +
+  "3) 질식 등 의식이 없는 경우 환자를 평평한 바닥에 눕히고 심정지 또는 호흡이 비정상적인 경우 심폐소생술을 실시한다.";
+
+function buildEmergencyPlanNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-emergency_plan">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  04
+                </span>
+<span class="group-hover:text-neutral-900">중대산업재해 등 비상 상황시 조치계획</span>
+</div>
+</a>
+`;
+}
+
+function buildEmergencyPlanSectionHtml(emergencyContactRows: EmergencyContactRow[] | undefined): string {
+  // findLabel()(wizardExport.ts)은 입력요소의 조상 중 "직계 자식"으로 <label>을
+  // 가진 첫 조상을 찾으므로, 역할명을 <p>로만 적으면 라벨이 매칭되지 않아
+  // 다운로드 문서에서 이 성명·연락처 값이 통째로 누락된다 — 성명/연락처 입력을
+  // 각각 별도 wrapper로 감싸고 그 안에 (숨김) <label>을 직계 자식으로 둔다.
+  const roleOneLine = (role: string) => role.replace(/\n/g, " ");
+  const teamBoxHtml = (key: string, role: string) => `<div class="border-2 border-neutral-300 rounded-lg bg-white px-3 py-2 text-center shadow-xs min-w-[150px]">
+<p class="text-[11px] font-bold text-neutral-800 whitespace-pre-line leading-tight mb-1.5">${escapeHtmlPolicy(
+    role
+  )}</p>
+<div class="mb-1">
+<label class="sr-only" for="wizard-field-emteam-${key}-name">${escapeHtmlPolicy(roleOneLine(role))} 성명</label>
+<input id="wizard-field-emteam-${key}-name" class="w-full text-xs text-center border border-neutral-300 rounded px-2 py-1" type="text" placeholder="성명"/>
+</div>
+<div>
+<label class="sr-only" for="wizard-field-emteam-${key}-contact">${escapeHtmlPolicy(roleOneLine(role))} 연락처</label>
+<input id="wizard-field-emteam-${key}-contact" data-phone-format class="w-full text-xs text-center border border-neutral-300 rounded px-2 py-1" type="text" inputmode="numeric" placeholder="연락처"/>
+</div>
+</div>`;
+
+  const vLine = `<div class="w-px h-4 bg-neutral-300 mx-auto"></div>`;
+  const [chief, safetyManager, controlTeam, rescueTeam, supportTeam] = EMERGENCY_TEAM_ROLES;
+
+  const orgDiagram = `<div class="flex flex-col items-center gap-0 py-2">
+${teamBoxHtml(chief.key, chief.role)}
+${vLine}
+${teamBoxHtml(safetyManager.key, safetyManager.role)}
+${vLine}
+<div class="flex flex-wrap justify-center gap-4">
+${teamBoxHtml(controlTeam.key, controlTeam.role)}
+${teamBoxHtml(rescueTeam.key, rescueTeam.role)}
+${teamBoxHtml(supportTeam.key, supportTeam.role)}
+</div>
+${vLine}
+<div class="border border-dashed border-neutral-300 rounded-lg bg-neutral-50 px-4 py-2 text-center text-[11px] font-semibold text-neutral-600">
+협력업체, 근로자
+</div>
+</div>`;
+
+  const contactRows = (emergencyContactRows?.length ? emergencyContactRows : DEFAULT_EMERGENCY_CONTACTS)
+    .map(buildEmergencyContactRowHtml)
+    .join("\n");
+  const blankContact = buildEmergencyContactRowHtml({ id: "", name: "", department: "", phone: "" });
+
+  const scenarioBlocks = EMERGENCY_SCENARIOS.map((scenario) => {
+    const stepRows = scenario.steps
+      .map(
+        (s) => `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top whitespace-nowrap w-[22%]">${escapeHtmlPolicy(
+          s.stage
+        )}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">${escapeHtmlPolicy(s.detail)}</td>
+</tr>`
+      )
+      .join("\n");
+    return `<div class="border border-neutral-200 rounded-lg p-4 space-y-3">
+<p class="font-bold text-neutral-800">${escapeHtmlPolicy(scenario.title)}</p>
+${dipReadonlyBlock("비상상황 사전대비(위험요인 예방조치)", scenario.prevention)}
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[22%]">비상상황 진행단계</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">세부 조치사항</th>
+</tr>
+</thead>
+<tbody>
+${stepRows}
+</tbody>
+</table>
+</div>`;
+  }).join("\n");
+
+  const reportingRows = EMERGENCY_REPORTING_ROWS.map(
+    (r) => `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top whitespace-pre-line w-[16%]">${escapeHtmlPolicy(
+      r.category
+    )}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top w-[18%]">${escapeHtmlPolicy(r.agency)}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top w-[20%]">${escapeHtmlPolicy(r.method)}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">${escapeHtmlPolicy(r.content)}</td>
+</tr>`
+  ).join("\n");
+
+  return `<!-- ════════ SECTION: 중대산업재해 등 비상 상황시 조치계획 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-emergency_plan">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅳ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">중대산업재해 등 비상 상황시 조치계획</h2>
+</div>
+<div class="p-6 space-y-6">
+<p class="text-xs text-neutral-500">산업안전보건법령에 따른 표준 절차로 대부분 고정되어 있으며, 비상대책반 성명·연락처와 유관기관 비상연락체계만 실제 입력합니다.</p>
+<div>
+<p class="font-bold text-neutral-800 mb-2">1. 비상 대책반 구성</p>
+${orgDiagram}
+</div>
+<div>
+<div class="flex items-center justify-between mb-2">
+<p class="font-bold text-neutral-800">유관기관 및 도급·수급업체 상호간 비상연락체계</p>
+<button class="text-xs font-semibold text-primary hover:underline flex items-center gap-1" data-emergency-contact-add type="button">
+<span class="material-symbols-outlined text-base">add_circle</span>기관 추가
+</button>
+</div>
+<p class="text-[11px] text-neutral-500 mb-2">현장 소재지에 맞는 관할 기관명·담당부서·전화번호를 직접 입력하고, 필요한 기관은 자유롭게 추가·삭제하세요.</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden" data-emergency-contact-table>
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-2 py-2 font-bold text-neutral-700 border-b border-neutral-200">기관명</th>
+<th class="text-left px-2 py-2 font-bold text-neutral-700 border-b border-neutral-200">담당부서/구분</th>
+<th class="text-left px-2 py-2 font-bold text-neutral-700 border-b border-neutral-200">전화번호</th>
+<th class="text-center px-2 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-12">관리</th>
+</tr>
+</thead>
+<tbody data-emergency-contact-tbody>
+${contactRows}
+</tbody>
+</table>
+<template data-emergency-contact-row-template>${blankContact}</template>
+</div>
+<div>
+<p class="font-bold text-neutral-800 mb-2">2. 비상사태 발생유형별 비상대응계획 수립 및 사후조치</p>
+${[
+    dipReadonlyBlock("가. 비상사태 발생 시 대응절차", EMERGENCY_RESPONSE_PROCEDURE_TEXT),
+    dipReadonlyBlock("나. 대응 조직 구성원별 책임과 권한(업무분장)", EMERGENCY_TEAM_DUTIES_TEXT),
+    dipReadonlyBlock("다. 작업중지", EMERGENCY_WORK_STOP_TEXT),
+    dipReadonlyBlock("라. 대피 및 구호조치", EMERGENCY_EVACUATION_TEXT),
+    dipReadonlyBlock("마. 추가피해 방지조치", EMERGENCY_ADDITIONAL_PREVENTION_TEXT),
+    dipReadonlyBlock("바. 사후조사 및 관계기관 신고", EMERGENCY_INVESTIGATION_REPORT_TEXT),
+    dipReadonlyBlock("사. 위험요인의 제거", EMERGENCY_HAZARD_REMOVAL_TEXT),
+    dipReadonlyBlock("아·자. 확인 및 기록보관 / 발생 원인분석 및 대책수립", EMERGENCY_RECORD_AND_ANALYSIS_TEXT),
+    dipReadonlyBlock("3. 비상대책-중대산업재해 조치계획 및 모의훈련 실시", EMERGENCY_DRILL_PLAN_TEXT),
+  ].join("\n")}
+</div>
+<div class="space-y-3">
+<p class="font-bold text-neutral-800">4. 발생유형별 비상대응절차(시나리오)</p>
+${scenarioBlocks}
+</div>
+<div>
+<p class="font-bold text-neutral-800 mb-2">5. 재해조사 및 대책수립</p>
+${dipReadonlyBlock("재해원인조사(4M 분석)·대책수립·전파교육·응급조치", EMERGENCY_INCIDENT_ANALYSIS_TEXT)}
+</div>
+<div>
+<p class="font-bold text-neutral-800 mb-2">6. 발생보고</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">구분</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">보고기관</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">보고방법(기한)</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">보고 내용</th>
+</tr>
+</thead>
+<tbody>
+${reportingRows}
+</tbody>
+</table>
+</div>
+<div>
+<p class="font-bold text-neutral-800 mb-2">7. 사고발생 시 처리계통도</p>
+${dipReadonlyBlock("처리 흐름 및 보고대상", EMERGENCY_PROCESS_FLOW_TEXT)}
+</div>
+<div>
+<p class="font-bold text-neutral-800 mb-2">8. 비상 시 응급처치 요령</p>
+${dipReadonlyBlock("응급처치 요령", EMERGENCY_FIRST_AID_TEXT)}
+</div>
+</div>
+</section>
+`;
+}
+
 // "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
 // 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
 // 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
@@ -2424,7 +2833,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_hazard_management ? 3 : 0) +
     (agencyTemplate?.show_daily_inspection_plan ? 1 : 0) +
     (agencyTemplate?.show_ptw_plan ? 1 : 0) +
-    (agencyTemplate?.show_protection_equipment_plan ? 1 : 0);
+    (agencyTemplate?.show_protection_equipment_plan ? 1 : 0) +
+    (agencyTemplate?.show_emergency_plan ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -2554,6 +2964,11 @@ ${templateOptions
   const protectionEquipmentSectionHtml = agencyTemplate?.show_protection_equipment_plan
     ? buildProtectionEquipmentSectionHtml(ppeQuantities)
     : "";
+  const emergencyContactRows = doc.content?.emergencyContactRows as EmergencyContactRow[] | undefined;
+  const emergencyPlanNavHtml = agencyTemplate?.show_emergency_plan ? buildEmergencyPlanNavHtml() : "";
+  const emergencyPlanSectionHtml = agencyTemplate?.show_emergency_plan
+    ? buildEmergencyPlanSectionHtml(emergencyContactRows)
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -2600,6 +3015,10 @@ ${templateOptions
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
       `${protectionEquipmentNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${emergencyPlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
@@ -2652,7 +3071,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     )
     .replace(
       '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
@@ -2706,6 +3125,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.daily_inspection_plan = "안전점검 및 일일 순회계획";
     commonLabels.ptw_plan = "중점 위험작업허가제(PTW)";
     commonLabels.protection_equipment = "보호구 지급 및 착용확인 절차";
+    commonLabels.emergency_plan = "중대산업재해 등 비상 상황시 조치계획";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

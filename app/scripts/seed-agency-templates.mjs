@@ -98,6 +98,12 @@ const TEMPLATES = [
     // 나오고 입력할 방법이 없었다는 지적을 받아 이 플래그로 대체했다(sections에서
     // 해당 항목 제거함).
     show_protection_equipment_plan: true,
+    // "중대산업재해 등 비상 상황시 조치계획"(실제 LH 샘플 화성동탄(2) 109~121p)을
+    // 고정 서식으로 보여준다. 비상대책반 구성(다이어그램)·유관기관 비상연락체계(추가·
+    // 삭제 가능한 표)만 실제 입력하고 나머지는 고정 문구다 — 기존 sections의 범용
+    // "accident_procedure"(사고발생 시 조치 순서/보고체계) 항목과 내용이 겹쳐
+    // 제거했고, 아래 disabled_common_sections로 기존 데모 카드("emergency")도 껐다.
+    show_emergency_plan: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -116,13 +122,16 @@ const TEMPLATES = [
         members: ["education_plan", "hazard_machinery", "hazard_vehicle", "hazard_substance", "risk", "execution"],
       },
       { roman: "Ⅲ", title: "운영관리", members: ["daily_inspection_plan", "ptw_plan", "protection_equipment"] },
-      { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency", "accident_procedure"] },
+      { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency_plan"] },
       { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "target", "misc_admin", "safety_cost"] },
       { roman: "Ⅵ", title: "재해발생 수준", members: ["accident_level"] },
       { roman: "Ⅶ", title: "붙임", members: ["risk_assessment_rules", "attachments"] },
       { roman: "Ⅷ", title: "작업투입 인력 인적사항", members: ["workforce"] },
     ],
-    disabled_common_sections: [],
+    // "emergency": 기존 base 템플릿의 Stitch 데모 카드("AI 현장 반경 5km 이내
+    // 지정 응급의료기관 자동 연동" 등 가짜 내용)가 emergency_plan(실제 LH 샘플
+    // 내용)과 겹쳐서 끈다.
+    disabled_common_sections: ["emergency"],
     sections: [
       {
         id: "workforce",
@@ -184,34 +193,6 @@ const TEMPLATES = [
               "실시시기: 정기 간담회 — 현장소장 주재, 매월 2회 이상 / 수시 간담회 — 현장소장이 필요하다고 판단 시\n" +
               "회의내용: 안전보건경영방침 및 목표 달성 모니터링, 안전보건관련 규정의 효율적인 작동상태 확인, 중대재해처벌법·산업안전보건법·건설기술진흥법 등 준수여부 확인, 유해위험요인의 제거·대체 및 통제 방안 검토, 인력 및 예산 등 자원지원 방안, 평가 및 개선활동 결과내용 검토, 종사자 의견청취\n" +
               "사후관리: 결정사항 즉시 실행, 전 조직 전파 및 공유, 경영방침·목표·계획에 반영",
-          },
-        ],
-      },
-      {
-        id: "accident_procedure",
-        label: "산업재해 사고처리 절차",
-        fields: [
-          {
-            key: "response_steps",
-            label: "사고발생 시 조치 순서",
-            type: "textarea",
-            placeholder: "① 응급조치(119 신고·구호) → ② 작업중지 및 대피 → ③ 관계기관(발주처·고용노동청 등) 신고 → ④ 현장보존 및 원인조사 → ⑤ 재발방지대책 수립 순으로 절차를 입력하세요",
-            default:
-              "① 119 신고 및 병원 응급신고 → ② 작업중지 → ③ 근로자 등 종사자 대피 및 구호조치(의식상태 확인, 심폐소생술, 지혈, 보온조치) → ④ 발주처·지방고용노동청·본사 대표이사·경찰서·소방서 보고 → ⑤ 위험요인 제거 및 작업중지 해제요청 → ⑥ 추가 피해 방지를 위한 조치(원인조사, 대책수립, 공유) → ⑦ 합의 및 전파교육\n" +
-              "※ 산업안전보건법 제54조의 중대재해가 발생하여 작업을 중지시키고 근로자를 안전한 장소에 대피시킨 때에는 지체 없이 발생개요, 피해상황, 조치 및 전망 등을 관할 지방고용노동관서와 발주처 및 대표이사에게 신속하게 보고한다.",
-          },
-          {
-            key: "report_chain",
-            label: "보고체계 및 관계기관 연락처",
-            type: "textarea",
-            placeholder: "발주처 담당자/관할 지방고용노동청/경찰서/소방서/지정 응급의료기관의 연락처와 보고 순서·기한을 입력하세요",
-            default:
-              "· 발주처(한국토지주택공사) 담당부서: (미입력) / 연락처: (미입력)\n" +
-              "· 관할 지방고용노동관서: (미입력) / 연락처: (미입력)\n" +
-              "· 관할 경찰서: (미입력) / 연락처: (미입력)\n" +
-              "· 관할 소방서: (미입력) / 연락처: (미입력)\n" +
-              "· 지정 응급의료기관: (미입력) / 연락처: (미입력)\n" +
-              "보고기한: 사망재해는 즉시, 3일 이상 휴업을 요하는 부상재해는 1개월 이내(단, 발주처 공사감독 및 대표이사에게는 즉시 보고)",
           },
         ],
       },
@@ -395,6 +376,7 @@ const TEMPLATES = [
     show_daily_inspection_plan: true,
     show_ptw_plan: true,
     show_protection_equipment_plan: true,
+    show_emergency_plan: true,
     // 실제 목차 순서(Ⅰ.과업개요 → Ⅱ.안전보건관리체제 → Ⅲ.안전보건관리 실행 →
     // Ⅳ.안전보건 운영관리 → Ⅴ.재해발생 수준)에 맞춰 공통 절과 K-water 전용
     // 절을 장(章)별로 묶는다.
@@ -421,11 +403,13 @@ const TEMPLATES = [
       {
         roman: "Ⅳ",
         title: "안전보건 운영관리",
-        members: ["signal_contact_kwater", "machinery_inspection_kwater", "equipment_safety_measures_kwater", "emergency"],
+        members: ["signal_contact_kwater", "machinery_inspection_kwater", "equipment_safety_measures_kwater", "emergency_plan"],
       },
       { roman: "Ⅴ", title: "재해발생 수준", members: ["accident_level", "attachments"] },
     ],
-    disabled_common_sections: [],
+    // "emergency": 기존 base 템플릿의 Stitch 데모 카드가 emergency_plan(실제 LH
+    // 샘플 기반 고정 서식)과 내용이 겹쳐서 끈다.
+    disabled_common_sections: ["emergency"],
     sections: [
       {
         id: "joint_inspection_kwater",
@@ -567,6 +551,7 @@ for (const t of TEMPLATES) {
   const showDailyInspectionPlan = t.show_daily_inspection_plan ?? false;
   const showPtwPlan = t.show_ptw_plan ?? false;
   const showProtectionEquipmentPlan = t.show_protection_equipment_plan ?? false;
+  const showEmergencyPlan = t.show_emergency_plan ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -588,6 +573,7 @@ for (const t of TEMPLATES) {
         show_daily_inspection_plan: showDailyInspectionPlan,
         show_ptw_plan: showPtwPlan,
         show_protection_equipment_plan: showProtectionEquipmentPlan,
+        show_emergency_plan: showEmergencyPlan,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -614,6 +600,7 @@ for (const t of TEMPLATES) {
         show_daily_inspection_plan: showDailyInspectionPlan,
         show_ptw_plan: showPtwPlan,
         show_protection_equipment_plan: showProtectionEquipmentPlan,
+        show_emergency_plan: showEmergencyPlan,
       })
       .select("id")
       .single();

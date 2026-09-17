@@ -30,6 +30,7 @@ export default function WizardScreen({
   const riskSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hazardSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const ppeQtySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const emergencyContactSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -63,7 +64,7 @@ export default function WizardScreen({
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
+        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -201,6 +202,58 @@ export default function WizardScreen({
       if (immediate) return run();
       ppeQtySaveTimer.current = setTimeout(run, 15000);
       return Promise.resolve();
+    };
+
+    // ── 유관기관 및 도급/수급업체 상호간 비상연락체계(Ⅳ. sec-emergency_plan): 현장마다
+    // 기관 수가 다르고 자유롭게 추가·삭제할 수 있어야 하므로, riskRows와 동일하게
+    // field-N 체계 대신 documents.content.emergencyContactRows에 배열 통째로 저장한다.
+    const emergencyContactTbody = root.querySelector<HTMLTableSectionElement>("[data-emergency-contact-tbody]");
+    const emergencyContactTemplate = root.querySelector<HTMLTemplateElement>(
+      "template[data-emergency-contact-row-template]"
+    );
+
+    const serializeEmergencyContactRows = () => {
+      if (!emergencyContactTbody) return [] as Record<string, string>[];
+      return Array.from(emergencyContactTbody.querySelectorAll<HTMLElement>("tr[data-emergency-contact-id]")).map(
+        (tr) => {
+          const row: Record<string, string> = { id: tr.dataset.emergencyContactId ?? "" };
+          tr.querySelectorAll<HTMLInputElement>("[data-emergency-contact-field]").forEach((el) => {
+            const key = el.dataset.emergencyContactField;
+            if (key) row[key] = el.value;
+          });
+          return row;
+        }
+      );
+    };
+
+    const saveEmergencyContactRows = (immediate = false): Promise<void> => {
+      if (emergencyContactSaveTimer.current) clearTimeout(emergencyContactSaveTimer.current);
+      const run = async () => {
+        setSaving(true);
+        try {
+          await fetch(`/api/documents/${documentId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ emergencyContactRows: serializeEmergencyContactRows() }),
+          });
+          setSavedAt(new Date());
+        } finally {
+          setSaving(false);
+        }
+      };
+      if (immediate) return run();
+      emergencyContactSaveTimer.current = setTimeout(run, 15000);
+      return Promise.resolve();
+    };
+
+    const appendEmergencyContactRow = () => {
+      if (!emergencyContactTbody || !emergencyContactTemplate) return;
+      const fragment = emergencyContactTemplate.content.cloneNode(true) as DocumentFragment;
+      const tr = fragment.querySelector<HTMLElement>("tr");
+      if (!tr) return;
+      tr.dataset.emergencyContactId = `ec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      emergencyContactTbody.appendChild(tr);
+      saveEmergencyContactRows(true);
     };
 
     // src/lib/riskTemplates.ts의 categorizeRiskProcess()와 반드시 같은 규칙을 유지할 것 —
@@ -591,6 +644,10 @@ export default function WizardScreen({
         savePpeQuantities(false);
         return;
       }
+      if (el.matches("[data-emergency-contact-field]")) {
+        saveEmergencyContactRows(false);
+        return;
+      }
       if (el.matches("[data-template-select]")) return;
       const key = el.dataset.wizardKey;
       if (!key) return;
@@ -662,6 +719,20 @@ export default function WizardScreen({
         if (tr) deleteHazardRow(tr);
         return;
       }
+      if (btn.hasAttribute("data-emergency-contact-add")) {
+        e.preventDefault();
+        appendEmergencyContactRow();
+        return;
+      }
+      if (btn.hasAttribute("data-emergency-contact-delete")) {
+        e.preventDefault();
+        const tr = btn.closest<HTMLElement>("tr[data-emergency-contact-id]");
+        if (tr && confirm("이 기관을 삭제하시겠습니까?")) {
+          tr.remove();
+          saveEmergencyContactRows(true);
+        }
+        return;
+      }
       if (btn.hasAttribute("data-risk-tab")) {
         e.preventDefault();
         onRiskTabClick(btn);
@@ -714,6 +785,7 @@ export default function WizardScreen({
           saveRiskRows(true);
           void flushAllHazardSaves();
           void savePpeQuantities(true);
+          void saveEmergencyContactRows(true);
           return;
         }
         void exportDocument(exportFormat!, btn as HTMLButtonElement);
@@ -726,6 +798,7 @@ export default function WizardScreen({
         saveRiskRows(true);
         void flushAllHazardSaves();
         void savePpeQuantities(true);
+        void saveEmergencyContactRows(true);
       }
     };
 
@@ -738,6 +811,7 @@ export default function WizardScreen({
         await saveRiskRows(true);
         await flushAllHazardSaves();
         await savePpeQuantities(true);
+        await saveEmergencyContactRows(true);
         const res = await fetch(`/api/documents/${documentId}/export?format=${format}`);
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -860,6 +934,7 @@ export default function WizardScreen({
       if (saveTimer.current) clearTimeout(saveTimer.current);
       if (riskSaveTimer.current) clearTimeout(riskSaveTimer.current);
       if (ppeQtySaveTimer.current) clearTimeout(ppeQtySaveTimer.current);
+      if (emergencyContactSaveTimer.current) clearTimeout(emergencyContactSaveTimer.current);
       Object.values(hazardTimersMap).forEach((t) => clearTimeout(t));
     };
   }, [documentId, downloadsLocked, router]);

@@ -74,6 +74,14 @@ export type AgencyTemplateRow = {
   // sections 배열에서 기존 "protection_equipment" 범용 항목을 반드시 제거할 것 —
   // 안 그러면 같은 이름의 절이 두 번 나온다.
   show_protection_equipment_plan?: boolean;
+  // "중대산업재해 등 비상 상황시 조치계획"(실제 LH 샘플 화성동탄(2) 109~121p)을
+  // 고정 서식으로 보여줄지 여부. 비상대책반 구성(다이어그램, 성명·연락처 입력)과
+  // 유관기관 비상연락체계(기관명·담당부서·전화번호를 자유롭게 추가·삭제 가능한 표)만
+  // 실제 입력 가능하고, 나머지(비상사태 대응계획, 발생유형별 대응 시나리오, 재해조사
+  // 및 대책수립, 발생보고, 처리계통도, 응급처치요령)는 고정 문구다. 기존 base
+  // 템플릿의 공통 섹션 "emergency"(Stitch 데모 카드)와 내용이 겹치므로, 이 플래그를
+  // 켜는 발주처는 반드시 disabled_common_sections에 "emergency"를 추가할 것.
+  show_emergency_plan?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

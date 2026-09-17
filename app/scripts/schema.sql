@@ -208,6 +208,14 @@ alter table public.agency_templates add column if not exists show_daily_inspecti
 -- show_daily_inspection_plan을 반드시 켤 것.
 alter table public.agency_templates add column if not exists show_ptw_plan boolean not null default false;
 
+-- show_protection_equipment_plan: "보호구 지급 및 착용확인 절차"(실제 LH 샘플
+-- 화성동탄(2) 96p, "5.3 보호구 지급 및 착용확인 절차")를 고정 서식 표로 보여줄지
+-- 여부. 품명·대상작업·유지관리 문구는 고정이고, 지급 예정수량 칸만 실제 입력
+-- 가능한 input(documents.content.ppeQuantities에 저장)이다. 이 플래그를 켜는
+-- 발주처는 agency_templates.sections에서 기존 "protection_equipment" 범용
+-- 항목(label+textarea)을 반드시 제거할 것 — 안 그러면 같은 절이 두 번 나온다.
+alter table public.agency_templates add column if not exists show_protection_equipment_plan boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

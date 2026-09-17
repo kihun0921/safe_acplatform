@@ -66,6 +66,14 @@ export type AgencyTemplateRow = {
   // 발주처 서식에는 해당 내용이 어느 쪽에도 나오지 않는다 — 새 발주처를 추가할
   // 때는 반드시 이 두 플래그(및 show_daily_inspection_plan)를 켤 것.
   show_ptw_plan?: boolean;
+  // "보호구 지급 및 착용확인 절차"(품목별 지급 예정수량·대상·유지관리·착용확인 절차)를
+  // 고정 서식 표로 보여줄지 여부. 품명·대상작업·유지관리 문구는 실제 LH 샘플(화성동탄(2)
+  // 96p)대로 고정되어 있고, 지급 예정수량 칸만 실제 입력 가능한 input이다(과거에는
+  // agency_templates.sections의 범용 label+textarea 항목이라 "(수량 미입력)"이라는
+  // 고정 문구만 표시되고 실제로 입력할 방법이 없었다). 이 플래그를 켜는 발주처는
+  // sections 배열에서 기존 "protection_equipment" 범용 항목을 반드시 제거할 것 —
+  // 안 그러면 같은 이름의 절이 두 번 나온다.
+  show_protection_equipment_plan?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

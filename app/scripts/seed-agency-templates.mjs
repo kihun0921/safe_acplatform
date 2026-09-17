@@ -91,6 +91,13 @@ const TEMPLATES = [
     // 제거했다 — 산업안전보건법령에 따른 표준 절차라 아래 한국전력공사
     // 표준서식에도 동일하게 켜둔다.
     show_ptw_plan: true,
+    // "보호구 지급 및 착용확인 절차"(실제 LH 샘플 화성동탄(2) 96p, "5.3 보호구
+    // 지급 및 착용확인 절차")를 고정 서식 표로 보여준다. 품명·대상작업·유지관리는
+    // 고정이고 지급 예정수량만 실제 입력 가능한 칸이다 — 예전에는 아래 sections의
+    // 범용 "protection_equipment" 항목이라 수량이 "(수량 미입력)" 고정 문구로만
+    // 나오고 입력할 방법이 없었다는 지적을 받아 이 플래그로 대체했다(sections에서
+    // 해당 항목 제거함).
+    show_protection_equipment_plan: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -177,34 +184,6 @@ const TEMPLATES = [
               "실시시기: 정기 간담회 — 현장소장 주재, 매월 2회 이상 / 수시 간담회 — 현장소장이 필요하다고 판단 시\n" +
               "회의내용: 안전보건경영방침 및 목표 달성 모니터링, 안전보건관련 규정의 효율적인 작동상태 확인, 중대재해처벌법·산업안전보건법·건설기술진흥법 등 준수여부 확인, 유해위험요인의 제거·대체 및 통제 방안 검토, 인력 및 예산 등 자원지원 방안, 평가 및 개선활동 결과내용 검토, 종사자 의견청취\n" +
               "사후관리: 결정사항 즉시 실행, 전 조직 전파 및 공유, 경영방침·목표·계획에 반영",
-          },
-        ],
-      },
-      {
-        id: "protection_equipment",
-        label: "보호구 지급 현황",
-        fields: [
-          {
-            key: "ppe_list",
-            label: "품목별 지급 예정수량 및 지급 대상",
-            type: "textarea",
-            placeholder: "안전모/안전대/안전화/보안경/방진마스크 등 품목별 지급수량과 지급 대상(전 근로자/특정 공종)을 입력하세요",
-            default:
-              "· 안전모: (수량 미입력) — 근로자 1인별 지급, 훼손 시 추가지급, 해당 전 근로자에게 지급\n" +
-              "· 안전대: (수량 미입력) — 높이 또는 깊이 2미터 이상 추락 위험 작업 근로자\n" +
-              "· 안전화: (수량 미입력) — 물체의 낙하·충격, 감전 위험이 있는 작업 근로자\n" +
-              "· 보안경: (수량 미입력) — 물체가 흩날릴 위험이 있는 작업 근로자\n" +
-              "· 방진마스크: (수량 미입력) — 분진이 심하게 발생하는 작업 근로자",
-          },
-          {
-            key: "ppe_management",
-            label: "지급·착용확인 및 유지관리 절차",
-            type: "textarea",
-            placeholder: "지급대장 관리, 작업 전·중 착용상태 확인 절차, 훼손·노후 보호구 폐기 및 재지급 기준을 입력하세요",
-            default:
-              "현장소장·안전관리자·관리감독자는 매일 순회점검, TBM, 안전교육 등을 통하여 상시 착용하도록 조치하고, 작업 전·중·후 상시적으로 착용한 상태에서 작업할 수 있도록 점검확인한다.\n" +
-              "미착용 근로자 발생 시 즉시 착용토록 조치하고, 지속·반복적으로 미착용 시 작업배제 등 강력 조치한다.\n" +
-              "심하게 훼손되거나 정상기능을 상실한 노후 보호구는 폐기하고 즉시 재지급한다.",
           },
         ],
       },
@@ -415,6 +394,7 @@ const TEMPLATES = [
     show_hazard_management: true,
     show_daily_inspection_plan: true,
     show_ptw_plan: true,
+    show_protection_equipment_plan: true,
     // 실제 목차 순서(Ⅰ.과업개요 → Ⅱ.안전보건관리체제 → Ⅲ.안전보건관리 실행 →
     // Ⅳ.안전보건 운영관리 → Ⅴ.재해발생 수준)에 맞춰 공통 절과 K-water 전용
     // 절을 장(章)별로 묶는다.
@@ -447,31 +427,6 @@ const TEMPLATES = [
     ],
     disabled_common_sections: [],
     sections: [
-      {
-        id: "protection_equipment",
-        label: "보호구 지급, 착용 및 관리계획",
-        fields: [
-          {
-            key: "ppe_list",
-            label: "품명·수량·지급계획 및 대상",
-            type: "textarea",
-            placeholder: "품명별 지급수량과 지급 대상을 입력하세요",
-            default:
-              "· 안전모: 5개 — 근로자 전원 지급\n" +
-              "· 안전화: 5개 — 근로자 전원 지급\n" +
-              "· 신호수용 반사조끼: 5개 — 신호수·유도자 지급\n" +
-              "· 각반: 5개 — 근로자 전원 지급",
-          },
-          {
-            key: "ppe_management",
-            label: "유지 및 관리계획",
-            type: "textarea",
-            placeholder: "지급대장 관리, 착용상태 확인 절차, 훼손 보호구 폐기·재지급 기준을 입력하세요",
-            default:
-              "현장소장·관리감독자는 보호구 지급대장을 운영하고, 작업 전·중 착용상태를 수시 확인한다. 훼손되거나 성능이 저하된 보호구는 즉시 폐기하고 재지급하며, 개인별 보관·관리 원칙을 교육한다.",
-          },
-        ],
-      },
       {
         id: "joint_inspection_kwater",
         label: "합동 안전·보건점검 이행",
@@ -611,6 +566,7 @@ for (const t of TEMPLATES) {
   const showHazardManagement = t.show_hazard_management ?? false;
   const showDailyInspectionPlan = t.show_daily_inspection_plan ?? false;
   const showPtwPlan = t.show_ptw_plan ?? false;
+  const showProtectionEquipmentPlan = t.show_protection_equipment_plan ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -631,6 +587,7 @@ for (const t of TEMPLATES) {
         show_hazard_management: showHazardManagement,
         show_daily_inspection_plan: showDailyInspectionPlan,
         show_ptw_plan: showPtwPlan,
+        show_protection_equipment_plan: showProtectionEquipmentPlan,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -656,6 +613,7 @@ for (const t of TEMPLATES) {
         show_hazard_management: showHazardManagement,
         show_daily_inspection_plan: showDailyInspectionPlan,
         show_ptw_plan: showPtwPlan,
+        show_protection_equipment_plan: showProtectionEquipmentPlan,
       })
       .select("id")
       .single();

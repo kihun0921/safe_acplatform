@@ -2005,6 +2005,130 @@ ${roleRows}
 `;
 }
 
+// "보호구 지급 및 착용확인 절차" — 실제 LH 샘플 화성동탄(2) 96p("5.3 보호구 지급 및
+// 착용확인 절차")의 품목·대상작업·유지관리·착용확인 절차를 그대로 반영하되, 원본의
+// 지급 예정수량(현장마다 다른 값)은 고정하지 않고 실제 입력 가능한 칸으로 바꿨다 —
+// 기존에는 이 절이 발주처 표준서식의 범용 sections(label+textarea) 항목이라 수량이
+// "(수량 미입력)"이라는 고정 문구로만 표시되고 실제로 입력할 방법이 없었다는 지적을
+// 받아, 품목별 고정 표는 그대로 두고 수량 칸만 실제 <input>으로 바꿔 해결했다.
+const PROTECTION_EQUIPMENT_ITEMS: { name: string; target: string; examplePlaceholder: string }[] = [
+  {
+    name: "안전모\n(근로자 1인별 지급, 훼손 시 추가지급)",
+    target: "물체가 떨어지거나 날아올 위험 또는 근로자가 추락할 위험이 있는 작업. 해당 전 근로자에게 지급",
+    examplePlaceholder: "예: 100",
+  },
+  {
+    name: "안전대\n(안전대 부착설비 포함)",
+    target: "높이 또는 깊이 2미터 이상의 추락할 위험이 있는 장소에서 하는 작업. 해당 전 근로자에게 지급",
+    examplePlaceholder: "예: 20",
+  },
+  {
+    name: "안전화\n(지급 후 최소 3개월 경과자 추가지급)",
+    target: "물체의 낙하·충격, 감전 또는 정전기의 대전에 의한 위험이 있는 작업. 해당 전 근로자에게 지급",
+    examplePlaceholder: "예: 50",
+  },
+  {
+    name: "보안경\n(눈, 안면 보호)",
+    target: "물체가 흩날릴 위험이 있는 작업. 해당 전 근로자에게 지급",
+    examplePlaceholder: "예: 20",
+  },
+  {
+    name: "보안면\n(눈 보호 등)",
+    target: "용접 시 불꽃이나 물체가 흩날릴 위험이 있는 작업. 해당 전 근로자에게 지급",
+    examplePlaceholder: "예: 5",
+  },
+  {
+    name: "절연장갑\n(절연보호구, 손 감전예방)",
+    target: "감전의 위험이 있는 작업. 해당 전 근로자에게 지급",
+    examplePlaceholder: "예: 20",
+  },
+  {
+    name: "방진마스크\n(코로나 포함, 호흡기질환 예방)",
+    target: "분진이 심하게 발생하는 하역작업, 코로나바이러스 예방. 해당 전 근로자에게 지급",
+    examplePlaceholder: "예: 300",
+  },
+  {
+    name: "신호수용 반사조끼\n(신호수, 유도자)",
+    target: "차량계 건설기계 및 하역운반기계 등 신호수. 해당 전 근로자에게 지급",
+    examplePlaceholder: "예: 5",
+  },
+];
+
+const PROTECTION_EQUIPMENT_MAINTENANCE_TEXT =
+  "1. 관리감독자에 의해 보호구의 성능이 상시 적절하게 유지 관리될 수 있도록 수시 확인점검\n" +
+  "2. 심하게 훼손되거나 정상기능 상실, 노후화, 내용년수 경과(2년) 등 불량보호구에 대한 폐기조치\n" +
+  "3. 관리감독자에 의해 보호구의 분실을 예방하고, 온도(4℃~28℃)·진동·먼지·습도(50% 이하)·부식으로부터 보호되어 정밀·정확도가 안정되게 유지될 수 있도록 적합한 환경에서 보관관리\n" +
+  "4. 보관 시 고온다습한 곳이나 직사광선이 비치는 장소에는 보관금지\n" +
+  "5. 가능한 근로자 개인이 휴대하면서 취급 및 관리하도록 유도, 교육\n" +
+  "6. 보호구의 착용률을 높이기 위하여 가능한 근로자 개인이 직접 구입하여 사용하게 함(추후 구입비용 지급)";
+
+const PROTECTION_EQUIPMENT_CONFIRM_TEXT =
+  "1. 현장소장, 안전관리자, 관리감독자 등에 의해 매일 순회점검, TBM, 안전교육 등을 통하여 상시 착용하도록 조치하고, 작업 전·중·후 상시적으로 착용한 상태에서 작업할 수 있도록 점검확인.\n" +
+  "2. 미착용 근로자 발생 시 즉시 착용토록 조치하고, 지속·반복적으로 미착용 근로자 발생 시 강력하게 작업배제 조치 등 시행.\n" +
+  "3. 특히, 안전모 턱끈·안전대는 반드시 착용 조치.";
+
+function buildProtectionEquipmentNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-protection_equipment">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  02
+                </span>
+<span class="group-hover:text-neutral-900">보호구 지급 및 착용확인 절차</span>
+</div>
+</a>
+`;
+}
+
+function buildProtectionEquipmentSectionHtml(savedQuantities: Record<string, string>): string {
+  const itemRows = PROTECTION_EQUIPMENT_ITEMS.map(({ name, target, examplePlaceholder }, i) => {
+    const saved = escapeHtmlPolicy(savedQuantities[String(i)] ?? "");
+    return `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top whitespace-pre-line w-[18%]">${escapeHtmlPolicy(
+      name
+    )}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top w-[14%]">
+<div class="flex items-center gap-1">
+<input type="text" inputmode="numeric" data-ppe-qty="${i}" class="w-16 text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1 text-neutral-900" placeholder="${escapeHtmlPolicy(
+      examplePlaceholder
+    )}" value="${saved}"/>
+<span class="text-neutral-500">개</span>
+</div>
+</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">${escapeHtmlPolicy(target)}</td>
+</tr>`;
+  }).join("\n");
+
+  const readonlyBlocks = [
+    dipReadonlyBlock("유지 및 관리계획", PROTECTION_EQUIPMENT_MAINTENANCE_TEXT),
+    dipReadonlyBlock("지급·착용확인 절차", PROTECTION_EQUIPMENT_CONFIRM_TEXT),
+  ].join("\n");
+
+  return `<!-- ════════ SECTION: 보호구 지급 및 착용확인 절차 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-protection_equipment">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅲ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">보호구 지급 및 착용확인 절차</h2>
+</div>
+<div class="p-6 space-y-5">
+<p class="text-xs text-neutral-500">품목·대상작업은 산업안전보건기준에 관한 규칙에 따른 표준 항목으로 고정되어 있으며, 지급 예정수량만 현장 실정에 맞게 직접 입력합니다.</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">품명</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">지급 예정수량</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">지급계획 및 대상</th>
+</tr>
+</thead>
+<tbody>
+${itemRows}
+</tbody>
+</table>
+${readonlyBlocks}
+</div>
+</section>
+`;
+}
+
 // "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
 // 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
 // 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
@@ -2299,7 +2423,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_risk_assessment_rules ? 1 : 0) +
     (agencyTemplate?.show_hazard_management ? 3 : 0) +
     (agencyTemplate?.show_daily_inspection_plan ? 1 : 0) +
-    (agencyTemplate?.show_ptw_plan ? 1 : 0);
+    (agencyTemplate?.show_ptw_plan ? 1 : 0) +
+    (agencyTemplate?.show_protection_equipment_plan ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -2422,6 +2547,13 @@ ${templateOptions
     : "";
   const ptwPlanNavHtml = agencyTemplate?.show_ptw_plan ? buildPtwPlanNavHtml() : "";
   const ptwPlanSectionHtml = agencyTemplate?.show_ptw_plan ? buildPtwPlanSectionHtml() : "";
+  const ppeQuantities = (doc.content?.ppeQuantities as Record<string, string> | undefined) ?? {};
+  const protectionEquipmentNavHtml = agencyTemplate?.show_protection_equipment_plan
+    ? buildProtectionEquipmentNavHtml()
+    : "";
+  const protectionEquipmentSectionHtml = agencyTemplate?.show_protection_equipment_plan
+    ? buildProtectionEquipmentSectionHtml(ppeQuantities)
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -2464,6 +2596,10 @@ ${templateOptions
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
       `${ptwPlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${protectionEquipmentNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
@@ -2516,7 +2652,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     )
     .replace(
       '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
@@ -2569,6 +2705,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.hazard_substance = "유해·위험물질(MSDS) 관리계획";
     commonLabels.daily_inspection_plan = "안전점검 및 일일 순회계획";
     commonLabels.ptw_plan = "중점 위험작업허가제(PTW)";
+    commonLabels.protection_equipment = "보호구 지급 및 착용확인 절차";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

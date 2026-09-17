@@ -29,6 +29,7 @@ export default function WizardScreen({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hazardSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const ppeQtySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -62,7 +63,7 @@ export default function WizardScreen({
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
+        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -170,6 +171,35 @@ export default function WizardScreen({
       };
       if (immediate) return run();
       riskSaveTimer.current = setTimeout(run, 15000);
+      return Promise.resolve();
+    };
+
+    // ── 보호구 지급 예정수량(Ⅲ. sec-protection_equipment): 품목 개수가 고정된
+    // 표라 riskRows처럼 행 추가/삭제는 없지만, 같은 이유로(다른 필드들과 인덱스가
+    // 섞이지 않도록) field-N 체계 대신 documents.content.ppeQuantities에 인덱스
+    // 키로 별도 저장한다.
+    const savePpeQuantities = (immediate = false): Promise<void> => {
+      if (ppeQtySaveTimer.current) clearTimeout(ppeQtySaveTimer.current);
+      const run = async () => {
+        setSaving(true);
+        try {
+          const quantities: Record<string, string> = {};
+          root.querySelectorAll<HTMLInputElement>("[data-ppe-qty]").forEach((el) => {
+            const key = el.dataset.ppeQty;
+            if (key !== undefined) quantities[key] = el.value;
+          });
+          await fetch(`/api/documents/${documentId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ppeQuantities: quantities }),
+          });
+          setSavedAt(new Date());
+        } finally {
+          setSaving(false);
+        }
+      };
+      if (immediate) return run();
+      ppeQtySaveTimer.current = setTimeout(run, 15000);
       return Promise.resolve();
     };
 
@@ -557,6 +587,10 @@ export default function WizardScreen({
         if (section?.dataset.hazardSection) saveHazardRows(section.dataset.hazardSection, false);
         return;
       }
+      if (el.matches("[data-ppe-qty]")) {
+        savePpeQuantities(false);
+        return;
+      }
       if (el.matches("[data-template-select]")) return;
       const key = el.dataset.wizardKey;
       if (!key) return;
@@ -679,6 +713,7 @@ export default function WizardScreen({
           void doSave(true);
           saveRiskRows(true);
           void flushAllHazardSaves();
+          void savePpeQuantities(true);
           return;
         }
         void exportDocument(exportFormat!, btn as HTMLButtonElement);
@@ -690,6 +725,7 @@ export default function WizardScreen({
         doSave(true);
         saveRiskRows(true);
         void flushAllHazardSaves();
+        void savePpeQuantities(true);
       }
     };
 
@@ -701,6 +737,7 @@ export default function WizardScreen({
         await doSave(true);
         await saveRiskRows(true);
         await flushAllHazardSaves();
+        await savePpeQuantities(true);
         const res = await fetch(`/api/documents/${documentId}/export?format=${format}`);
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -822,6 +859,7 @@ export default function WizardScreen({
       sectionObserver.disconnect();
       if (saveTimer.current) clearTimeout(saveTimer.current);
       if (riskSaveTimer.current) clearTimeout(riskSaveTimer.current);
+      if (ppeQtySaveTimer.current) clearTimeout(ppeQtySaveTimer.current);
       Object.values(hazardTimersMap).forEach((t) => clearTimeout(t));
     };
   }, [documentId, downloadsLocked, router]);

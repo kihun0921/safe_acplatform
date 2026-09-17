@@ -332,13 +332,16 @@ async function fetchKepco(): Promise<NormalizedAnnouncement[]> {
 // 한국토지주택공사(LH) 개찰정보(개찰결과정보) — data.go.kr 공공데이터포털의 계정별
 // 일반 인증키(NARA_SERVICE_KEY)를 그대로 재사용한다(API별로 별도 발급되는 키가 아님).
 // 이 API는 "새 공고 목록"이 아니라 특정 공고(bidNum)에 대해 참여 업체별 개찰 결과를
-// 한 행씩 반환한다(같은 bidNum이 여러 item으로 반복). 아직 낙찰자 확정 전 상태가
-// 섞여 있고(vndrSccfBidStatusNm이 "낙찰하한율미만"/"미심사" 등) 실제 "낙찰" 상태
-// 문자열은 확인되지 않았으므로, group 안에서 투찰금액(decTndrAmt)이 가장 낮은 업체를
-// 잠정 낙찰자로 본다(국내 공공 건설입찰의 통상적인 최저가 낙찰 관행 기준).
-// KEPCO와 마찬가지로 자체 발주기관 API이므로 PPS 공고와 별개의 api_source="lh"
-// 행으로 직접 생성하고 awarded:true로 저장한다(마감 전 신규공고 목록이 아니라 이미
-// 개찰이 끝난 결과 데이터이므로).
+// 한 행씩 반환한다(같은 bidNum이 여러 item으로 반복). 이건 개찰 직후의 참고 정보일
+// 뿐 낙찰(확정) 정보가 아니다 — 실제 "낙찰" 확정 상태 문자열은 확인되지 않았고,
+// vndrSccfBidStatusNm에도 심사/확정 전 상태("낙찰하한율미만"/"미심사" 등)만 섞여
+// 있으므로, group 안에서 낙찰하한율 미달 업체를 제외한 투찰금액(decTndrAmt) 최저
+// 업체를 "1순위(최저가) 투찰업체"로만 표시한다. PPS의 개찰결과(fetchPPSOpeningResult)
+// 와 동일하게 award_status="provisional"로 저장하며, 프론트(announcements/page.tsx)의
+// awardedBadge()가 이를 "낙찰확정"이 아닌 "낙찰 유력(1순위)"로 표시해 낙찰 단정과
+// 구분한다. KEPCO와 마찬가지로 자체 발주기관 API이므로 PPS 공고와 별개의
+// api_source="lh" 행으로 직접 생성한다(마감 전 신규공고 목록이 아니라 이미 개찰이
+// 끝난 결과 데이터이므로).
 function parseLHOpenDate(raw: string): string {
   const m = raw.match(/(\d{4})\/(\d{2})\/(\d{2})/);
   return m ? `${m[1]}-${m[2]}-${m[3]}` : "";
@@ -403,8 +406,8 @@ async function fetchLH(): Promise<NormalizedAnnouncement[]> {
       (i) => toAmount(i.decTndrAmt) !== null && i.vndrSccfBidStatusNm?.trim() !== "낙찰하한율미만"
     );
     const candidates = eligible.length > 0 ? eligible : group.filter((i) => toAmount(i.decTndrAmt) !== null);
-    const winner = candidates.sort((a, b) => Number(a.decTndrAmt) - Number(b.decTndrAmt))[0];
-    if (!winner) continue;
+    const rank1 = candidates.sort((a, b) => Number(a.decTndrAmt) - Number(b.decTndrAmt))[0];
+    if (!rank1) continue;
     const first = group[0];
     results.push({
       title: first.bidnmKor ?? "",
@@ -415,9 +418,12 @@ async function fetchLH(): Promise<NormalizedAnnouncement[]> {
       external_no: key,
       base_amount: toAmount(first.expectPrc || first.fdmtlAmt),
       source_url: "",
+      // 아래 awarded/winner_*는 "낙찰(확정)"이 아니라 "1순위(최저가) 투찰업체"
+      // 참고 정보다 — POST 핸들러가 award_status를 항상 "provisional"로만
+      // 매칭하며, 프론트는 이를 "낙찰 유력(1순위)"로 표시해 낙찰확정과 구분한다.
       awarded: true,
-      winner_name: winner.tndrVndrNm ?? "",
-      winner_amount: toAmount(winner.decTndrAmt),
+      winner_name: rank1.tndrVndrNm ?? "",
+      winner_amount: toAmount(rank1.decTndrAmt),
     });
   }
   return results.filter((a) => a.title && a.external_no && a.deadline);

@@ -472,7 +472,14 @@ export async function POST(request: Request) {
     external_no: a.external_no,
     source_url: a.source_url,
     last_synced_at: new Date().toISOString(),
-    ...(a.awarded ? { awarded: true, award_status: "confirmed" } : {}),
+    // awarded/award_status/winner_*는 여기서 절대 설정하지 않는다. PostgREST
+    // 벌크 upsert는 한 호출 안에서 행마다 다른 키 집합을 허용하지 않으므로(일부
+    // 행에만 키를 넣으면 나머지 행은 그 컬럼이 NULL로 삽입/갱신된다), kepco/lh
+    // 처럼 이미 확정된 낙찰 정보를 가진 소스와 pps/dapa처럼 아직 없는 소스가
+    // 같은 배치에 섞이면 "awarded" not-null 제약 위반이나(실제 발생), 기존에
+    // 확정돼 있던 pps 행의 award_status/winner_*가 NULL로 덮어써지는 사고로
+    // 이어진다. pps는 원래도 awardRows/openingRows로 별도 업데이트하므로,
+    // kepco/lh도 동일하게 기본 upsert 이후 별도 루프로만 반영한다.
   }));
 
   const BATCH_SIZE = 500;
@@ -485,6 +492,30 @@ export async function POST(request: Request) {
       .upsert(batch, { onConflict: "external_no,api_source", count: "exact" });
     if (error) errors.push(error.message);
     else upserted += count ?? batch.length;
+  }
+
+  // KEPCO/LH는 자체 API 응답 자체가 이미 낙찰 정보이므로 pps처럼 별도 매칭 API가
+  // 없다 — 방금 upsert한 자기 자신의 행을 대상으로 바로 반영한다. base upsert에서
+  // awarded/award_status를 일부러 비워뒀으므로 반드시 이 루프가 있어야 kepco/lh
+  // 행의 낙찰 정보가 실제로 저장된다. KEPCO는 API 자체가 progressState=Final만
+  // 반환하므로 "confirmed", LH는 낙찰하한율 미달 업체만 배제한 최저가 추정이라
+  // 공식 확정이 아니므로 pps의 개찰결과와 동일하게 "provisional"로 표시한다.
+  let kepcoLhMatched = 0;
+  const kepcoLhErrors: string[] = [];
+  for (const a of [...kepco, ...lh]) {
+    if (!a.awarded || !a.external_no) continue;
+    const { error } = await service
+      .from("announcements")
+      .update({
+        awarded: true,
+        winner_name: a.winner_name ?? null,
+        winner_amount: a.winner_amount ?? null,
+        award_status: a.api_source === "kepco" ? "confirmed" : "provisional",
+      })
+      .eq("external_no", a.external_no)
+      .eq("api_source", a.api_source);
+    if (error) kepcoLhErrors.push(error.message);
+    else kepcoLhMatched += 1;
   }
 
   // Award matching (PPS only) — bidNtceNo(=external_no) already exists as pps rows.
@@ -561,9 +592,11 @@ export async function POST(request: Request) {
     upserted,
     awardMatched,
     openingMatched,
+    kepcoLhMatched,
     errors: errors.slice(0, 5),
     awardErrors: awardErrors.slice(0, 5),
     openingErrors: openingErrors.slice(0, 5),
+    kepcoLhErrors: kepcoLhErrors.slice(0, 5),
     ranBy: isCron ? "cron" : user?.email,
   };
 

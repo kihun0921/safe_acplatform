@@ -784,10 +784,35 @@ function buildManagementPolicySectionHtml(params: {
 `;
 }
 
+// 박스+연결선 형태의 조직도/비상대책반 다이어그램에 쓰는 공용 박스 한 칸.
+// findLabel()(wizardExport.ts)은 입력요소의 조상 중 "직계 자식"으로 <label>을
+// 가진 첫 조상을 찾으므로, 역할명을 <p>로만 적으면 라벨이 매칭되지 않아 (전용
+// 추출 함수 없이 범용 경로를 타는 다이어그램의 경우) 다운로드 문서에서 성명·
+// 연락처 값이 통째로 누락된다 — 성명/연락처 입력을 각각 별도 wrapper로 감싸고
+// 그 안에 (숨김) <label>을 직계 자식으로 둔다.
+function buildDiagramBoxHtml(idPrefix: string, key: string, role: string): string {
+  const roleOneLine = role.replace(/\n/g, " ");
+  return `<div class="border-2 border-neutral-300 rounded-lg bg-white px-3 py-2 text-center shadow-xs min-w-[150px]">
+<p class="text-[11px] font-bold text-neutral-800 whitespace-pre-line leading-tight mb-1.5">${escapeHtmlPolicy(
+    role
+  )}</p>
+<div class="mb-1">
+<label class="sr-only" for="wizard-field-${idPrefix}-${key}-name">${escapeHtmlPolicy(roleOneLine)} 성명</label>
+<input id="wizard-field-${idPrefix}-${key}-name" class="w-full text-xs text-center border border-neutral-300 rounded px-2 py-1" type="text" placeholder="성명"/>
+</div>
+<div>
+<label class="sr-only" for="wizard-field-${idPrefix}-${key}-contact">${escapeHtmlPolicy(roleOneLine)} 연락처</label>
+<input id="wizard-field-${idPrefix}-${key}-contact" data-phone-format class="w-full text-xs text-center border border-neutral-300 rounded px-2 py-1" type="text" inputmode="numeric" placeholder="연락처"/>
+</div>
+</div>`;
+}
+const DIAGRAM_V_LINE = `<div class="w-px h-4 bg-neutral-300 mx-auto"></div>`;
+
 // "안전보건관리 조직구성"(현장 조직도) — 직책은 실제 표준 조직도 그대로 고정값이고
-// 성명·연락처만 입력할 수 있다. 표(<table>) 형태로 만들어 두면 wizardExport.ts의
-// 위험성평가 표와 동일한 방식(셀 안의 input을 값으로 읽음)으로 별도 코드 없이
-// 자동으로 다운로드 문서에도 표 그대로 출력된다.
+// 성명·연락처만 입력할 수 있다. 다운로드 문서는 wizardExport.ts의 extractOrgChartData가
+// wizard-field-org-* 고정 id로 직접 읽어 별도 박스+연결선 다이어그램을 그리므로(이
+// 섹션은 export route의 excludeIds에 포함되어 범용 표 추출을 타지 않음), 화면
+// 쪽도 표 대신 같은 박스+연결선 다이어그램으로 보여준다.
 const ORG_CHART_ROLES: { key: string; role: string }[] = [
   { key: "site-manager", role: "안전보건관리책임자(현장소장)" },
   { key: "safety-manager", role: "안전관리자(안전담당자)" },
@@ -809,13 +834,20 @@ function buildOrgChartNavHtml(): string {
 }
 
 function buildOrgChartSectionHtml(): string {
-  const rows = ORG_CHART_ROLES.map(
-    ({ key, role }) => `<tr>
-<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-middle">${role}</td>
-<td class="px-3 py-2 border-b border-neutral-100"><input id="wizard-field-org-${key}-name" class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" type="text" placeholder="성명"/></td>
-<td class="px-3 py-2 border-b border-neutral-100"><input id="wizard-field-org-${key}-contact" data-phone-format class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" type="text" inputmode="numeric" placeholder="연락처 (하이픈 자동 입력)"/></td>
-</tr>`
-  ).join("\n");
+  const [siteManager, safetyManager, supervisor, team1, team2] = ORG_CHART_ROLES;
+
+  const orgDiagram = `<div class="flex flex-col items-center gap-0 py-2">
+${buildDiagramBoxHtml("org", siteManager.key, siteManager.role)}
+${DIAGRAM_V_LINE}
+${buildDiagramBoxHtml("org", safetyManager.key, safetyManager.role)}
+${DIAGRAM_V_LINE}
+${buildDiagramBoxHtml("org", supervisor.key, supervisor.role)}
+${DIAGRAM_V_LINE}
+<div class="flex flex-wrap justify-center gap-4">
+${buildDiagramBoxHtml("org", team1.key, team1.role)}
+${buildDiagramBoxHtml("org", team2.key, team2.role)}
+</div>
+</div>`;
 
   return `<!-- ════════ SECTION: 안전보건관리 조직구성 ════════ -->
 <section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-org_chart">
@@ -825,18 +857,7 @@ function buildOrgChartSectionHtml(): string {
 </div>
 <div class="p-6">
 <p class="text-xs text-neutral-500 mb-3">현장 사업소 조직도(임무 및 비상연락망 포함) — 직책은 표준 조직도에 맞춰 고정되어 있고, 성명·연락처만 입력하면 됩니다.</p>
-<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden">
-<thead>
-<tr class="bg-neutral-50">
-<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">직책</th>
-<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">성명</th>
-<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">연락처</th>
-</tr>
-</thead>
-<tbody>
-${rows}
-</tbody>
-</table>
+${orgDiagram}
 </div>
 </section>
 `;
@@ -2370,39 +2391,19 @@ function buildEmergencyPlanNavHtml(): string {
 }
 
 function buildEmergencyPlanSectionHtml(emergencyContactRows: EmergencyContactRow[] | undefined): string {
-  // findLabel()(wizardExport.ts)은 입력요소의 조상 중 "직계 자식"으로 <label>을
-  // 가진 첫 조상을 찾으므로, 역할명을 <p>로만 적으면 라벨이 매칭되지 않아
-  // 다운로드 문서에서 이 성명·연락처 값이 통째로 누락된다 — 성명/연락처 입력을
-  // 각각 별도 wrapper로 감싸고 그 안에 (숨김) <label>을 직계 자식으로 둔다.
-  const roleOneLine = (role: string) => role.replace(/\n/g, " ");
-  const teamBoxHtml = (key: string, role: string) => `<div class="border-2 border-neutral-300 rounded-lg bg-white px-3 py-2 text-center shadow-xs min-w-[150px]">
-<p class="text-[11px] font-bold text-neutral-800 whitespace-pre-line leading-tight mb-1.5">${escapeHtmlPolicy(
-    role
-  )}</p>
-<div class="mb-1">
-<label class="sr-only" for="wizard-field-emteam-${key}-name">${escapeHtmlPolicy(roleOneLine(role))} 성명</label>
-<input id="wizard-field-emteam-${key}-name" class="w-full text-xs text-center border border-neutral-300 rounded px-2 py-1" type="text" placeholder="성명"/>
-</div>
-<div>
-<label class="sr-only" for="wizard-field-emteam-${key}-contact">${escapeHtmlPolicy(roleOneLine(role))} 연락처</label>
-<input id="wizard-field-emteam-${key}-contact" data-phone-format class="w-full text-xs text-center border border-neutral-300 rounded px-2 py-1" type="text" inputmode="numeric" placeholder="연락처"/>
-</div>
-</div>`;
-
-  const vLine = `<div class="w-px h-4 bg-neutral-300 mx-auto"></div>`;
   const [chief, safetyManager, controlTeam, rescueTeam, supportTeam] = EMERGENCY_TEAM_ROLES;
 
   const orgDiagram = `<div class="flex flex-col items-center gap-0 py-2">
-${teamBoxHtml(chief.key, chief.role)}
-${vLine}
-${teamBoxHtml(safetyManager.key, safetyManager.role)}
-${vLine}
+${buildDiagramBoxHtml("emteam", chief.key, chief.role)}
+${DIAGRAM_V_LINE}
+${buildDiagramBoxHtml("emteam", safetyManager.key, safetyManager.role)}
+${DIAGRAM_V_LINE}
 <div class="flex flex-wrap justify-center gap-4">
-${teamBoxHtml(controlTeam.key, controlTeam.role)}
-${teamBoxHtml(rescueTeam.key, rescueTeam.role)}
-${teamBoxHtml(supportTeam.key, supportTeam.role)}
+${buildDiagramBoxHtml("emteam", controlTeam.key, controlTeam.role)}
+${buildDiagramBoxHtml("emteam", rescueTeam.key, rescueTeam.role)}
+${buildDiagramBoxHtml("emteam", supportTeam.key, supportTeam.role)}
 </div>
-${vLine}
+${DIAGRAM_V_LINE}
 <div class="border border-dashed border-neutral-300 rounded-lg bg-neutral-50 px-4 py-2 text-center text-[11px] font-semibold text-neutral-600">
 협력업체, 근로자
 </div>

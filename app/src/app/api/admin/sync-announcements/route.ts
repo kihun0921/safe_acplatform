@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import iconv from "iconv-lite";
 
 // Ported from the legacy Supabase Edge Function `supabase/functions/sync-announcements/index.ts`.
 // Same working fetch/paging/parsing logic — only the target schema's column
@@ -18,7 +19,7 @@ interface NormalizedAnnouncement {
   trade_type?: string | null;
   site_region?: string | null;
   attachments?: { name: string; url: string }[];
-  api_source: "pps" | "dapa" | "kepco" | "ex";
+  api_source: "pps" | "dapa" | "kepco" | "ex" | "lh";
   external_no: string;
   base_amount: number | null;
   source_url: string;
@@ -219,12 +220,16 @@ async function fetchPPSOpeningResult(): Promise<NormalizedOpeningResult[]> {
   ).then((items) => items.filter((i) => i.rank1_name));
 }
 
+// [^<]* 만으로는 "<tag>\n<![CDATA[ 값 ]]>\n</tag>" 형태(LH API 응답)를 못 읽는다 —
+// CDATA 시작 마커 자체가 "<"라서 [^<]*가 그 앞에서 멈춰버림. CDATA 유무 둘 다 매칭.
 function parseXmlItems(xml: string): Record<string, string>[] {
   const items: Record<string, string>[] = [];
   const itemBlocks = xml.match(/<item>([\s\S]*?)<\/item>/g) ?? [];
   for (const block of itemBlocks) {
     const fields: Record<string, string> = {};
-    for (const m of block.matchAll(/<(\w+)>([^<]*)<\/\1>/g)) fields[m[1]] = m[2];
+    for (const m of block.matchAll(/<(\w+)>\s*(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]*))\s*<\/\1>/g)) {
+      fields[m[1]] = (m[2] ?? m[3] ?? "").trim();
+    }
     items.push(fields);
   }
   return items;
@@ -324,6 +329,100 @@ async function fetchKepco(): Promise<NormalizedAnnouncement[]> {
   }
 }
 
+// 한국토지주택공사(LH) 개찰정보(개찰결과정보) — data.go.kr 공공데이터포털의 계정별
+// 일반 인증키(NARA_SERVICE_KEY)를 그대로 재사용한다(API별로 별도 발급되는 키가 아님).
+// 이 API는 "새 공고 목록"이 아니라 특정 공고(bidNum)에 대해 참여 업체별 개찰 결과를
+// 한 행씩 반환한다(같은 bidNum이 여러 item으로 반복). 아직 낙찰자 확정 전 상태가
+// 섞여 있고(vndrSccfBidStatusNm이 "낙찰하한율미만"/"미심사" 등) 실제 "낙찰" 상태
+// 문자열은 확인되지 않았으므로, group 안에서 투찰금액(decTndrAmt)이 가장 낮은 업체를
+// 잠정 낙찰자로 본다(국내 공공 건설입찰의 통상적인 최저가 낙찰 관행 기준).
+// KEPCO와 마찬가지로 자체 발주기관 API이므로 PPS 공고와 별개의 api_source="lh"
+// 행으로 직접 생성하고 awarded:true로 저장한다(마감 전 신규공고 목록이 아니라 이미
+// 개찰이 끝난 결과 데이터이므로).
+function parseLHOpenDate(raw: string): string {
+  const m = raw.match(/(\d{4})\/(\d{2})\/(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : "";
+}
+
+async function fetchLH(): Promise<NormalizedAnnouncement[]> {
+  if (!NARA_SERVICE_KEY) return [];
+
+  const today = new Date();
+  const windowEnd = new Date(today);
+  const windowBegin = new Date(today);
+  windowBegin.setDate(windowBegin.getDate() - 30);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const ymd = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+
+  const PAGE_SIZE = 999;
+  const MAX_PAGES = 10;
+  const items: Record<string, string>[] = [];
+
+  for (let pageNo = 1; pageNo <= MAX_PAGES; pageNo++) {
+    const url =
+      `https://apis.data.go.kr/B552555/OpenTenderopenList/getOpenTenderopenList` +
+      `?serviceKey=${NARA_SERVICE_KEY}&pageNo=${pageNo}&numOfRows=${PAGE_SIZE}` +
+      `&openDtmStart=${ymd(windowBegin)}&openDtmEnd=${ymd(windowEnd)}`;
+    try {
+      const res = await fetch(url);
+      // 응답 XML이 encoding="EUC-KR"로 선언되어 있고 실제 바이트도 EUC-KR이라
+      // res.text()(UTF-8 디코딩)로 읽으면 한글이 모두 깨진다.
+      const buf = Buffer.from(await res.arrayBuffer());
+      const xml = iconv.decode(buf, "euc-kr");
+      if (!xml.includes("<resultCode>00</resultCode>")) {
+        console.error("[LH] API error, raw response head:", xml.slice(0, 300));
+        break;
+      }
+      const parsed = parseXmlItems(xml);
+      if (parsed.length === 0) break;
+      items.push(...parsed);
+      const totalCountMatch = xml.match(/<totalCount>(\d+)<\/totalCount>/);
+      const totalCount = totalCountMatch ? Number(totalCountMatch[1]) : 0;
+      if (pageNo * PAGE_SIZE >= totalCount) break;
+    } catch (err) {
+      console.error("[LH] fetch failed:", err);
+      break;
+    }
+  }
+
+  const groups = new Map<string, Record<string, string>[]>();
+  for (const item of items) {
+    const key = `${item.bidNum ?? ""}:${item.bidDegree ?? ""}`;
+    const list = groups.get(key) ?? [];
+    list.push(item);
+    groups.set(key, list);
+  }
+
+  const results: NormalizedAnnouncement[] = [];
+  for (const [key, group] of groups) {
+    if (!key || key === ":") continue;
+    // "낙찰하한율미만"(낙찰하한율 미달로 이미 탈락 확정)인 업체는 최저가여도 후보에서
+    // 제외한다 — 실제 "낙찰" 성공 상태 문자열 표본은 아직 확보하지 못했으므로, 확인된
+    // 탈락 상태만 배제하고 나머지 중 최저가를 잠정 1순위로 추정한다.
+    const eligible = group.filter(
+      (i) => toAmount(i.decTndrAmt) !== null && i.vndrSccfBidStatusNm?.trim() !== "낙찰하한율미만"
+    );
+    const candidates = eligible.length > 0 ? eligible : group.filter((i) => toAmount(i.decTndrAmt) !== null);
+    const winner = candidates.sort((a, b) => Number(a.decTndrAmt) - Number(b.decTndrAmt))[0];
+    if (!winner) continue;
+    const first = group[0];
+    results.push({
+      title: first.bidnmKor ?? "",
+      agency: "한국토지주택공사",
+      deadline: parseLHOpenDate(first.openDtm ?? ""),
+      category: first.cstrtnJobGbNm || "건설공사",
+      api_source: "lh" as const,
+      external_no: key,
+      base_amount: toAmount(first.expectPrc || first.fdmtlAmt),
+      source_url: "",
+      awarded: true,
+      winner_name: winner.tndrVndrNm ?? "",
+      winner_amount: toAmount(winner.decTndrAmt),
+    });
+  }
+  return results.filter((a) => a.title && a.external_no && a.deadline);
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -346,14 +445,15 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const [pps, dapa, ppsAward, ppsOpeningResult, kepco] = await Promise.all([
+  const [pps, dapa, ppsAward, ppsOpeningResult, kepco, lh] = await Promise.all([
     fetchPPS(),
     fetchDapa(),
     fetchPPSAward(),
     fetchPPSOpeningResult(),
     fetchKepco(),
+    fetchLH(),
   ]);
-  const all = [...pps, ...dapa, ...kepco].filter((a) => a.title && a.external_no && a.deadline);
+  const all = [...pps, ...dapa, ...kepco, ...lh].filter((a) => a.title && a.external_no && a.deadline);
 
   const dedup = new Map<string, NormalizedAnnouncement>();
   for (const a of all) dedup.set(`${a.external_no}:${a.api_source}`, a);
@@ -456,6 +556,7 @@ export async function POST(request: Request) {
       ppsAward: ppsAward.length,
       ppsOpeningResult: ppsOpeningResult.length,
       kepco: kepco.length,
+      lh: lh.length,
     },
     upserted,
     awardMatched,

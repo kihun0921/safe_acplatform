@@ -67,6 +67,12 @@ export default function WizardScreen({
     );
     fieldEls.forEach((el, i) => {
       el.dataset.wizardKey = `field-${i}`;
+      // readonly 필드(공고 정보 자동 채움 입력, 법정 고정문구 안내 textarea 등)는
+      // 사용자가 값을 바꿀 수 없어 저장된 field-N 값을 절대 덮어써서는 안 된다 —
+      // 예전엔 이 조건이 없어서 다른 필드가 저장해 둔 값(예: 체크박스의 true)이
+      // 이 자리로 밀려 들어오면 그대로 표시돼 버렸다. 인덱스 카운팅은 기존
+      // 문서들의 field-N 매핑이 밀리지 않도록 그대로 유지한다.
+      if (el.hasAttribute("readonly")) return;
       const key = el.dataset.wizardKey;
       const saved = fieldsRef.current[key];
       if (saved === undefined) return;

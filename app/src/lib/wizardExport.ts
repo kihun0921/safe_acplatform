@@ -28,6 +28,9 @@ function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string |
   // 경로(riskRows, template_id, content.safetyPolicy, 즉시 처리 후 폐기,
   // hazard*Rows)를 쓰므로 애초에 field-N 인덱스 대상에서 빠지는데, 여기서 다르게
   // 세면 그 뒤에 나오는 모든 필드의 인덱스가 밀려서 엉뚱한 값이 출력물에 들어간다.
+  // readonly 필드(공고 정보 자동 채움 값, 법정 고정문구 안내 textarea 등)는 인덱스
+  // 집계에는 그대로 포함시키되(기존 문서들의 field-N 매핑이 밀리지 않도록) 저장된
+  // 값을 그 위에 덮어쓰지는 않는다 — WizardScreen.tsx와 동일한 원칙.
   const els = $("input, textarea, select").filter((_, el) => {
     const $el = $(el);
     const type = $el.attr("type");
@@ -41,10 +44,11 @@ function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string |
     return true;
   });
   els.each((i, el) => {
+    const $el = $(el);
+    if ($el.attr("readonly") !== undefined) return;
     const key = `field-${i}`;
     const saved = fields[key];
     if (saved === undefined) return;
-    const $el = $(el);
     const type = $el.attr("type");
     if (type === "checkbox" || type === "radio") {
       if (saved) $el.attr("checked", "");

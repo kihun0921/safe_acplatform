@@ -358,6 +358,7 @@ function OrgChartPage({ data }: { data: OrgChartData }) {
   const row2Y = 96;
   const row3Y = 172;
   const row4Y = 258;
+  const branchY = row3Y + ORG_BOX_H + (row4Y - (row3Y + ORG_BOX_H)) / 2;
   const centerX = 165;
   const leftX = 60;
   const rightX = 270;
@@ -372,8 +373,12 @@ function OrgChartPage({ data }: { data: OrgChartData }) {
       <Svg width="100%" height={320} viewBox="0 0 500 320">
         <Line x1={centerCx} y1={row1Y + ORG_BOX_H} x2={centerCx} y2={row2Y} stroke="#9ca3af" strokeWidth={1} />
         <Line x1={centerCx} y1={row2Y + ORG_BOX_H} x2={centerCx} y2={row3Y} stroke="#9ca3af" strokeWidth={1} />
-        <Line x1={centerCx} y1={row3Y + ORG_BOX_H} x2={leftCx} y2={row4Y} stroke="#9ca3af" strokeWidth={1} />
-        <Line x1={centerCx} y1={row3Y + ORG_BOX_H} x2={rightCx} y2={row4Y} stroke="#9ca3af" strokeWidth={1} />
+        {/* 관리감독자 → 작업 1·2팀장: 사선 대신 직각 꺾쇠(트렁크 → 가로 분기선 →
+            좌우로 곧게 내려감) 형태로 그린다. */}
+        <Line x1={centerCx} y1={row3Y + ORG_BOX_H} x2={centerCx} y2={branchY} stroke="#9ca3af" strokeWidth={1} />
+        <Line x1={leftCx} y1={branchY} x2={rightCx} y2={branchY} stroke="#9ca3af" strokeWidth={1} />
+        <Line x1={leftCx} y1={branchY} x2={leftCx} y2={row4Y} stroke="#9ca3af" strokeWidth={1} />
+        <Line x1={rightCx} y1={branchY} x2={rightCx} y2={row4Y} stroke="#9ca3af" strokeWidth={1} />
         <OrgChartBox x={centerX} y={row1Y} node={data.siteManager} />
         <OrgChartBox x={centerX} y={row2Y} node={data.safetyManager} />
         <OrgChartBox x={centerX} y={row3Y} node={data.supervisor} />

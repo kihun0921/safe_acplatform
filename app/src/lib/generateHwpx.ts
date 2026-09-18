@@ -186,8 +186,10 @@ function buildManagementPolicyParagraphs(data: ManagementPolicyData, hasImage: b
 }
 
 // "안전보건관리 조직구성"을 실제 조직도 다이어그램으로 그린다. 이 생성기는 순수
-// 텍스트 XML 조립 방식이라 도형/연결선을 그릴 수 없으므로, 유니코드 트리 문자로
-// 같은 위계 구조(책임자·안전관리자 → 관리감독자 → 작업팀장)를 표현한다.
+// 텍스트 XML 조립 방식이라(표/도형/연결선 자체를 지원하지 않음) DOCX·PDF처럼
+// 진짜 박스+연결선 다이어그램은 만들 수 없고, 유니코드 트리 문자로 위저드
+// 화면과 같은 위계(현장소장 → 안전관리자 → 관리감독자 → 작업 1·2팀장, 곧은
+// 한 줄로 이어지다 마지막에만 갈라짐)만 최대한 비슷하게 표현한다.
 function nodeLine(node: { role: string; name: string; contact: string }): string {
   return `${node.role} — ${node.name || "(미입력)"} / 연락처: ${node.contact || "(미입력)"}`;
 }
@@ -199,12 +201,13 @@ function buildOrgChartParagraphs(data: OrgChartData): string[] {
     textParagraph("나. 현장 사업소 조직도(임무 및 비상연락망 포함)", "0", false),
     emptyParagraph(),
     textParagraph(nodeLine(data.siteManager), "0", false),
-    textParagraph(nodeLine(data.safetyManager), "0", false),
     textParagraph("  │", "0", false),
-    textParagraph(`  └─ ${nodeLine(data.supervisor)}`, "0", false),
+    textParagraph(`  └─ ${nodeLine(data.safetyManager)}`, "0", false),
     textParagraph("      │", "0", false),
-    textParagraph(`      ├─ ${nodeLine(data.team1)}`, "0", false),
-    textParagraph(`      └─ ${nodeLine(data.team2)}`, "0", false),
+    textParagraph(`      └─ ${nodeLine(data.supervisor)}`, "0", false),
+    textParagraph("          │", "0", false),
+    textParagraph(`          ├─ ${nodeLine(data.team1)}`, "0", false),
+    textParagraph(`          └─ ${nodeLine(data.team2)}`, "0", false),
     emptyParagraph(),
     textParagraph("※ 위 선임 기술인력은 변경될 수 있습니다.", "0", false),
     emptyParagraph(),

@@ -348,33 +348,37 @@ function OrgChartBox({ x, y, node }: { x: number; y: number; node: OrgChartNode 
   );
 }
 
+// 위저드 화면(WizardScreen)의 박스+연결선 다이어그램과 동일한 위계로 맞춘다 —
+// 현장소장 → 안전관리자 → 관리감독자가 한 줄로 곧게 이어지고, 마지막에 작업
+// 1·2팀장만 나란히 갈라진다(예전에는 현장소장·안전관리자가 나란히 있고
+// 관리감독자로 합쳐지는 Y자 모양이라 화면과 다운로드 문서의 조직도가 서로
+// 달랐다).
 function OrgChartPage({ data }: { data: OrgChartData }) {
-  const topY = 20;
-  const midY = 110;
-  const botY = 200;
-  const leftX = 30;
-  const rightX = 300;
+  const row1Y = 20;
+  const row2Y = 96;
+  const row3Y = 172;
+  const row4Y = 258;
   const centerX = 165;
-  const topLeftCx = leftX + ORG_BOX_W / 2;
-  const topRightCx = rightX + ORG_BOX_W / 2;
-  const midCx = centerX + ORG_BOX_W / 2;
-  const botLeftCx = leftX + ORG_BOX_W / 2;
-  const botRightCx = rightX + ORG_BOX_W / 2;
+  const leftX = 60;
+  const rightX = 270;
+  const centerCx = centerX + ORG_BOX_W / 2;
+  const leftCx = leftX + ORG_BOX_W / 2;
+  const rightCx = rightX + ORG_BOX_W / 2;
 
   return (
     <Page size="A4" style={styles.policyPage}>
       <Text style={styles.policyTitle}>안전보건관리 조직구성</Text>
       <Text style={[styles.policySubTitle, { marginBottom: 16 }]}>나. 현장 사업소 조직도(임무 및 비상연락망 포함)</Text>
-      <Svg width="100%" height={260} viewBox="0 0 500 260">
-        <Line x1={topLeftCx} y1={topY + ORG_BOX_H} x2={midCx} y2={midY} stroke="#9ca3af" strokeWidth={1} />
-        <Line x1={topRightCx} y1={topY + ORG_BOX_H} x2={midCx} y2={midY} stroke="#9ca3af" strokeWidth={1} />
-        <Line x1={midCx} y1={midY + ORG_BOX_H} x2={botLeftCx} y2={botY} stroke="#9ca3af" strokeWidth={1} />
-        <Line x1={midCx} y1={midY + ORG_BOX_H} x2={botRightCx} y2={botY} stroke="#9ca3af" strokeWidth={1} />
-        <OrgChartBox x={leftX} y={topY} node={data.siteManager} />
-        <OrgChartBox x={rightX} y={topY} node={data.safetyManager} />
-        <OrgChartBox x={centerX} y={midY} node={data.supervisor} />
-        <OrgChartBox x={leftX} y={botY} node={data.team1} />
-        <OrgChartBox x={rightX} y={botY} node={data.team2} />
+      <Svg width="100%" height={320} viewBox="0 0 500 320">
+        <Line x1={centerCx} y1={row1Y + ORG_BOX_H} x2={centerCx} y2={row2Y} stroke="#9ca3af" strokeWidth={1} />
+        <Line x1={centerCx} y1={row2Y + ORG_BOX_H} x2={centerCx} y2={row3Y} stroke="#9ca3af" strokeWidth={1} />
+        <Line x1={centerCx} y1={row3Y + ORG_BOX_H} x2={leftCx} y2={row4Y} stroke="#9ca3af" strokeWidth={1} />
+        <Line x1={centerCx} y1={row3Y + ORG_BOX_H} x2={rightCx} y2={row4Y} stroke="#9ca3af" strokeWidth={1} />
+        <OrgChartBox x={centerX} y={row1Y} node={data.siteManager} />
+        <OrgChartBox x={centerX} y={row2Y} node={data.safetyManager} />
+        <OrgChartBox x={centerX} y={row3Y} node={data.supervisor} />
+        <OrgChartBox x={leftX} y={row4Y} node={data.team1} />
+        <OrgChartBox x={rightX} y={row4Y} node={data.team2} />
       </Svg>
       <Text style={{ fontSize: 8, color: "#9ca3af", marginTop: 12 }}>※ 위 선임 기술인력은 변경될 수 있습니다.</Text>
     </Page>

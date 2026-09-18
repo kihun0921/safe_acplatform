@@ -391,6 +391,11 @@ function orgChartArrowRow(): Paragraph {
   });
 }
 
+// 위저드 화면(WizardScreen)의 박스+연결선 다이어그램과 동일한 위계로 맞춘다 —
+// 현장소장 → 안전관리자 → 관리감독자가 한 줄씩 순서대로 이어지고, 마지막에
+// 작업 1·2팀장만 나란히 배치된다(예전에는 현장소장·안전관리자가 나란히 있고
+// 관리감독자로 합쳐지는 다른 모양이라 화면과 다운로드 문서의 조직도가 서로
+// 달랐다).
 function buildOrgChartPage(data: OrgChartData): (Paragraph | Table)[] {
   return [
     new Paragraph({
@@ -405,13 +410,21 @@ function buildOrgChartPage(data: OrgChartData): (Paragraph | Table)[] {
       ],
     }),
     new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [new TableRow({ children: [orgChartBoxCell(data.siteManager), orgChartBoxCell(data.safetyManager)] })],
+      width: { size: 60, type: WidthType.PERCENTAGE },
+      alignment: AlignmentType.CENTER,
+      rows: [new TableRow({ children: [orgChartBoxCell(data.siteManager)] })],
     }),
     orgChartArrowRow(),
     new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [new TableRow({ children: [orgChartBoxCell(data.supervisor, 2)] })],
+      width: { size: 60, type: WidthType.PERCENTAGE },
+      alignment: AlignmentType.CENTER,
+      rows: [new TableRow({ children: [orgChartBoxCell(data.safetyManager)] })],
+    }),
+    orgChartArrowRow(),
+    new Table({
+      width: { size: 60, type: WidthType.PERCENTAGE },
+      alignment: AlignmentType.CENTER,
+      rows: [new TableRow({ children: [orgChartBoxCell(data.supervisor)] })],
     }),
     orgChartArrowRow(),
     new Table({

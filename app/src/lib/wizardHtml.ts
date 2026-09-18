@@ -2697,6 +2697,167 @@ ${dipReadonlyBlock("서약 내용", INTEGRITY_PLEDGE_CLAUSES_TEXT)}
 `;
 }
 
+// "적격업체(관계수급인) 선정 평가기준" — 실제 LH 샘플 화성동탄(2) 124~125p("3.
+// 적격업체(관계수급인) 선정 평가기준")의 평가항목·배점표와 평가등급·처리기준표를
+// 그대로 고정 서식화했다. 배점·등급기준 전부 표준 기준이라 별도 입력 항목은 없다.
+const SUBCONTRACTOR_EVAL_PURPOSE_TEXT =
+  "안전보건 역량을 갖춘 협력업체(관계수급인)를 선정하고, 산업재해 발생 이력 등 결격사유가 있는 부적격업체를 사전에 배제하기 위함";
+
+const SUBCONTRACTOR_EVAL_SCORE_ROWS: { item: string; detail: string; score: string; evidence: string }[] = [
+  {
+    item: "안전보건관리체계\n(20점)",
+    detail: "안전관리자·보건관리자 선임 여부, 안전보건 경영방침 수립·게시 여부, 안전보건 조직체계 구축 여부",
+    score: "20",
+    evidence: "선임신고증, 경영방침 게시사진 등",
+  },
+  {
+    item: "산업재해발생률\n(25점)",
+    detail: "최근 3년간 동종업종 평균재해율 대비 신청업체 재해율\n(평균 이하: 25점, 평균~150%: 15점, 150% 초과: 5점)",
+    score: "25",
+    evidence: "산업재해율조회결과(고용노동부)",
+  },
+  {
+    item: "중대재해 발생이력\n(15점)",
+    detail: "최근 3년간 중대재해(사망·중대산업재해) 발생 여부\n(무: 15점, 유: 0점)",
+    score: "15",
+    evidence: "중대재해 발생 확인서, 관계기관 조회",
+  },
+  {
+    item: "안전보건교육체계\n(15점)",
+    detail: "정기 안전보건교육 계획 수립 여부 및 최근 1년간 법정교육 이수율\n(90% 이상: 15점, 70~90%: 10점, 70% 미만: 5점)",
+    score: "15",
+    evidence: "교육계획서, 이수현황표",
+  },
+  {
+    item: "안전보건경영시스템인증\n(10점)",
+    detail: "ISO45001, KOSHA-MS 등 안전보건경영시스템 인증 보유 여부\n(보유: 10점, 미보유: 0점)",
+    score: "10",
+    evidence: "인증서 사본",
+  },
+  {
+    item: "법령준수/결격사유\n(15점)",
+    detail: "입찰참가자격제한, 영업정지, 부정당업자 제재 등 결격사유 해당 여부\n(무: 15점, 유: 0점 및 선정 제외)",
+    score: "15",
+    evidence: "청렴서약서, 제재현황 조회",
+  },
+];
+
+const SUBCONTRACTOR_EVAL_GRADE_ROWS: { result: string; grade: string; action: string }[] = [
+  {
+    result: "90점 이상",
+    grade: "우수업체",
+    action: "협력업체 등록 시 가점 부여 및 물량배정 시 우선 고려",
+  },
+  {
+    result: "70~89점",
+    grade: "적격",
+    action: "계약체결 가능. 단, 미흡 평가항목에 대해 개선요청서 발부 및 이행확인",
+  },
+  {
+    result: "70점 미만",
+    grade: "부적격",
+    action:
+      "원칙적으로 계약체결 제한. 불가피한 경우 개선계획서 제출 및 현장소장 승인 후 조건부 계약, 계약 후 1개월 이내 재평가",
+  },
+  {
+    result: "중대재해 이력 유(有) 또는 결격사유 해당",
+    grade: "선정 제외",
+    action: "총점과 관계없이 원칙적으로 선정 대상에서 제외(발주자·현장 안전관리 총괄책임자 협의 시 예외)",
+  },
+];
+
+const SUBCONTRACTOR_EVAL_TIMING_TEXT =
+  "계약체결 전 1회 실시(신규평가)하며, 도급기간이 1년 이상인 경우 매년 1회 이상 재평가한다. 평가는 현장소장이 실시하고 안전관리자가 검토·보좌한다.";
+
+const SUBCONTRACTOR_EVAL_RECORDKEEPING_TEXT =
+  "평가표, 확인서류 사본 등 평가 관련 기록은 계약기간 종료 후 3년간 현장에 보관한다.";
+
+function buildSubcontractorEvaluationNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-subcontractor_evaluation">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  07
+                </span>
+<span class="group-hover:text-neutral-900">적격업체(관계수급인) 선정 평가기준</span>
+</div>
+</a>
+`;
+}
+
+function buildSubcontractorEvaluationSectionHtml(): string {
+  const scoreRows = SUBCONTRACTOR_EVAL_SCORE_ROWS.map(
+    ({ item, detail, score, evidence }) => `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top whitespace-pre-line w-[16%]">${escapeHtmlPolicy(
+      item
+    )}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top whitespace-pre-line">${escapeHtmlPolicy(detail)}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top text-center w-[8%]">${escapeHtmlPolicy(score)}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top w-[20%]">${escapeHtmlPolicy(evidence)}</td>
+</tr>`
+  ).join("\n");
+
+  const gradeRows = SUBCONTRACTOR_EVAL_GRADE_ROWS.map(
+    ({ result, grade, action }) => `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top w-[22%]">${escapeHtmlPolicy(
+      result
+    )}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top w-[14%]">${escapeHtmlPolicy(grade)}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">${escapeHtmlPolicy(action)}</td>
+</tr>`
+  ).join("\n");
+
+  return `<!-- ════════ SECTION: 적격업체(관계수급인) 선정 평가기준 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-subcontractor_evaluation">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅴ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">적격업체(관계수급인) 선정 평가기준</h2>
+</div>
+<div class="p-6 space-y-5">
+<p class="text-xs text-neutral-500">평가항목·배점·등급기준은 표준 기준으로 고정되어 있으며, 별도 입력 없이 그대로 다운로드 문서에 포함됩니다.</p>
+${dipReadonlyBlock("가. 평가목적", SUBCONTRACTOR_EVAL_PURPOSE_TEXT)}
+<div>
+<p class="font-bold text-neutral-800 mb-2">나. 평가항목 및 배점표(100점 만점)</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">평가항목(배점)</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">세부 평가내용</th>
+<th class="text-center px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">배점</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">확인(증빙)서류</th>
+</tr>
+</thead>
+<tbody>
+${scoreRows}
+<tr>
+<td class="px-3 py-2 font-bold text-neutral-800 bg-neutral-50" colspan="2">합계</td>
+<td class="px-3 py-2 font-bold text-neutral-800 bg-neutral-50 text-center">100점</td>
+<td class="px-3 py-2 bg-neutral-50"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<p class="font-bold text-neutral-800 mb-2">다. 평가등급 및 처리기준</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">평가결과</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">등급</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">처리기준</th>
+</tr>
+</thead>
+<tbody>
+${gradeRows}
+</tbody>
+</table>
+</div>
+${dipReadonlyBlock("라. 평가시기 및 주체", SUBCONTRACTOR_EVAL_TIMING_TEXT)}
+${dipReadonlyBlock("마. 증빙서류 보관", SUBCONTRACTOR_EVAL_RECORDKEEPING_TEXT)}
+</div>
+</section>
+`;
+}
+
 // "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
 // 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
 // 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
@@ -2996,7 +3157,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_protection_equipment_plan ? 1 : 0) +
     (agencyTemplate?.show_emergency_plan ? 1 : 0) +
     (agencyTemplate?.show_council_meeting_plan ? 1 : 0) +
-    (agencyTemplate?.show_integrity_pledge ? 1 : 0);
+    (agencyTemplate?.show_integrity_pledge ? 1 : 0) +
+    (agencyTemplate?.show_subcontractor_evaluation ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -3141,6 +3303,12 @@ ${templateOptions
   const integrityPledgeSectionHtml = agencyTemplate?.show_integrity_pledge
     ? buildIntegrityPledgeSectionHtml(projectTitle, agencyName, memberCompany, memberCeoName, memberName)
     : "";
+  const subcontractorEvaluationNavHtml = agencyTemplate?.show_subcontractor_evaluation
+    ? buildSubcontractorEvaluationNavHtml()
+    : "";
+  const subcontractorEvaluationSectionHtml = agencyTemplate?.show_subcontractor_evaluation
+    ? buildSubcontractorEvaluationSectionHtml()
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -3201,6 +3369,10 @@ ${templateOptions
       `${integrityPledgeNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${subcontractorEvaluationNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
       `${riskAssessmentRulesNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">`
     )
@@ -3251,7 +3423,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}${councilMeetingPlanSectionHtml}${integrityPledgeSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}${councilMeetingPlanSectionHtml}${integrityPledgeSectionHtml}${subcontractorEvaluationSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     )
     .replace(
       '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
@@ -3308,6 +3480,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.emergency_plan = "중대산업재해 등 비상 상황시 조치계획";
     commonLabels.council_meeting_plan = "안전보건협의체 회의계획";
     commonLabels.integrity_pledge = "안전보건관리비 집행 청렴서약서";
+    commonLabels.subcontractor_evaluation = "적격업체(관계수급인) 선정 평가기준";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

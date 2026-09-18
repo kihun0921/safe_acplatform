@@ -98,6 +98,14 @@ export type AgencyTemplateRow = {
   // 생겼다 — 이 플래그를 켜는 발주처는 sections의 misc_admin에서 integrity_pledge
   // 필드를 반드시 제거할 것(다른 필드는 그대로 둠).
   show_integrity_pledge?: boolean;
+  // "적격업체(관계수급인) 선정 평가기준"(실제 LH 샘플 화성동탄(2) 124~125p)을
+  // 평가항목·배점표 + 평가등급·처리기준표 고정 서식으로 보여줄지 여부. 평가목적·
+  // 배점·등급기준·평가시기·증빙서류 보관은 전부 표준 기준이라 고정이고, 별도
+  // 입력 항목은 없다. 기존에는 sections의 범용 "misc_admin" 항목 안 textarea
+  // 필드(subcontractor_evaluation)였는데, 표 형식으로 바꿔달라는 요청으로 이
+  // 플래그가 생겼다 — 이 플래그를 켜는 발주처는 sections의 misc_admin에서
+  // subcontractor_evaluation 필드를 반드시 제거할 것(다른 필드는 그대로 둠).
+  show_subcontractor_evaluation?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

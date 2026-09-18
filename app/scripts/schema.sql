@@ -239,6 +239,13 @@ alter table public.agency_templates add column if not exists show_council_meetin
 -- integrity_pledge 필드를 반드시 제거할 것 — 안 그러면 같은 내용이 두 번 나온다.
 alter table public.agency_templates add column if not exists show_integrity_pledge boolean not null default false;
 
+-- show_subcontractor_evaluation: "적격업체(관계수급인) 선정 평가기준"(실제 LH
+-- 샘플 화성동탄(2) 124~125p)을 평가항목·배점표 + 평가등급·처리기준표 고정
+-- 서식으로 보여줄지 여부. 전부 표준 기준이라 입력 항목은 없다. 이 플래그를 켜는
+-- 발주처는 sections의 misc_admin에서 subcontractor_evaluation 필드를 반드시
+-- 제거할 것 — 안 그러면 같은 내용이 두 번 나온다.
+alter table public.agency_templates add column if not exists show_subcontractor_evaluation boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

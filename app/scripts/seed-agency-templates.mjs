@@ -115,6 +115,13 @@ const TEMPLATES = [
     // "misc_admin" 항목 안 integrity_pledge textarea 필드였는데 서약서 양식으로
     // 바꿔달라는 요청으로 이 플래그가 생겼다(해당 필드는 아래 misc_admin에서 제거함).
     show_integrity_pledge: true,
+    // "적격업체(관계수급인) 선정 평가기준"(실제 LH 샘플 화성동탄(2) 124~125p)을
+    // 평가항목·배점표 + 평가등급·처리기준표 고정 서식으로 보여준다. 배점·등급
+    // 기준 전부 표준 기준이라 별도 입력 항목은 없다 — 기존 sections의 범용
+    // "misc_admin" 항목 안 subcontractor_evaluation textarea 필드였는데 표
+    // 형식으로 바꿔달라는 요청으로 이 플래그가 생겼다(해당 필드는 아래
+    // misc_admin에서 제거함).
+    show_subcontractor_evaluation: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -134,7 +141,7 @@ const TEMPLATES = [
       },
       { roman: "Ⅲ", title: "운영관리", members: ["daily_inspection_plan", "ptw_plan", "protection_equipment"] },
       { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency_plan"] },
-      { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "council_meeting_plan", "integrity_pledge", "target", "misc_admin", "safety_cost"] },
+      { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "council_meeting_plan", "integrity_pledge", "subcontractor_evaluation", "target", "misc_admin", "safety_cost"] },
       { roman: "Ⅵ", title: "재해발생 수준", members: ["accident_level"] },
       { roman: "Ⅶ", title: "붙임", members: ["risk_assessment_rules", "attachments"] },
       { roman: "Ⅷ", title: "작업투입 인력 인적사항", members: ["workforce"] },
@@ -199,19 +206,8 @@ const TEMPLATES = [
       },
       {
         id: "misc_admin",
-        label: "기타사항 (적격업체 선정·정기 위험성평가)",
+        label: "기타사항 (정기 위험성평가)",
         fields: [
-          {
-            key: "subcontractor_evaluation",
-            label: "적격업체(관계수급인) 선정 평가기준",
-            type: "textarea",
-            placeholder: "안전보건관리체계·산업재해발생률·중대재해 발생이력·안전보건교육체계·안전보건경영시스템인증·법령준수 등 평가항목별 배점과 평가결과(우수/적격/부적격)를 입력하세요",
-            default:
-              "평가목적: 안전보건 역량을 갖춘 협력업체(관계수급인)를 선정하고, 산업재해 발생 이력 등 결격사유가 있는 부적격업체를 사전에 배제하기 위함\n" +
-              "평가항목(배점): 안전보건관리체계 20점, 산업재해발생률 25점, 중대재해 발생이력 15점, 안전보건교육체계 15점, 안전보건경영시스템 인증 10점, 법령준수/결격사유 15점 (합계 100점)\n" +
-              "평가등급: 90점 이상 우수업체(협력업체 등록 시 가점 부여), 70~89점 적격(계약체결 가능), 70점 미만 부적격(원칙적으로 계약체결 제한), 중대재해 이력 유 또는 결격사유 해당 시 선정 제외\n" +
-              "평가시기: 계약체결 전 1회(신규평가), 도급기간 1년 이상인 경우 매년 1회 이상 재평가",
-          },
           {
             key: "periodic_risk_assessment_plan",
             label: "정기 위험성평가 실시계획 (도급기간 1년 이상 시)",
@@ -542,6 +538,7 @@ for (const t of TEMPLATES) {
   const showEmergencyPlan = t.show_emergency_plan ?? false;
   const showCouncilMeetingPlan = t.show_council_meeting_plan ?? false;
   const showIntegrityPledge = t.show_integrity_pledge ?? false;
+  const showSubcontractorEvaluation = t.show_subcontractor_evaluation ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -566,6 +563,7 @@ for (const t of TEMPLATES) {
         show_emergency_plan: showEmergencyPlan,
         show_council_meeting_plan: showCouncilMeetingPlan,
         show_integrity_pledge: showIntegrityPledge,
+        show_subcontractor_evaluation: showSubcontractorEvaluation,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -595,6 +593,7 @@ for (const t of TEMPLATES) {
         show_emergency_plan: showEmergencyPlan,
         show_council_meeting_plan: showCouncilMeetingPlan,
         show_integrity_pledge: showIntegrityPledge,
+        show_subcontractor_evaluation: showSubcontractorEvaluation,
       })
       .select("id")
       .single();

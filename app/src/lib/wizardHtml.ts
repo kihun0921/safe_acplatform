@@ -42,7 +42,7 @@ export type WizardAnnouncementRow = {
 
 export type PdfOverview = { period: string; location: string; mainContent: string };
 
-export type WizardMemberRow = { name: string; company: string } | null;
+export type WizardMemberRow = { name: string; company: string; ceoName?: string } | null;
 
 const HTML_documents_wizard = `
 <!-- ================= TOP NAV BAR (Shared Component JSON Target) ================= -->
@@ -2622,6 +2622,81 @@ ${dipReadonlyBlock("사후관리", COUNCIL_MEETING_FOLLOWUP_TEXT)}
 `;
 }
 
+// "안전보건관리비 집행 청렴서약서" — 실제 LH 샘플 화성동탄(2) 123p("2. 안전보건관리비
+// 집행 청렴서약서")의 정식 서약서 양식(제목 + 서약 조항 4개 + 서명란)으로 고정
+// 서식화했다. 서약 조항은 산업안전보건법령·고시 기준 표준 문구라 고정이고, 공사명·
+// 발주처·상호(회사명)·대표자는 사업개요/회원 정보에서 자동으로 채워 넣는다(각각
+// doc.title/doc.agency/members.company/members.ceo_name) — 대표자 정보가 없는
+// 회원(ceo_name 미입력)은 빈 칸으로 두고 직접 입력하게 한다. 현장대리인은 실제
+// 작성자가 대표자와 다를 수 있어 회원 이름을 기본값으로만 채우고 자유롭게 수정할
+// 수 있게 한다.
+const INTEGRITY_PLEDGE_CLAUSES_TEXT =
+  "당사는 본 공사를 수행함에 있어 「산업안전보건법」 제72조, 동법 시행규칙 제89조 및 고용노동부 고시 「건설업 산업안전보건관리비 계상 및 사용기준」을 철저히 준수하며, 계상된 안전보건관리비를 투명하고 공정하게 집행할 것을 다음과 같이 엄중히 서약합니다.\n" +
+  "1. 목적 외 사용 금지 및 정당 집행: 법령에서 정한 용도(근로자 안전장구, 안전시설비, 안전진단비, 건강관리비 등) 외의 타 목적으로 전용·유용하거나 부당하게 집행하지 않습니다.\n" +
+  "2. 정산 증빙서류의 정직성 확보: 세금계산서, 거래명세서, 지급노무비 내역, 안전장구 지급대장, 현장 사진 등 제반 증빙을 허위 작성하거나 부풀리지 않으며, 실제 집행된 내역만을 사실대로 제출하겠습니다.\n" +
+  "3. 발주처 감독 및 시정요구 준수: 안전보건관리비 집행 실태 점검 및 정산 검토 시 관련 자료를 성실히 제출하고, 부적정 집행 지적 시 즉시 시정 및 반납 조치하겠습니다.\n" +
+  "4. 위반 시 불이익 감수: 목적 외 사용, 허위 청구 등 불법·부당행위가 확인될 경우 관련 법령 및 계약조건에 따른 감액, 환수, 입찰참가자격 제한, 영업정지 등 어떠한 처분도 이의 없이 감수하겠습니다.";
+
+function buildIntegrityPledgeNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-integrity_pledge">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  06
+                </span>
+<span class="group-hover:text-neutral-900">안전보건관리비 집행 청렴서약서</span>
+</div>
+</a>
+`;
+}
+
+function buildIntegrityPledgeSectionHtml(
+  projectTitle: string,
+  agencyName: string,
+  memberCompany: string,
+  memberCeoName: string,
+  memberName: string
+): string {
+  return `<!-- ════════ SECTION: 안전보건관리비 집행 청렴서약서 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-integrity_pledge">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅴ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">안전보건관리비 집행 청렴서약서</h2>
+</div>
+<div class="p-6 space-y-4">
+<p class="text-xs text-neutral-500">서약 조항은 관계법령·고시 기준 표준 문구로 고정되어 있으며, 공사명·발주처·상호·대표자는 사업개요와 회원 정보에서 자동으로 채워집니다. 현장대리인 등 필요한 부분은 직접 수정하세요.</p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+<div>
+<label class="block text-xs font-bold text-neutral-700 mb-1">공사명</label>
+<input class="w-full text-xs bg-neutral-100/70 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900" type="text" value="${projectTitle}"/>
+</div>
+<div>
+<label class="block text-xs font-bold text-neutral-700 mb-1">발주처</label>
+<input class="w-full text-xs bg-neutral-100/70 border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900" type="text" value="${agencyName}"/>
+</div>
+</div>
+${dipReadonlyBlock("서약 내용", INTEGRITY_PLEDGE_CLAUSES_TEXT)}
+<div>
+<p class="text-xs text-neutral-700 mb-2">위와 같이 서약합니다.</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<tbody>
+<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-bold text-neutral-700 bg-neutral-50 w-[16%]">상호(법인명)</td>
+<td class="px-3 py-2 border-b border-neutral-100"><input class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" type="text" value="${memberCompany}"/></td>
+<td class="px-3 py-2 border-b border-neutral-100 font-bold text-neutral-700 bg-neutral-50 w-[16%]">대표자</td>
+<td class="px-3 py-2 border-b border-neutral-100"><input class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" placeholder="대표자 성명" type="text" value="${memberCeoName}"/></td>
+</tr>
+<tr>
+<td class="px-3 py-2 font-bold text-neutral-700 bg-neutral-50">현장대리인</td>
+<td class="px-3 py-2" colspan="3"><input class="w-full text-xs border border-neutral-300 rounded px-2 py-1.5" type="text" value="${memberName}"/></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+`;
+}
+
 // "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
 // 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
 // 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
@@ -2859,6 +2934,7 @@ export function buildWizardHtml(
   const agencyName = escapeHtml((doc.agency ?? "").trim() || "발주기관");
   const memberName = escapeHtml(member?.name?.trim() || "미등록");
   const memberCompany = escapeHtml(member?.company?.trim() || "회사명 미등록");
+  const memberCeoName = escapeHtml(member?.ceoName?.trim() || "");
   const memberInitial = escapeHtml((member?.name?.trim() || "?").charAt(0));
 
   // 낙찰이 확정된 공고면 실제 낙찰금액을, 아니면 추정가격(기초금액)을 도급공사비로 사용.
@@ -2919,7 +2995,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_ptw_plan ? 1 : 0) +
     (agencyTemplate?.show_protection_equipment_plan ? 1 : 0) +
     (agencyTemplate?.show_emergency_plan ? 1 : 0) +
-    (agencyTemplate?.show_council_meeting_plan ? 1 : 0);
+    (agencyTemplate?.show_council_meeting_plan ? 1 : 0) +
+    (agencyTemplate?.show_integrity_pledge ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -3060,6 +3137,10 @@ ${templateOptions
   const councilMeetingPlanSectionHtml = agencyTemplate?.show_council_meeting_plan
     ? buildCouncilMeetingPlanSectionHtml()
     : "";
+  const integrityPledgeNavHtml = agencyTemplate?.show_integrity_pledge ? buildIntegrityPledgeNavHtml() : "";
+  const integrityPledgeSectionHtml = agencyTemplate?.show_integrity_pledge
+    ? buildIntegrityPledgeSectionHtml(projectTitle, agencyName, memberCompany, memberCeoName, memberName)
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -3116,6 +3197,10 @@ ${templateOptions
       `${councilMeetingPlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${integrityPledgeNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
       `${riskAssessmentRulesNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">`
     )
@@ -3166,7 +3251,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}${councilMeetingPlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}${councilMeetingPlanSectionHtml}${integrityPledgeSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     )
     .replace(
       '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
@@ -3222,6 +3307,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.protection_equipment = "보호구 지급 및 착용확인 절차";
     commonLabels.emergency_plan = "중대산업재해 등 비상 상황시 조치계획";
     commonLabels.council_meeting_plan = "안전보건협의체 회의계획";
+    commonLabels.integrity_pledge = "안전보건관리비 집행 청렴서약서";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

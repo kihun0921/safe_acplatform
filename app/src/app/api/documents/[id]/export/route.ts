@@ -73,7 +73,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
   }
 
-  const { data: member } = await supabase.from("members").select("name, company").eq("id", doc.member_id).single();
+  const { data: member } = await supabase
+    .from("members")
+    .select("name, company, ceo_name")
+    .eq("id", doc.member_id)
+    .single();
 
   const { data: announcement } = doc.announcement_id
     ? await supabase
@@ -88,7 +92,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     : { data: null };
 
   const pdfOverview = doc.content?.pdfOverview as PdfOverview | undefined;
-  const html = buildWizardHtml(doc, announcement, pdfOverview, member, false, selectedTemplate);
+  const html = buildWizardHtml(
+    doc,
+    announcement,
+    pdfOverview,
+    member ? { name: member.name, company: member.company, ceoName: member.ceo_name } : null,
+    false,
+    selectedTemplate
+  );
   const savedFields = (doc.content?.fields ?? {}) as Record<string, string | boolean>;
   const overviewPageStyle = (selectedTemplate?.overview_page_style as string | null | undefined) ?? null;
   const showManagementPolicy = Boolean(selectedTemplate?.show_management_policy);

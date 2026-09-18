@@ -109,6 +109,12 @@ const TEMPLATES = [
     // textarea 필드였는데 표 형식으로 바꿔달라는 요청으로 이 플래그가 생겼다(해당
     // 필드는 아래 safety_council에서 제거함, council_members는 유지).
     show_council_meeting_plan: true,
+    // "안전보건관리비 집행 청렴서약서"(실제 LH 샘플 화성동탄(2) 123p)를 정식
+    // 서약서 양식(고정 서약 조항 + 서명란)으로 보여준다. 공사명·발주처·상호·
+    // 대표자는 사업개요/회원 정보에서 자동으로 채워진다 — 기존 sections의 범용
+    // "misc_admin" 항목 안 integrity_pledge textarea 필드였는데 서약서 양식으로
+    // 바꿔달라는 요청으로 이 플래그가 생겼다(해당 필드는 아래 misc_admin에서 제거함).
+    show_integrity_pledge: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -128,7 +134,7 @@ const TEMPLATES = [
       },
       { roman: "Ⅲ", title: "운영관리", members: ["daily_inspection_plan", "ptw_plan", "protection_equipment"] },
       { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency_plan"] },
-      { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "council_meeting_plan", "target", "misc_admin", "safety_cost"] },
+      { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "council_meeting_plan", "integrity_pledge", "target", "misc_admin", "safety_cost"] },
       { roman: "Ⅵ", title: "재해발생 수준", members: ["accident_level"] },
       { roman: "Ⅶ", title: "붙임", members: ["risk_assessment_rules", "attachments"] },
       { roman: "Ⅷ", title: "작업투입 인력 인적사항", members: ["workforce"] },
@@ -193,21 +199,8 @@ const TEMPLATES = [
       },
       {
         id: "misc_admin",
-        label: "기타사항 (청렴서약·적격업체 선정·정기 위험성평가)",
+        label: "기타사항 (적격업체 선정·정기 위험성평가)",
         fields: [
-          {
-            key: "integrity_pledge",
-            label: "안전보건관리비 집행 청렴서약서",
-            type: "textarea",
-            placeholder: "목적 외 사용 금지, 증빙서류 정직성 확보, 발주처 감독·시정요구 준수, 위반 시 불이익 감수 등 서약 내용과 서약자(대표자/현장대리인) 정보를 입력하세요",
-            default:
-              "당사는 본 공사를 수행함에 있어 「산업안전보건법」 제72조, 동법 시행규칙 제89조 및 고용노동부 고시 「건설업 산업안전보건관리비 계상 및 사용기준」을 철저히 준수하며, 계상된 안전보건관리비를 투명하고 공정하게 집행할 것을 다음과 같이 엄중히 서약합니다.\n" +
-              "1. 목적 외 사용 금지 및 정당 집행: 법령에서 정한 용도(근로자 안전장구, 안전시설비, 안전진단비, 건강관리비 등) 외의 타 목적으로 전용·유용하거나 부당하게 집행하지 않습니다.\n" +
-              "2. 정산 증빙서류의 정직성 확보: 세금계산서, 거래명세서, 지급노무비 내역, 안전장구 지급대장, 현장 사진 등 제반 증빙을 허위 작성하거나 부풀리지 않으며, 실제 집행된 내역만을 사실대로 제출하겠습니다.\n" +
-              "3. 발주처 감독 및 시정요구 준수: 안전보건관리비 집행 실태 점검 및 정산 검토 시 관련 자료를 성실히 제출하고, 부적정 집행 지적 시 즉시 시정 및 반납 조치하겠습니다.\n" +
-              "4. 위반 시 불이익 감수: 목적 외 사용, 허위 청구 등 불법·부당행위가 확인될 경우 관련 법령 및 계약조건에 따른 감액, 환수, 입찰참가자격 제한, 영업정지 등 어떠한 처분도 이의 없이 감수하겠습니다.\n" +
-              "서약자: 상호(법인명) (미입력) / 대표자 (미입력) / 현장대리인 (미입력)",
-          },
           {
             key: "subcontractor_evaluation",
             label: "적격업체(관계수급인) 선정 평가기준",
@@ -548,6 +541,7 @@ for (const t of TEMPLATES) {
   const showProtectionEquipmentPlan = t.show_protection_equipment_plan ?? false;
   const showEmergencyPlan = t.show_emergency_plan ?? false;
   const showCouncilMeetingPlan = t.show_council_meeting_plan ?? false;
+  const showIntegrityPledge = t.show_integrity_pledge ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -571,6 +565,7 @@ for (const t of TEMPLATES) {
         show_protection_equipment_plan: showProtectionEquipmentPlan,
         show_emergency_plan: showEmergencyPlan,
         show_council_meeting_plan: showCouncilMeetingPlan,
+        show_integrity_pledge: showIntegrityPledge,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -599,6 +594,7 @@ for (const t of TEMPLATES) {
         show_protection_equipment_plan: showProtectionEquipmentPlan,
         show_emergency_plan: showEmergencyPlan,
         show_council_meeting_plan: showCouncilMeetingPlan,
+        show_integrity_pledge: showIntegrityPledge,
       })
       .select("id")
       .single();

@@ -232,6 +232,13 @@ alter table public.agency_templates add column if not exists show_emergency_plan
 -- 제거할 것(council_members는 유지) — 안 그러면 같은 내용이 두 번 나온다.
 alter table public.agency_templates add column if not exists show_council_meeting_plan boolean not null default false;
 
+-- show_integrity_pledge: "안전보건관리비 집행 청렴서약서"(실제 LH 샘플 화성동탄(2)
+-- 123p)를 정식 서약서 양식(고정 서약 조항 + 서명란)으로 보여줄지 여부. 공사명·
+-- 발주처·상호(회사명)·대표자는 사업개요/회원 정보(members.ceo_name 포함)에서
+-- 자동으로 채워진다. 이 플래그를 켜는 발주처는 sections의 misc_admin에서
+-- integrity_pledge 필드를 반드시 제거할 것 — 안 그러면 같은 내용이 두 번 나온다.
+alter table public.agency_templates add column if not exists show_integrity_pledge boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

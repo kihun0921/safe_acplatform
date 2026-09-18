@@ -89,6 +89,15 @@ export type AgencyTemplateRow = {
   // council_meeting_plan 필드를 반드시 제거할 것(council_members는 그대로 둠,
   // 안 그러면 같은 내용이 두 번 나온다).
   show_council_meeting_plan?: boolean;
+  // "안전보건관리비 집행 청렴서약서"(실제 LH 샘플 화성동탄(2) 123p)를 정식 서약서
+  // 양식(고정 서약 조항 + 서명란)으로 보여줄지 여부. 공사명·발주처·상호(회사명)·
+  // 대표자는 사업개요/회원 정보에서 자동으로 채워지고(각각 doc.title/doc.agency/
+  // members.company/members.ceo_name), 현장대리인만 회원 이름을 기본값으로 채운 뒤
+  // 필요시 직접 수정한다. 기존에는 sections의 범용 "misc_admin" 항목 안 textarea
+  // 필드(integrity_pledge)였는데, 서약서 양식으로 바꿔달라는 요청으로 이 플래그가
+  // 생겼다 — 이 플래그를 켜는 발주처는 sections의 misc_admin에서 integrity_pledge
+  // 필드를 반드시 제거할 것(다른 필드는 그대로 둠).
+  show_integrity_pledge?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

@@ -2539,6 +2539,89 @@ ${dipReadonlyBlock("응급처치 요령", EMERGENCY_FIRST_AID_TEXT)}
 `;
 }
 
+// "안전보건협의체 회의계획" — 산업안전보건법 제64조 제1항에 따른 안전보건에 관한
+// 협의체 운영 실무를 실시주기·참석대상·주요 안건 표로 고정 서식화했다. 참석대상은
+// 기존 sections의 범용 "safety_council" 항목(council_members 필드)에 이미 있던
+// 실제 명단 구성과 동일하게 맞췄고, 주요 안건은 그 항목의 council_meeting_plan
+// 필드에 있던 문구를 표로 재구성했다(해당 필드는 표와 중복되므로 제거함).
+const COUNCIL_MEETING_ATTENDEES =
+  "현장소장, 관리감독자, 작업반장, 협력업체 현장소장 및 관리감독자, 근로자대표";
+const COUNCIL_MEETING_AGENDA =
+  "· 안전보건경영방침 및 목표 달성 모니터링\n" +
+  "· 안전보건관련 규정의 효율적인 작동상태 확인\n" +
+  "· 중대재해처벌법·산업안전보건법·건설기술진흥법 등 준수여부 확인\n" +
+  "· 유해위험요인의 제거·대체 및 통제 방안 검토\n" +
+  "· 인력 및 예산 등 자원지원 방안\n" +
+  "· 평가 및 개선활동 결과내용 검토\n" +
+  "· 종사자 의견청취";
+const COUNCIL_MEETING_ROWS: { category: string; frequency: string; attendees: string; agenda: string }[] = [
+  {
+    category: "정기 간담회",
+    frequency: "현장소장 주재, 매월 2회 이상",
+    attendees: COUNCIL_MEETING_ATTENDEES,
+    agenda: COUNCIL_MEETING_AGENDA,
+  },
+  {
+    category: "수시 간담회",
+    frequency: "현장소장이 필요하다고 판단 시",
+    attendees: COUNCIL_MEETING_ATTENDEES,
+    agenda: COUNCIL_MEETING_AGENDA,
+  },
+];
+const COUNCIL_MEETING_FOLLOWUP_TEXT =
+  "결정사항 즉시 실행, 전 조직 전파 및 공유, 경영방침·목표·계획에 반영";
+
+function buildCouncilMeetingPlanNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-council_meeting_plan">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  05
+                </span>
+<span class="group-hover:text-neutral-900">안전보건협의체 회의계획</span>
+</div>
+</a>
+`;
+}
+
+function buildCouncilMeetingPlanSectionHtml(): string {
+  const rows = COUNCIL_MEETING_ROWS.map(
+    ({ category, frequency, attendees, agenda }) => `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top whitespace-nowrap w-[12%]">${escapeHtmlPolicy(
+      category
+    )}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top w-[20%]">${escapeHtmlPolicy(frequency)}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top w-[24%]">${escapeHtmlPolicy(attendees)}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top whitespace-pre-line">${escapeHtmlPolicy(agenda)}</td>
+</tr>`
+  ).join("\n");
+
+  return `<!-- ════════ SECTION: 안전보건협의체 회의계획 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-council_meeting_plan">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅴ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">안전보건협의체 회의계획</h2>
+</div>
+<div class="p-6 space-y-4">
+<p class="text-xs text-neutral-500">산업안전보건법 제64조 제1항에 따른 표준 운영 방식으로 고정되어 있으며, 별도 입력 없이 그대로 다운로드 문서에 포함됩니다.</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">구분</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">실시주기</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">참석대상</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">주요 안건</th>
+</tr>
+</thead>
+<tbody>
+${rows}
+</tbody>
+</table>
+${dipReadonlyBlock("사후관리", COUNCIL_MEETING_FOLLOWUP_TEXT)}
+</div>
+</section>
+`;
+}
+
 // "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
 // 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
 // 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
@@ -2835,7 +2918,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_daily_inspection_plan ? 1 : 0) +
     (agencyTemplate?.show_ptw_plan ? 1 : 0) +
     (agencyTemplate?.show_protection_equipment_plan ? 1 : 0) +
-    (agencyTemplate?.show_emergency_plan ? 1 : 0);
+    (agencyTemplate?.show_emergency_plan ? 1 : 0) +
+    (agencyTemplate?.show_council_meeting_plan ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -2970,6 +3054,12 @@ ${templateOptions
   const emergencyPlanSectionHtml = agencyTemplate?.show_emergency_plan
     ? buildEmergencyPlanSectionHtml(emergencyContactRows)
     : "";
+  const councilMeetingPlanNavHtml = agencyTemplate?.show_council_meeting_plan
+    ? buildCouncilMeetingPlanNavHtml()
+    : "";
+  const councilMeetingPlanSectionHtml = agencyTemplate?.show_council_meeting_plan
+    ? buildCouncilMeetingPlanSectionHtml()
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -3022,6 +3112,10 @@ ${templateOptions
       `${emergencyPlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${councilMeetingPlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
       `${riskAssessmentRulesNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">`
     )
@@ -3072,7 +3166,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}${councilMeetingPlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     )
     .replace(
       '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
@@ -3127,6 +3221,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.ptw_plan = "중점 위험작업허가제(PTW)";
     commonLabels.protection_equipment = "보호구 지급 및 착용확인 절차";
     commonLabels.emergency_plan = "중대산업재해 등 비상 상황시 조치계획";
+    commonLabels.council_meeting_plan = "안전보건협의체 회의계획";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

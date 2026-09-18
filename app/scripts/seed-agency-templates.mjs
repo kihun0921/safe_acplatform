@@ -104,6 +104,11 @@ const TEMPLATES = [
     // "accident_procedure"(사고발생 시 조치 순서/보고체계) 항목과 내용이 겹쳐
     // 제거했고, 아래 disabled_common_sections로 기존 데모 카드("emergency")도 껐다.
     show_emergency_plan: true,
+    // "안전보건협의체 회의계획"(실시주기·참석대상·주요 안건)을 고정 서식 표로
+    // 보여준다 — 기존 sections의 범용 "safety_council" 항목 안 council_meeting_plan
+    // textarea 필드였는데 표 형식으로 바꿔달라는 요청으로 이 플래그가 생겼다(해당
+    // 필드는 아래 safety_council에서 제거함, council_members는 유지).
+    show_council_meeting_plan: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -123,7 +128,7 @@ const TEMPLATES = [
       },
       { roman: "Ⅲ", title: "운영관리", members: ["daily_inspection_plan", "ptw_plan", "protection_equipment"] },
       { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency_plan"] },
-      { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "target", "misc_admin", "safety_cost"] },
+      { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "council_meeting_plan", "target", "misc_admin", "safety_cost"] },
       { roman: "Ⅵ", title: "재해발생 수준", members: ["accident_level"] },
       { roman: "Ⅶ", title: "붙임", members: ["risk_assessment_rules", "attachments"] },
       { roman: "Ⅷ", title: "작업투입 인력 인적사항", members: ["workforce"] },
@@ -183,16 +188,6 @@ const TEMPLATES = [
             default:
               "참석대상: 현장소장, 관리감독자, 작업반장, 협력업체 현장소장 및 관리감독자, 근로자 대표\n" +
               "현장소장: (미입력) / 근로자 대표: (미입력) / 협력업체 현장소장: (미입력)",
-          },
-          {
-            key: "council_meeting_plan",
-            label: "협의체 회의 계획 (실시시기·참석대상·회의내용)",
-            type: "textarea",
-            placeholder: "정기 간담회(예: 매월 2회 이상)·수시 간담회 구분, 참석대상, 주요 안건(안전보건경영방침 달성 모니터링/유해위험요인 제거대책/법령 준수여부 등)을 입력하세요",
-            default:
-              "실시시기: 정기 간담회 — 현장소장 주재, 매월 2회 이상 / 수시 간담회 — 현장소장이 필요하다고 판단 시\n" +
-              "회의내용: 안전보건경영방침 및 목표 달성 모니터링, 안전보건관련 규정의 효율적인 작동상태 확인, 중대재해처벌법·산업안전보건법·건설기술진흥법 등 준수여부 확인, 유해위험요인의 제거·대체 및 통제 방안 검토, 인력 및 예산 등 자원지원 방안, 평가 및 개선활동 결과내용 검토, 종사자 의견청취\n" +
-              "사후관리: 결정사항 즉시 실행, 전 조직 전파 및 공유, 경영방침·목표·계획에 반영",
           },
         ],
       },
@@ -552,6 +547,7 @@ for (const t of TEMPLATES) {
   const showPtwPlan = t.show_ptw_plan ?? false;
   const showProtectionEquipmentPlan = t.show_protection_equipment_plan ?? false;
   const showEmergencyPlan = t.show_emergency_plan ?? false;
+  const showCouncilMeetingPlan = t.show_council_meeting_plan ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -574,6 +570,7 @@ for (const t of TEMPLATES) {
         show_ptw_plan: showPtwPlan,
         show_protection_equipment_plan: showProtectionEquipmentPlan,
         show_emergency_plan: showEmergencyPlan,
+        show_council_meeting_plan: showCouncilMeetingPlan,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -601,6 +598,7 @@ for (const t of TEMPLATES) {
         show_ptw_plan: showPtwPlan,
         show_protection_equipment_plan: showProtectionEquipmentPlan,
         show_emergency_plan: showEmergencyPlan,
+        show_council_meeting_plan: showCouncilMeetingPlan,
       })
       .select("id")
       .single();

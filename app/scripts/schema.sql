@@ -225,6 +225,13 @@ alter table public.agency_templates add column if not exists show_protection_equ
 -- 나온다.
 alter table public.agency_templates add column if not exists show_emergency_plan boolean not null default false;
 
+-- show_council_meeting_plan: "안전보건협의체 회의계획"(실시주기·참석대상·주요
+-- 안건)을 고정 서식 표로 보여줄지 여부. 기존에는 sections의 범용 "safety_council"
+-- 항목 안 textarea 필드였는데 표 형식 요청으로 이 플래그가 생겼다. 이 플래그를
+-- 켜는 발주처는 sections의 safety_council에서 council_meeting_plan 필드를 반드시
+-- 제거할 것(council_members는 유지) — 안 그러면 같은 내용이 두 번 나온다.
+alter table public.agency_templates add column if not exists show_council_meeting_plan boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

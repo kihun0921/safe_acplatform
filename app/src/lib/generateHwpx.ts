@@ -282,6 +282,21 @@ function buildSection0Xml(
   sections.forEach((section, i) => {
     paragraphs.push(textParagraph(section.heading, "5", i > 0));
     paragraphs.push(emptyParagraph());
+    if (section.emergencyTeam) {
+      // 조직도와 동일하게 이 생성기는 표/도형을 지원하지 않으므로, 유니코드 트리
+      // 문자로 위계(대책반장 → 안전관리자 → 3개 팀 → 협력업체·근로자)를 표현한다.
+      const t = section.emergencyTeam;
+      paragraphs.push(textParagraph(nodeLine(t.chief), "0", false));
+      paragraphs.push(textParagraph("  │", "0", false));
+      paragraphs.push(textParagraph(`  └─ ${nodeLine(t.safetyManager)}`, "0", false));
+      paragraphs.push(textParagraph("      │", "0", false));
+      paragraphs.push(textParagraph(`      ├─ ${nodeLine(t.controlTeam)}`, "0", false));
+      paragraphs.push(textParagraph(`      ├─ ${nodeLine(t.rescueTeam)}`, "0", false));
+      paragraphs.push(textParagraph(`      └─ ${nodeLine(t.supportTeam)}`, "0", false));
+      paragraphs.push(textParagraph("          │", "0", false));
+      paragraphs.push(textParagraph("          └─ 협력업체, 근로자", "0", false));
+      paragraphs.push(emptyParagraph());
+    }
     for (const field of section.fields) {
       // 한 <hp:p>는 한 줄이라, "\n"이 섞인 긴 텍스트(위험성평가 실시규정 등)는
       // 줄마다 별도 문단으로 나눠야 실제로 줄바꿈이 보인다.
@@ -291,12 +306,13 @@ function buildSection0Xml(
         paragraphs.push(textParagraph(line, "0", false));
       }
     }
-    if (section.table && section.table.rows.length > 0) {
+    for (const t of section.tables) {
+      if (t.rows.length === 0) continue;
       paragraphs.push(emptyParagraph());
-      if (section.table.headers.length > 0) {
-        paragraphs.push(textParagraph(section.table.headers.join(" | "), "0", false));
+      if (t.headers.length > 0) {
+        paragraphs.push(textParagraph(t.headers.join(" | "), "0", false));
       }
-      for (const row of section.table.rows) {
+      for (const row of t.rows) {
         paragraphs.push(textParagraph(row.join(" | "), "0", false));
       }
     }

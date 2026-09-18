@@ -1,7 +1,15 @@
 import path from "path";
 import type { ReactElement } from "react";
 import { renderToBuffer, Document, Page, View, Text, Image, Svg, Rect, Line, StyleSheet, Font } from "@react-pdf/renderer";
-import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData, OrgChartData, OrgChartNode } from "./wizardExport";
+import type {
+  WizardSection,
+  CoverPageData,
+  OverviewPageData,
+  ManagementPolicyData,
+  OrgChartData,
+  OrgChartNode,
+  EmergencyTeamData,
+} from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
 
@@ -319,11 +327,11 @@ function ManagementPolicyStandardPage({ data }: { data: ManagementPolicyData }) 
 // 이미지 파일 없이도 항상 선명하게 출력된다.
 const ORG_BOX_W = 170;
 const ORG_BOX_H = 46;
-function OrgChartBox({ x, y, node }: { x: number; y: number; node: OrgChartNode }) {
-  const cx = x + ORG_BOX_W / 2;
+function OrgChartBox({ x, y, node, width = ORG_BOX_W }: { x: number; y: number; node: OrgChartNode; width?: number }) {
+  const cx = x + width / 2;
   return (
     <>
-      <Rect x={x} y={y} width={ORG_BOX_W} height={ORG_BOX_H} fill="#ffffff" stroke="#1e3a5f" strokeWidth={1.2} rx={4} />
+      <Rect x={x} y={y} width={width} height={ORG_BOX_H} fill="#ffffff" stroke="#1e3a5f" strokeWidth={1.2} rx={4} />
       {/* react-pdf의 SVG Text는 Page에 지정한 fontFamily를 상속하지 않고 기본
           내장 폰트(한글 글리프 없음)로 떨어지므로, 매번 명시적으로 NotoSansKR을
           지정해야 한다(빠뜨리면 한글이 깨진 글리프로 출력됨 — 실제로 겪은 문제).
@@ -390,6 +398,54 @@ function OrgChartPage({ data }: { data: OrgChartData }) {
   );
 }
 
+// "중대산업재해 등 비상 상황시 조치계획"의 "1. 비상 대책반 구성"을 조직도와
+// 동일한 박스+연결선 방식으로 그린다. OrgChartPage와 달리 안전관리자 아래에서
+// 3개 팀으로 갈라지므로(트렁크 → 가로 분기선 → 3개 수직선) 박스 폭을 좁혀 한
+// 줄에 배치하고, 맨 아래에 협력업체·근로자로 내려가는 선을 하나 더 그린다.
+// 섹션 본문 중간(다른 표들과 같은 Page)에 들어가야 하므로 별도 <Page>가 아니라
+// <Svg>만 반환한다.
+const EMTEAM_BOX_W3 = 145;
+function EmergencyTeamDiagram({ data }: { data: EmergencyTeamData }) {
+  const row1Y = 10;
+  const row2Y = 86;
+  const branchY = 147;
+  const row3Y = 162;
+  const mergeY = 226;
+  const noteY = 240;
+  const centerX = 165;
+  const centerCx = centerX + ORG_BOX_W / 2;
+  const gap3 = 15;
+  const totalW3 = EMTEAM_BOX_W3 * 3 + gap3 * 2;
+  const x1 = (500 - totalW3) / 2;
+  const x2 = x1 + EMTEAM_BOX_W3 + gap3;
+  const x3 = x2 + EMTEAM_BOX_W3 + gap3;
+  const cx1 = x1 + EMTEAM_BOX_W3 / 2;
+  const cx2 = x2 + EMTEAM_BOX_W3 / 2;
+  const cx3 = x3 + EMTEAM_BOX_W3 / 2;
+
+  return (
+    <Svg width="100%" height={260} viewBox="0 0 500 260">
+      <Line x1={centerCx} y1={row1Y + ORG_BOX_H} x2={centerCx} y2={row2Y} stroke="#9ca3af" strokeWidth={1} />
+      {/* 안전관리자 → 통제반/구조·후송·복구반/지원반: 사선이 아니라 트렁크(수직) →
+          가로 분기선 → 좌우로 곧게 내려가는 직각 꺾쇠로 그린다. */}
+      <Line x1={centerCx} y1={row2Y + ORG_BOX_H} x2={centerCx} y2={branchY} stroke="#9ca3af" strokeWidth={1} />
+      <Line x1={cx1} y1={branchY} x2={cx3} y2={branchY} stroke="#9ca3af" strokeWidth={1} />
+      <Line x1={cx1} y1={branchY} x2={cx1} y2={row3Y} stroke="#9ca3af" strokeWidth={1} />
+      <Line x1={cx2} y1={branchY} x2={cx2} y2={row3Y} stroke="#9ca3af" strokeWidth={1} />
+      <Line x1={cx3} y1={branchY} x2={cx3} y2={row3Y} stroke="#9ca3af" strokeWidth={1} />
+      <Line x1={cx2} y1={row3Y + ORG_BOX_H} x2={cx2} y2={mergeY} stroke="#9ca3af" strokeWidth={1} />
+      <OrgChartBox x={centerX} y={row1Y} node={data.chief} />
+      <OrgChartBox x={centerX} y={row2Y} node={data.safetyManager} />
+      <OrgChartBox x={x1} y={row3Y} node={data.controlTeam} width={EMTEAM_BOX_W3} />
+      <OrgChartBox x={x2} y={row3Y} node={data.rescueTeam} width={EMTEAM_BOX_W3} />
+      <OrgChartBox x={x3} y={row3Y} node={data.supportTeam} width={EMTEAM_BOX_W3} />
+      <Text x={cx2} y={noteY} textAnchor="middle" style={{ fontSize: 8, fontFamily: "NotoSansKR" } as never} fill="#6b7280">
+        협력업체, 근로자
+      </Text>
+    </Svg>
+  );
+}
+
 export async function generateWizardPdf(
   title: string,
   sections: WizardSection[],
@@ -421,33 +477,37 @@ export async function generateWizardPdf(
         <Page key={section.id} size="A4" style={styles.page}>
           {i === 0 && <Text style={styles.title}>{title}</Text>}
           <Text style={styles.heading}>{section.heading}</Text>
+          {section.emergencyTeam && <EmergencyTeamDiagram data={section.emergencyTeam} />}
           {section.fields.map((f, idx) => (
             <View key={idx} style={styles.fieldRow}>
               <Text style={styles.fieldLabel}>{f.label}</Text>
               <Text style={styles.fieldValue}>{f.value || "(미입력)"}</Text>
             </View>
           ))}
-          {section.table && section.table.rows.length > 0 && (
-            <View style={styles.table}>
-              {section.table.headers.length > 0 && (
-                <View style={styles.tableRow}>
-                  {section.table.headers.map((h, idx) => (
-                    <Text key={idx} style={styles.tableHeaderCell}>
-                      {h}
-                    </Text>
+          {section.tables.map(
+            (t, tIdx) =>
+              t.rows.length > 0 && (
+                <View key={tIdx} style={styles.table}>
+                  {t.headers.length > 0 && (
+                    <View style={styles.tableRow}>
+                      {t.headers.map((h, idx) => (
+                        <Text key={idx} style={styles.tableHeaderCell}>
+                          {h}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                  {t.rows.map((row, rIdx) => (
+                    <View key={rIdx} style={styles.tableRow}>
+                      {row.map((cell, cIdx) => (
+                        <Text key={cIdx} style={styles.tableCell}>
+                          {cell}
+                        </Text>
+                      ))}
+                    </View>
                   ))}
                 </View>
-              )}
-              {section.table.rows.map((row, rIdx) => (
-                <View key={rIdx} style={styles.tableRow}>
-                  {row.map((cell, cIdx) => (
-                    <Text key={cIdx} style={styles.tableCell}>
-                      {cell}
-                    </Text>
-                  ))}
-                </View>
-              ))}
-            </View>
+              )
           )}
         </Page>
       ))}

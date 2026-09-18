@@ -14,7 +14,15 @@ import {
   BorderStyle,
   VerticalAlign,
 } from "docx";
-import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData, OrgChartData, OrgChartNode } from "./wizardExport";
+import type {
+  WizardSection,
+  CoverPageData,
+  OverviewPageData,
+  ManagementPolicyData,
+  OrgChartData,
+  OrgChartNode,
+  EmergencyTeamData,
+} from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
 
@@ -439,6 +447,46 @@ function buildOrgChartPage(data: OrgChartData): (Paragraph | Table)[] {
   ];
 }
 
+// "중대산업재해 등 비상 상황시 조치계획"의 "1. 비상 대책반 구성"을 조직도와
+// 동일한 박스+연결선(화살표) 방식으로 그린다. 조직도(2분기)와 달리 안전관리자
+// 아래에서 3개 팀(통제반/구조·후송·복구반/지원반)으로 갈라지고, 맨 아래에
+// 협력업체·근로자로 이어지는 안내문이 하나 더 붙는다. 페이지 안(섹션 본문 중간)
+// 에 들어가야 하므로 buildOrgChartPage와 달리 페이지나눔(PageBreak)은 넣지 않는다.
+function buildEmergencyTeamDiagram(data: EmergencyTeamData): (Paragraph | Table)[] {
+  return [
+    new Table({
+      width: { size: 60, type: WidthType.PERCENTAGE },
+      alignment: AlignmentType.CENTER,
+      rows: [new TableRow({ children: [orgChartBoxCell(data.chief)] })],
+    }),
+    orgChartArrowRow(),
+    new Table({
+      width: { size: 60, type: WidthType.PERCENTAGE },
+      alignment: AlignmentType.CENTER,
+      rows: [new TableRow({ children: [orgChartBoxCell(data.safetyManager)] })],
+    }),
+    orgChartArrowRow(),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            orgChartBoxCell(data.controlTeam),
+            orgChartBoxCell(data.rescueTeam),
+            orgChartBoxCell(data.supportTeam),
+          ],
+        }),
+      ],
+    }),
+    orgChartArrowRow(),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 },
+      children: [new TextRun({ text: "협력업체, 근로자", bold: true, size: 20, font: FONT, color: "6b7280" })],
+    }),
+  ];
+}
+
 export async function generateWizardDocx(
   title: string,
   sections: WizardSection[],
@@ -495,6 +543,10 @@ export async function generateWizardDocx(
       })
     );
 
+    if (section.emergencyTeam) {
+      children.push(...buildEmergencyTeamDiagram(section.emergencyTeam));
+    }
+
     for (const field of section.fields) {
       // field.value에 개행이 있으면(위험성평가 실시규정처럼 여러 문단짜리 긴 텍스트)
       // TextRun 하나에 몰아넣지 않고 줄마다 별도 Paragraph로 나눠야 실제로 줄바꿈이
@@ -519,15 +571,16 @@ export async function generateWizardDocx(
       });
     }
 
-    if (section.table && section.table.rows.length > 0) {
-      const { headers, rows } = section.table;
+    for (const t of section.tables) {
+      if (t.rows.length === 0) continue;
+      const { headers, rows } = t;
       const tableRows: TableRow[] = [];
 
       if (headers.length > 0) {
         tableRows.push(
           new TableRow({
             children: headers.map(
-              (h) =>
+              (h: string) =>
                 new TableCell({
                   width: { size: 100 / headers.length, type: WidthType.PERCENTAGE },
                   children: [
@@ -543,7 +596,7 @@ export async function generateWizardDocx(
         tableRows.push(
           new TableRow({
             children: row.map(
-              (cell) =>
+              (cell: string) =>
                 new TableCell({
                   width: { size: 100 / (headers.length || row.length), type: WidthType.PERCENTAGE },
                   children: [new Paragraph({ children: [new TextRun({ text: cell, size: 18, font: FONT })] })],
@@ -554,6 +607,7 @@ export async function generateWizardDocx(
       }
 
       children.push(new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+      children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
     }
   });
 

@@ -798,11 +798,11 @@ function buildDiagramBoxHtml(idPrefix: string, key: string, role: string): strin
   )}</p>
 <div class="mb-1">
 <label class="sr-only" for="wizard-field-${idPrefix}-${key}-name">${escapeHtmlPolicy(roleOneLine)} 성명</label>
-<input id="wizard-field-${idPrefix}-${key}-name" class="w-full text-xs text-center border border-neutral-300 rounded px-2 py-1" type="text" placeholder="성명"/>
+<input id="wizard-field-${idPrefix}-${key}-name" data-org-diagram-field class="w-full text-xs text-center border border-neutral-300 rounded px-2 py-1" type="text" placeholder="성명"/>
 </div>
 <div>
 <label class="sr-only" for="wizard-field-${idPrefix}-${key}-contact">${escapeHtmlPolicy(roleOneLine)} 연락처</label>
-<input id="wizard-field-${idPrefix}-${key}-contact" data-phone-format class="w-full text-xs text-center border border-neutral-300 rounded px-2 py-1" type="text" inputmode="numeric" placeholder="연락처"/>
+<input id="wizard-field-${idPrefix}-${key}-contact" data-phone-format data-org-diagram-field class="w-full text-xs text-center border border-neutral-300 rounded px-2 py-1" type="text" inputmode="numeric" placeholder="연락처"/>
 </div>
 </div>`;
 }

@@ -14,7 +14,17 @@ export interface WizardSection {
   id: string;
   heading: string;
   fields: WizardFieldRow[];
-  table?: { headers: string[]; rows: string[][] };
+  // 예전엔 섹션당 표가 최대 1개(.first())만 있다고 가정했는데, "중대산업재해 등
+  // 비상 상황시 조치계획"처럼 표가 여러 개(유관기관 연락처 표, 발생유형별 대응
+  // 시나리오 표 5개, 발생보고 표)인 섹션이 생기면서 뒤쪽 표들이 통째로 다운로드
+  // 문서에서 누락되는 실제 버그가 있었다 — 섹션 안의 표를 전부 배열로 담는다.
+  tables: { headers: string[]; rows: string[][] }[];
+  // "중대산업재해 등 비상 상황시 조치계획"의 비상대책반 구성 다이어그램(대책반장
+  // → 안전관리자 → 통제반/구조후송복구반/지원반 3분기)만 이 필드에 담는다.
+  // wizard-field-emteam-* 입력은 findLabel()/fieldValue()로 잡히는 일반 필드
+  // 목록에서는 제외하고(data-org-diagram-field), 대신 이 구조화된 형태로 뽑아
+  // 다운로드 문서에서도 조직도와 동일한 박스+연결선 다이어그램으로 그린다.
+  emergencyTeam?: EmergencyTeamData;
 }
 
 function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string | boolean>) {
@@ -261,6 +271,44 @@ export function extractOrgChartData(html: string, savedFields: Record<string, st
   };
 }
 
+// "중대산업재해 등 비상 상황시 조치계획"의 비상대책반 구성을 조직도와 동일한
+// 박스+연결선 다이어그램으로 그리기 위한 데이터. 직책은 wizardHtml.ts의
+// EMERGENCY_TEAM_ROLES와 동일한 고정값이고, 성명·연락처만 wizard-field-emteam-*
+// 고정 id로 읽어온다. extractOrgChartData와 달리 html을 새로 로드하지 않고
+// extractWizardSections가 이미 applySavedFields를 적용해 둔 $를 그대로 받는다
+// (섹션 하나를 순회하는 도중에 호출되므로).
+export interface EmergencyTeamData {
+  chief: OrgChartNode;
+  safetyManager: OrgChartNode;
+  controlTeam: OrgChartNode;
+  rescueTeam: OrgChartNode;
+  supportTeam: OrgChartNode;
+}
+
+const EMERGENCY_TEAM_ROLE_LABELS = {
+  chief: "대책반장(현장소장)",
+  safetyManager: "안전관리자(안전보건협의체 팀장)",
+  controlTeam: "통제반(품질1팀 팀장)",
+  rescueTeam: "구조·후송·복구반(공사팀 팀장)",
+  supportTeam: "지원반(품질2팀 팀장)",
+} as const;
+
+function extractEmergencyTeamData($: cheerio.CheerioAPI): EmergencyTeamData {
+  const byId = (id: string) => $(`#${id}`).attr("value")?.trim() ?? "";
+  const node = (key: string, role: string): OrgChartNode => ({
+    role,
+    name: byId(`wizard-field-emteam-${key}-name`),
+    contact: byId(`wizard-field-emteam-${key}-contact`),
+  });
+  return {
+    chief: node("chief", EMERGENCY_TEAM_ROLE_LABELS.chief),
+    safetyManager: node("safety-manager", EMERGENCY_TEAM_ROLE_LABELS.safetyManager),
+    controlTeam: node("control-team", EMERGENCY_TEAM_ROLE_LABELS.controlTeam),
+    rescueTeam: node("rescue-team", EMERGENCY_TEAM_ROLE_LABELS.rescueTeam),
+    supportTeam: node("support-team", EMERGENCY_TEAM_ROLE_LABELS.supportTeam),
+  };
+}
+
 export function extractWizardSections(
   html: string,
   savedFields: Record<string, string | boolean>,
@@ -293,14 +341,20 @@ export function extractWizardSections(
       // 이 입력의 라벨로 오인해 "(미입력)" 값과 함께 출력물에 새어나간다 — 즉시
       // 처리 후 버리는 일회성 업로드용이라 애초에 문서 내용이 아니므로 제외한다.
       if ($el.attr("data-process-extract-input") !== undefined) return;
+      // 비상대책반 구성 다이어그램의 성명·연락처 입력은 아래 extractEmergencyTeamData()가
+      // 별도로 구조화해서 뽑아 박스+연결선 다이어그램으로 그리므로, 여기서 또
+      // "역할 성명: 값" 식 일반 필드로 중복 출력하지 않는다.
+      if ($el.attr("data-org-diagram-field") !== undefined) return;
       const label = findLabel($, el);
       const value = fieldValue($, el);
       if (label) fields.push({ label, value });
     });
 
-    let table: { headers: string[]; rows: string[][] } | undefined;
-    const $table = $section.find("table").first();
-    if ($table.length) {
+    // 섹션 안의 표를 전부(첫 번째만이 아니라) 배열로 담는다 — "중대산업재해 등
+    // 비상 상황시 조치계획"처럼 표가 여러 개인 섹션이 있다.
+    const tables: { headers: string[]; rows: string[][] }[] = [];
+    $section.find("table").each((_, tableEl) => {
+      const $table = $(tableEl);
       // "관리"(행 삭제 버튼) 열은 편집용 UI일 뿐 문서 내용이 아니므로 출력물에서
       // 헤더/셀 모두 제외한다(포함하면 아이콘 폰트 리거처 이름이 텍스트로 새어나감).
       const headers: string[] = [];
@@ -326,10 +380,12 @@ export function extractWizardSections(
           });
         if (row.length) rows.push(row);
       });
-      table = { headers, rows };
-    }
+      if (rows.length > 0) tables.push({ headers, rows });
+    });
 
-    sections.push({ id, heading, fields, table });
+    const emergencyTeam = id === "sec-emergency_plan" ? extractEmergencyTeamData($) : undefined;
+
+    sections.push({ id, heading, fields, tables, emergencyTeam });
   });
 
   return sections;

@@ -186,13 +186,13 @@ export default async function AdminDashboardPage() {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 font-medium">
-                      <th className="py-2.5 px-4">수정일시</th>
+                      <th className="py-2.5 px-4 whitespace-nowrap">수정일시</th>
                       <th className="py-2.5 px-4">공사명</th>
                       <th className="py-2.5 px-4">발주처</th>
                       <th className="py-2.5 px-4">작성기업</th>
                       <th className="py-2.5 px-4">진행률</th>
                       <th className="py-2.5 px-4 text-center">상태</th>
-                      <th className="py-2.5 px-4 text-right">바로가기</th>
+                      <th className="py-2.5 px-4 text-right whitespace-nowrap">바로가기</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -200,12 +200,13 @@ export default async function AdminDashboardPage() {
                       const st = DOC_STATUS_LABEL[d.status] ?? DOC_STATUS_LABEL.in_progress;
                       return (
                         <tr key={d.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-3 px-4 font-mono text-slate-500 text-[11px]">
-                            {new Date(d.updated_at).toLocaleString("ko-KR")}
+                          <td className="py-3 px-4 font-mono text-slate-500 text-[11px] whitespace-nowrap">
+                            <div>{new Date(d.updated_at).toLocaleDateString("ko-KR")}</div>
+                            <div>{new Date(d.updated_at).toLocaleTimeString("ko-KR")}</div>
                           </td>
                           <td className="py-3 px-4 font-semibold text-slate-900 truncate max-w-[200px]">{d.title}</td>
                           <td className="py-3 px-4 text-slate-700">{d.agency ?? "-"}</td>
-                          <td className="py-3 px-4">
+                          <td className="py-3 px-4 whitespace-nowrap">
                             <div className="text-slate-800">{d.members?.company ?? "-"}</div>
                             <div className="text-[11px] text-slate-400">{d.members?.name ?? "-"}</div>
                           </td>
@@ -225,9 +226,9 @@ export default async function AdminDashboardPage() {
                               {st.label}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right">
+                          <td className="py-3 px-4 text-right whitespace-nowrap">
                             <a
-                              className="px-2 py-1 text-blue-800 hover:bg-blue-50 rounded border border-slate-200 transition-colors"
+                              className="inline-block px-2.5 py-1 text-blue-800 hover:bg-blue-50 rounded border border-slate-200 transition-colors whitespace-nowrap"
                               href={`/documents/${d.id}/wizard`}
                             >
                               열기

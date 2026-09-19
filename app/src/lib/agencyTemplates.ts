@@ -1,3 +1,13 @@
+// 발주처명 매칭용 정규화 — "한국토지주택공사(LH)"처럼 사람이 직접 입력하거나
+// 특정 API 소스가 붙이는 괄호 약어(LH, K-water 등)를 떼어내고 비교한다.
+// documents.agency와 agency_templates.agency의 실제 문자열이 소스마다 다르게
+// 들어올 수 있다 — 예: 관리자가 수동 등록한 공고는 "한국토지주택공사(LH)"인데,
+// LH 개찰정보 API로 동기화된 공고는 "한국토지주택공사"(괄호 없음)로 들어와
+// 정확히 일치하는 문자열 비교(eq)로는 표준서식을 못 찾는 문제가 실제로 있었다.
+export function normalizeAgencyName(agency: string): string {
+  return agency.replace(/\s*\([^)]*\)\s*$/, "").trim();
+}
+
 export type AgencyTemplateField = {
   key: string;
   label: string;
@@ -23,8 +33,11 @@ export type AgencyTemplateRow = {
   sections: AgencyTemplateSection[];
   disabled_common_sections?: string[];
   cover_style?: CoverStyle;
-  // "Ⅰ. 사업개요 및 기본정보" 제목을 이 발주처 실제 서식 목차대로 바꿔야 할 때만
-  // 채운다(예: LH 실제 목차는 "Ⅰ. 안전보건관리 체계"). 입력 필드 자체는 그대로다.
+  // section_order를 쓰는 경우, "사업개요" 절 자체의 소제목만 바꾼다(그 절이 속한
+  // 장의 대제목은 section_order 그룹의 title이 따로 결정한다 — 둘을 혼동해 같은
+  // 문구를 넣으면 "Ⅰ.안전보건관리 체계" 대제목 밑에 "안전보건관리 체계"라는
+  // 소제목이 또 나오는 식으로 중복돼 보인다). section_order를 안 쓰는 경우엔
+  // "Ⅰ. 사업개요 및 기본정보" 제목 전체를 이 값으로 바꾼다. 입력 필드 자체는 그대로다.
   overview_label?: string | null;
   // 좌측 목차 맨 위(Ⅰ장보다 위)에 "표지" 안내 항목을 보여줄지 여부.
   show_cover_nav?: boolean;
@@ -308,8 +321,12 @@ const EXTRA_BODY_ICON = '<span class="material-symbols-outlined text-primary tex
 // `nav a[href^="#sec-"]`를 전부 조회해 classList.toggle로 활성 스타일을 켜고 끄므로,
 // 아래에서 새로 만드는 소제목 <a>가 이 속성(href="#sec-X")만 갖고 있으면 클래스
 // 구성과 무관하게 그대로 동작한다 — 별도 JS 수정이 필요 없다.
-function buildGroupedNavItemHtml(sectionId: string, label: string): string {
-  return `<a class="flex items-center px-3 py-1.5 ml-2 rounded-lg text-[11.5px] font-medium text-neutral-600 border-l-2 border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900 hover:border-primary/40 transition group" href="#${sectionId}">
+// order: 이 절이 속한 장(章) 안에서 몇 번째 절인지(1부터 시작, 장이 바뀌면 다시
+// 1로 초기화) — 로마숫자 대제목 밑에 소제목이 몇 개인지 한눈에 보이도록 아라비아
+// 숫자를 붙여 달라는 요청으로 추가했다.
+function buildGroupedNavItemHtml(sectionId: string, label: string, order: number): string {
+  return `<a class="flex items-center gap-1.5 px-3 py-1.5 ml-2 rounded-lg text-[11.5px] font-medium text-neutral-600 border-l-2 border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900 hover:border-primary/40 transition group" href="#${sectionId}">
+<span class="text-neutral-400 font-mono shrink-0">${order}.</span>
 <span class="truncate">${label}</span>
 </a>`;
 }
@@ -356,6 +373,10 @@ export function applySectionOrder(
 
   groups.forEach(({ roman, title, members }, groupIndex) => {
     let groupNavHtml = "";
+    // 장(章)이 바뀔 때마다 1로 되돌아가는 아라비아 숫자 — 아직 켜지지 않은
+    // 플래그라 실제로는 나오지 않는 절(멤버 목록엔 있지만 매치가 안 되는 경우)은
+    // 건너뛰고 실제로 보이는 절만 세어야 번호가 중간에 비지 않는다.
+    let navOrder = 0;
     for (const id of members) {
       const isExtra = id in extraLabels;
       const sectionId = isExtra ? `sec-tpl-${id}` : `sec-${id}`;
@@ -367,7 +388,8 @@ export function applySectionOrder(
         const closeIdx = result.indexOf("</a>", start);
         if (closeIdx !== -1) {
           const end = closeIdx + "</a>".length;
-          groupNavHtml += buildGroupedNavItemHtml(sectionId, label) + "\n";
+          navOrder += 1;
+          groupNavHtml += buildGroupedNavItemHtml(sectionId, label, navOrder) + "\n";
           result = result.slice(0, start) + (navPlaced ? "" : NAV_TOKEN) + result.slice(end);
           navPlaced = true;
         }

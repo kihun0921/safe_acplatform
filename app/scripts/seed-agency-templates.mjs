@@ -28,10 +28,12 @@ const TEMPLATES = [
     name: "한국토지주택공사(LH) 표준 서식 (2025 개정판)",
     cover_style: "lh_standard",
     // 실제 LH 안전보건관리계획서 샘플(화성동탄(2) 근린공원31호 지하주차장 설치공사)의
-    // 목차는 "표지"(제출문 포함) 다음 "Ⅰ. 안전보건관리 체계"로 시작하고, 그 1절이
-    // 우리 시스템의 "사업개요"에 해당한다. 입력 필드 구성은 그대로 두고 제목만
-    // 실제 목차에 맞춰 바꾼다.
-    overview_label: "안전보건관리 체계",
+    // 목차는 "표지"(제출문 포함) 다음 "Ⅰ. 안전보건관리 체계"로 시작하고, 그 1절
+    // 제목이 "1. 사업개요"다(챕터 대제목은 아래 section_order의 Ⅰ그룹 title이
+    // 따로 맡는다 — 여기에 챕터 제목을 그대로 넣으면 좌측 목차에 "Ⅰ.안전보건관리
+    // 체계" 밑에 "안전보건관리 체계"가 또 나오는 중복이 생긴다). 입력 필드 구성은
+    // 그대로 두고 소제목만 실제 목차에 맞춰 바꾼다.
+    overview_label: "사업개요",
     show_cover_nav: true,
     // 실제 샘플의 "Ⅰ.안전보건관리체계 / 1.사업개요" 페이지는 일반 "라벨: 값" 목록이
     // 아니라 글꼴·위치·□ 체크박스 불릿까지 완전히 정형화된 별도 페이지라, 그
@@ -156,7 +158,7 @@ const TEMPLATES = [
       },
       { roman: "Ⅲ", title: "운영관리", members: ["daily_inspection_plan", "ptw_plan", "protection_equipment"] },
       { roman: "Ⅳ", title: "중대산업재해 등 비상 상황시 조치계획", members: ["emergency_plan"] },
-      { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "council_meeting_plan", "integrity_pledge", "subcontractor_evaluation", "target", "misc_admin", "safety_cost"] },
+      { roman: "Ⅴ", title: "기타사항", members: ["safety_council", "council_meeting_plan", "integrity_pledge", "subcontractor_evaluation", "misc_admin", "safety_cost"] },
       { roman: "Ⅵ", title: "재해발생 수준", members: ["accident_level"] },
       { roman: "Ⅶ", title: "붙임", members: ["risk_assessment_rules", "attachments"] },
       { roman: "Ⅷ", title: "작업투입 인력 인적사항", members: ["workforce"] },
@@ -164,7 +166,11 @@ const TEMPLATES = [
     // "emergency": 기존 base 템플릿의 Stitch 데모 카드("AI 현장 반경 5km 이내
     // 지정 응급의료기관 자동 연동" 등 가짜 내용)가 emergency_plan(실제 LH 샘플
     // 내용)과 겹쳐서 끈다.
-    disabled_common_sections: ["emergency"],
+    // "target": 역시 Stitch 데모 카드("KOSHA-MS 규격" 배지, "TBM 일일 실시 사진
+    // 첨부 서식 자동생성 On" 등 가짜 토글)인데, 안전목표는 management-policy의
+    // "나.안전보건 목표"와, TBM은 daily_inspection_plan의 실제 고정 내용과 이미
+    // 겹쳐서 끈다.
+    disabled_common_sections: ["emergency", "target"],
     sections: [
       {
         id: "workforce",
@@ -221,7 +227,7 @@ const TEMPLATES = [
       },
       {
         id: "misc_admin",
-        label: "기타사항 (정기 위험성평가)",
+        label: "정기 위험성평가 및 안전보건정보 활용",
         fields: [
           {
             key: "periodic_risk_assessment_plan",

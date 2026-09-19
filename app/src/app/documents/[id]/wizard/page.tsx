@@ -5,6 +5,7 @@ import DocumentPaywallModal from "@/components/DocumentPaywallModal";
 import DocumentPriceEditor from "@/components/DocumentPriceEditor";
 import { pickAnnouncementPdf, extractBusinessOverviewFromPdf } from "@/lib/extractBusinessOverview";
 import { buildWizardHtml, SCRIPT_documents_wizard, ACCIDENT_LEVEL_SLOTS, type PdfOverview } from "@/lib/wizardHtml";
+import { normalizeAgencyName, type AgencyTemplateRow } from "@/lib/agencyTemplates";
 import { isDocumentUnlocked } from "@/lib/documentAccess";
 import { classifyConstructionType, buildInitialRiskRows, type RiskRow } from "@/lib/riskTemplates";
 
@@ -38,15 +39,24 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   const initialFields = (doc.content?.fields ?? {}) as Record<string, string | boolean>;
 
-  // 발주처 표준서식(agency_templates): 이 문서의 발주처와 정확히 일치하는 표준서식만
-  // 선택지로 보여준다. 현재는 LH만 실제로 등록되어 있고, 나머지 발주처는 공통 서식만
-  // 노출된다(옵션이 없으면 드롭다운 대신 읽기 전용 배지로 표시).
-  const { data: availableTemplates } = doc.agency
-    ? await supabase.from("agency_templates").select("id, name").eq("agency", doc.agency)
-    : { data: null };
-  const { data: selectedTemplate } = doc.template_id
-    ? await supabase.from("agency_templates").select("*").eq("id", doc.template_id).maybeSingle()
-    : { data: null };
+  // 발주처 표준서식(agency_templates): 이 문서의 발주처와 이름이 일치하는 표준서식만
+  // 선택지로 보여준다. 정확히 같은 문자열이 아니라 괄호 약어를 뗀 이름으로 비교하는
+  // 이유는 공고 출처(수동 등록/각 발주처 API 동기화)마다 "한국토지주택공사(LH)"/
+  // "한국토지주택공사"처럼 표기가 갈리기 때문이다(normalizeAgencyName 참고).
+  // documents.template_id가 비어 있어도(문서 생성 라우트가 자동 적용하기 전에
+  // 만들어진 예전 문서 등) 발주처 이름이 일치하면 처음부터 그 표준서식으로
+  // 보여준다 — 회원이 매번 드롭다운에서 직접 골라야 하는 일이 없도록 한다.
+  const { data: allTemplates } = await supabase.from("agency_templates").select("*");
+  const normalizedDocAgency = doc.agency ? normalizeAgencyName(doc.agency) : null;
+  const matchedTemplates: AgencyTemplateRow[] =
+    normalizedDocAgency && allTemplates
+      ? allTemplates.filter((t) => normalizeAgencyName(t.agency) === normalizedDocAgency)
+      : [];
+  const availableTemplates = matchedTemplates.map((t) => ({ id: t.id, name: t.name }));
+  const selectedTemplate: AgencyTemplateRow | null =
+    (doc.template_id ? matchedTemplates.find((t) => t.id === doc.template_id) : undefined) ??
+    matchedTemplates[0] ??
+    null;
 
   const { data: announcement } = doc.announcement_id
     ? await supabase

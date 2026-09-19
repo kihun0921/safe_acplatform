@@ -106,6 +106,15 @@ export type AgencyTemplateRow = {
   // 플래그가 생겼다 — 이 플래그를 켜는 발주처는 sections의 misc_admin에서
   // subcontractor_evaluation 필드를 반드시 제거할 것(다른 필드는 그대로 둠).
   show_subcontractor_evaluation?: boolean;
+  // "종사자(관계수급인) 안전보건 관리비용 기준"(실제 LH 샘플 화성동탄(2) 126~127p)을
+  // 계상현황 + 세부내역 표 고정 서식으로 보여줄지 여부. 산업안전보건관리비는
+  // 사업개요 도급공사비 기준 자동 계산 추정치를 기본값으로 채우고, 안전관리비
+  // (건설기술진흥법) 세부 8개 항목·예비 안전관리비는 직접 입력하며 합계는 항상
+  // 자동 계산된다(documents.content.safetyCostAmounts). 기존에는 sections의
+  // 범용 "safety_cost" 항목 안 textarea 2개(자유 입력)였는데, 표 형식으로 바꿔
+  // 달라는 요청으로 이 플래그가 생겼다 — 이 플래그를 켜는 발주처는 sections에서
+  // "safety_cost" 항목을 반드시 제거할 것.
+  show_safety_cost_plan?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

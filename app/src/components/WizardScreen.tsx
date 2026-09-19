@@ -31,6 +31,7 @@ export default function WizardScreen({
   const hazardSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const ppeQtySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emergencyContactSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const safetyCostSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -64,7 +65,7 @@ export default function WizardScreen({
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
+        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]):not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -201,6 +202,52 @@ export default function WizardScreen({
       };
       if (immediate) return run();
       ppeQtySaveTimer.current = setTimeout(run, 15000);
+      return Promise.resolve();
+    };
+
+    // ── 종사자(관계수급인) 안전보건 관리비용 기준(Ⅴ. sec-safety_cost): 항목 개수가
+    // 고정된 표라 ppeQuantities와 동일한 이유로 field-N 체계 대신
+    // documents.content.safetyCostAmounts에 키로 별도 저장한다. 안전관리비
+    // (건설기술진흥법) 세부항목/예비 안전관리비 입력이 바뀔 때마다 합계 표시칸
+    // (표에 2곳 있음)을 즉시 재계산한다 — 위험성평가 표의 위험성(빈도×강도)
+    // 자동계산과 동일한 패턴이며, 다운로드 문서 쪽은 wizardHtml.ts가 저장된
+    // 값으로 서버에서 다시 계산해 넣는다.
+    const recalcSafetyCostTotal = () => {
+      let total = 0;
+      root.querySelectorAll<HTMLInputElement>("[data-safety-cost-item], [data-safety-cost-reserve]").forEach((el) => {
+        total += Number(el.value.replace(/[^\d]/g, "")) || 0;
+      });
+      root.querySelectorAll<HTMLInputElement>("[data-safety-cost-engineering-total]").forEach((el) => {
+        el.value = total.toLocaleString("ko-KR");
+      });
+    };
+
+    const saveSafetyCostAmounts = (immediate = false): Promise<void> => {
+      if (safetyCostSaveTimer.current) clearTimeout(safetyCostSaveTimer.current);
+      const run = async () => {
+        setSaving(true);
+        try {
+          const amounts: Record<string, string> = {};
+          const industrialEl = root.querySelector<HTMLInputElement>("[data-safety-cost-industrial]");
+          if (industrialEl) amounts.industrial = industrialEl.value;
+          root.querySelectorAll<HTMLInputElement>("[data-safety-cost-item]").forEach((el) => {
+            const key = el.dataset.safetyCostItem;
+            if (key !== undefined) amounts[key] = el.value;
+          });
+          const reserveEl = root.querySelector<HTMLInputElement>("[data-safety-cost-reserve]");
+          if (reserveEl) amounts.reserve = reserveEl.value;
+          await fetch(`/api/documents/${documentId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ safetyCostAmounts: amounts }),
+          });
+          setSavedAt(new Date());
+        } finally {
+          setSaving(false);
+        }
+      };
+      if (immediate) return run();
+      safetyCostSaveTimer.current = setTimeout(run, 15000);
       return Promise.resolve();
     };
 
@@ -648,6 +695,15 @@ export default function WizardScreen({
         saveEmergencyContactRows(false);
         return;
       }
+      if (el.matches("[data-safety-cost-item], [data-safety-cost-reserve]")) {
+        recalcSafetyCostTotal();
+        saveSafetyCostAmounts(false);
+        return;
+      }
+      if (el.matches("[data-safety-cost-industrial]")) {
+        saveSafetyCostAmounts(false);
+        return;
+      }
       if (el.matches("[data-template-select]")) return;
       const key = el.dataset.wizardKey;
       if (!key) return;
@@ -786,6 +842,7 @@ export default function WizardScreen({
           void flushAllHazardSaves();
           void savePpeQuantities(true);
           void saveEmergencyContactRows(true);
+          void saveSafetyCostAmounts(true);
           return;
         }
         void exportDocument(exportFormat!, btn as HTMLButtonElement);
@@ -799,6 +856,7 @@ export default function WizardScreen({
         void flushAllHazardSaves();
         void savePpeQuantities(true);
         void saveEmergencyContactRows(true);
+        void saveSafetyCostAmounts(true);
       }
     };
 
@@ -812,6 +870,7 @@ export default function WizardScreen({
         await flushAllHazardSaves();
         await savePpeQuantities(true);
         await saveEmergencyContactRows(true);
+        await saveSafetyCostAmounts(true);
         const res = await fetch(`/api/documents/${documentId}/export?format=${format}`);
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -935,6 +994,7 @@ export default function WizardScreen({
       if (riskSaveTimer.current) clearTimeout(riskSaveTimer.current);
       if (ppeQtySaveTimer.current) clearTimeout(ppeQtySaveTimer.current);
       if (emergencyContactSaveTimer.current) clearTimeout(emergencyContactSaveTimer.current);
+      if (safetyCostSaveTimer.current) clearTimeout(safetyCostSaveTimer.current);
       Object.values(hazardTimersMap).forEach((t) => clearTimeout(t));
     };
   }, [documentId, downloadsLocked, router]);

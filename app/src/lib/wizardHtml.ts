@@ -2858,6 +2858,174 @@ ${dipReadonlyBlock("마. 증빙서류 보관", SUBCONTRACTOR_EVAL_RECORDKEEPING_
 `;
 }
 
+// "종사자(관계수급인) 안전보건 관리비용 기준" — 실제 LH 샘플 화성동탄(2) 126~127p
+// ("5. 종사자(관계수급인) 안전보건 관리비용 기준")를 고정 서식화했다. 실제 금액은
+// 현장마다 다르므로: 1) 산업안전보건관리비는 이미 계산된 계상요율 추정치
+// (contractAmount×2.93%, 사업개요의 도급공사비 기준 — 사업개요 탭의 계상 안전보건
+// 관리비와 동일한 값)를 기본값으로 채워 넣고 직접 수정 가능하게 하며, 2) 안전관리비
+// (건설기술진흥법) 세부 8개 항목 + 예비 안전관리비는 사업개요에서 가져올 수 있는
+// 값이 없어(공사종류별 세부 견적이 필요) 직접 입력하게 하되, 합계는 항목 입력값의
+// 합으로 항상 자동 계산한다(화면에서는 WizardScreen.tsx가 입력 즉시 재계산하고,
+// 다운로드 문서는 이 함수가 저장된 값으로 서버에서 다시 계산해 넣는다 — 위험성평가
+// 표의 위험성(빈도×강도) 자동계산과 동일한 패턴).
+const SAFETY_COST_LEGAL_BASIS_TEXT =
+  "산업안전보건법 제72조(산업안전보건관리비) 및 건설기술진흥법 제63조(안전관리비) – 발주처 현장설명서 붙임 「안전관리비 세부현황」 기준";
+
+const SAFETY_COST_INDUSTRIAL_BASIS_TEXT =
+  "Min[① (재료비+직접노무비)×2.37%×1.2, ② (재료비+직접노무비+지급자재비/1.1)×2.37%]";
+
+const SAFETY_COST_ENGINEERING_BASIS_TEXT =
+  "건설기술진흥법 시행령 제98조에 따른 8개 세부항목 합계(예비 안전관리비 포함) – 아래 다. 세부내역 참조";
+
+const SAFETY_COST_ITEMS: { label: string }[] = [
+  { label: "1. 정기안전점검비" },
+  { label: "2. 정기안전점검비(건설기계, 가설구조물)" },
+  { label: "3. 가설구조물의 구조적 안전성 확인에 필요한 비용" },
+  { label: "4. 안전관리계획 작성 및 검토비용" },
+  { label: "5. 발파굴착 등의 건설공사로 인한 주변 건축물 등의 피해방지대책 비용" },
+  { label: "6. 공사장 주변의 통행안전관리대책 비용" },
+  { label: "7. 계측장비, 폐쇄회로 텔레비전 등 안전모니터링 장치의 설치·운용 비용" },
+  { label: "8. 무선설비 및 무선통신을 이용한 건설공사 현장의 안전관리체계 구축·운용 비용" },
+];
+
+const SAFETY_COST_DISTRIBUTION_TEXT =
+  "1) 위 산업안전보건관리비는 원도급사가 관계수급인의 공사금액 비율 또는 실제 투입인원·작업기간 비율에 따라 배분하며, 고위험작업(굴착, 흙막이가시설, 고소작업, 밀폐공간, 중장비 사용 등)에 참여하는 관계수급인에는 위험도 가중치(1.2배~1.5배)를 적용하여 우선 배분한다.\n" +
+  "2) 관계수급인은 배분받은 금액을 산업안전보건관리비 사용기준상 8개 사용항목(안전관리자 등 인건비, 안전시설비, 개인보호구, 안전보건교육비 및 행사비, 근로자 건강장해 예방비, 건설재해예방 기술지도비, 본사 사용비, 스마트 안전장비 등) 범위 내에서만 사용한다.\n" +
+  "3) 위 안전관리비(건설기술진흥법)는 정기안전점검·가설구조물 안전성확인·안전관리계획 작성·통행안전관리대책·계측 및 CCTV 모니터링·무선안전관리체계 등 현장 전체의 공통 안전관리에 원도급사가 직접 집행하며, 관계수급인에게 개별 배분하지 않는다. 다만 그 효과(CCTV 모니터링, 통행안전관리대책 등)는 관계수급인 소속 근로자를 포함한 현장 전체 종사자에게 동일하게 적용된다.";
+
+const SAFETY_COST_USAGE_EXAMPLE_TEXT =
+  "· 개인보호구(안전모·안전화·안전대·마스크 등): 관계수급인 투입인원 기준 1인당 지급수량에 따라 지급하며, 마모·손상 시 즉시 재지급한다.\n" +
+  "· 안전시설물(안전난간, 방호망, 낙하물방지망, 개구부 덮개 등): 공정별 소요수량을 산출하여 실제 설치비용을 반영한다.\n" +
+  "· 안전보건교육비: 관계수급인 소속 근로자의 1인당 교육시간 기준 강사료·교재비를 반영한다.\n" +
+  "· 특수건강진단비: 유해인자 취급 근로자를 대상으로 실비를 반영한다.";
+
+const SAFETY_COST_EXECUTION_TEXT =
+  "1) 관계수급인은 매월 안전보건관리비 사용내역서를 작성하여 원도급사에 제출하고, 원도급사는 이를 취합·정산한다.\n" +
+  "2) 공정률별 최소 사용기준(공정률 50~70% 미만: 50% 이상, 70~90% 미만: 70% 이상, 90% 이상: 90% 이상)을 준수하며, 미달 시 사유서를 제출하고 익월 집행계획에 반영한다.\n" +
+  "3) 예비 안전관리비는 향후 반영·집행될 경우 내역상 안전관리비를 우선 사용한 후, 감독(관)의 사전승인을 득하여 사용하고 반드시 사후정산한다.\n" +
+  "4) 목적 외 사용, 미달 집행 등이 확인될 경우 시정조치를 요구하고 재사용을 명한다.\n" +
+  "※ 상기 금액은 발주처 현장설명서 붙임 「안전관리비 세부현황」에 반영된 금액을 기준으로 작성하며, 계약체결·설계변경 등에 따라 금액이 변경될 경우 이를 재확인하여 반영한다.";
+
+function buildSafetyCostNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-safety_cost">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  08
+                </span>
+<span class="group-hover:text-neutral-900">종사자(관계수급인) 안전보건 관리비용 기준</span>
+</div>
+</a>
+`;
+}
+
+function buildSafetyCostSectionHtml(
+  safetyCostAmounts: Record<string, string>,
+  defaultIndustrialAmount: number | null
+): string {
+  const parseAmount = (v: string | undefined): number => {
+    const n = Number((v ?? "").replace(/[^\d]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const industrialValue = safetyCostAmounts.industrial ?? (defaultIndustrialAmount ? String(defaultIndustrialAmount) : "");
+  const itemValues = SAFETY_COST_ITEMS.map((_, i) => safetyCostAmounts[String(i)] ?? "");
+  const reserveValue = safetyCostAmounts.reserve ?? "0";
+  const engineeringTotal =
+    itemValues.reduce((sum, v) => sum + parseAmount(v), 0) + parseAmount(reserveValue);
+
+  const itemRows = SAFETY_COST_ITEMS.map(
+    ({ label }, i) => `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">${escapeHtmlPolicy(label)}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top w-[22%]">
+<input type="text" inputmode="numeric" data-safety-cost-item="${i}" class="w-full text-xs text-right bg-white border border-neutral-300 rounded-lg px-2 py-1.5" placeholder="0" value="${escapeHtmlPolicy(
+      itemValues[i]
+    )}"/>
+</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top w-[16%] text-neutral-500">원</td>
+</tr>`
+  ).join("\n");
+
+  return `<!-- ════════ SECTION: 종사자(관계수급인) 안전보건 관리비용 기준 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-safety_cost">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅴ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">종사자(관계수급인) 안전보건 관리비용 기준</h2>
+</div>
+<div class="p-6 space-y-5">
+<p class="text-xs text-neutral-500">항목·산정기준·사용기준은 표준 문구로 고정되어 있으며, 산업안전보건관리비는 사업개요의 도급공사비를 기준으로 자동 계산된 추정치가 채워집니다. 실제 계상금액과 세부내역 금액은 발주처 현장설명서 기준으로 직접 입력·수정하세요.</p>
+${dipReadonlyBlock("가. 법적 근거", SAFETY_COST_LEGAL_BASIS_TEXT)}
+<div>
+<p class="font-bold text-neutral-800 mb-2">나. 본 공사 계상현황</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[22%]">구분</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[22%]">반영금액(원)</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">산정기준 / 비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top">산업안전보건관리비<br/>(산업안전보건법)</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">
+<input type="text" inputmode="numeric" data-safety-cost-industrial class="w-full text-xs text-right bg-white border border-neutral-300 rounded-lg px-2 py-1.5" placeholder="0" value="${escapeHtmlPolicy(
+    industrialValue
+  )}"/>
+</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">${escapeHtmlPolicy(SAFETY_COST_INDUSTRIAL_BASIS_TEXT)}</td>
+</tr>
+<tr>
+<td class="px-3 py-2 align-top font-medium text-neutral-800">안전관리비<br/>(건설기술진흥법)</td>
+<td class="px-3 py-2 align-top">
+<input type="text" readonly data-safety-cost-engineering-total class="w-full text-xs text-right bg-neutral-100 border border-neutral-200 rounded-lg px-2 py-1.5 font-semibold text-neutral-700" value="${engineeringTotal.toLocaleString(
+    "ko-KR"
+  )}"/>
+</td>
+<td class="px-3 py-2 align-top">${escapeHtmlPolicy(SAFETY_COST_ENGINEERING_BASIS_TEXT)}</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div>
+<p class="font-bold text-neutral-800 mb-2">다. 안전관리비(건설기술진흥법) 세부내역</p>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">세부 항목</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[22%]">반영금액</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[16%]">비고</th>
+</tr>
+</thead>
+<tbody>
+${itemRows}
+<tr>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">· 예비 안전관리비</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">
+<input type="text" inputmode="numeric" data-safety-cost-reserve class="w-full text-xs text-right bg-white border border-neutral-300 rounded-lg px-2 py-1.5" placeholder="0" value="${escapeHtmlPolicy(
+    reserveValue
+  )}"/>
+</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top text-neutral-500">붙임 기준</td>
+</tr>
+<tr>
+<td class="px-3 py-2 font-bold text-neutral-800 bg-neutral-50">합 계</td>
+<td class="px-3 py-2 bg-neutral-50">
+<input type="text" readonly data-safety-cost-engineering-total class="w-full text-xs text-right bg-neutral-100 border border-neutral-200 rounded-lg px-2 py-1.5 font-bold text-neutral-800" value="${engineeringTotal.toLocaleString(
+    "ko-KR"
+  )}"/>
+</td>
+<td class="px-3 py-2 bg-neutral-50"></td>
+</tr>
+</tbody>
+</table>
+</div>
+${dipReadonlyBlock("라. 종사자(관계수급인) 배분 및 사용기준", SAFETY_COST_DISTRIBUTION_TEXT)}
+${dipReadonlyBlock("마. 세부 사용항목별 기준(예시)", SAFETY_COST_USAGE_EXAMPLE_TEXT)}
+${dipReadonlyBlock("바. 집행 및 확인절차", SAFETY_COST_EXECUTION_TEXT)}
+</div>
+</section>
+`;
+}
+
 // "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
 // 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
 // 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
@@ -3158,7 +3326,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_emergency_plan ? 1 : 0) +
     (agencyTemplate?.show_council_meeting_plan ? 1 : 0) +
     (agencyTemplate?.show_integrity_pledge ? 1 : 0) +
-    (agencyTemplate?.show_subcontractor_evaluation ? 1 : 0);
+    (agencyTemplate?.show_subcontractor_evaluation ? 1 : 0) +
+    (agencyTemplate?.show_safety_cost_plan ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -3309,6 +3478,11 @@ ${templateOptions
   const subcontractorEvaluationSectionHtml = agencyTemplate?.show_subcontractor_evaluation
     ? buildSubcontractorEvaluationSectionHtml()
     : "";
+  const safetyCostAmounts = (doc.content?.safetyCostAmounts as Record<string, string> | undefined) ?? {};
+  const safetyCostNavHtml = agencyTemplate?.show_safety_cost_plan ? buildSafetyCostNavHtml() : "";
+  const safetyCostSectionHtml = agencyTemplate?.show_safety_cost_plan
+    ? buildSafetyCostSectionHtml(safetyCostAmounts, safetyBudget)
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -3373,6 +3547,10 @@ ${templateOptions
       `${subcontractorEvaluationNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${safetyCostNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
       `${riskAssessmentRulesNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">`
     )
@@ -3423,7 +3601,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}${councilMeetingPlanSectionHtml}${integrityPledgeSectionHtml}${subcontractorEvaluationSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}${councilMeetingPlanSectionHtml}${integrityPledgeSectionHtml}${subcontractorEvaluationSectionHtml}${safetyCostSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     )
     .replace(
       '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
@@ -3481,6 +3659,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.council_meeting_plan = "안전보건협의체 회의계획";
     commonLabels.integrity_pledge = "안전보건관리비 집행 청렴서약서";
     commonLabels.subcontractor_evaluation = "적격업체(관계수급인) 선정 평가기준";
+    commonLabels.safety_cost = "종사자(관계수급인) 안전보건 관리비용 기준";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

@@ -246,6 +246,14 @@ alter table public.agency_templates add column if not exists show_integrity_pled
 -- 제거할 것 — 안 그러면 같은 내용이 두 번 나온다.
 alter table public.agency_templates add column if not exists show_subcontractor_evaluation boolean not null default false;
 
+-- show_safety_cost_plan: "종사자(관계수급인) 안전보건 관리비용 기준"(실제 LH
+-- 샘플 화성동탄(2) 126~127p)을 계상현황 + 세부내역 표 고정 서식으로 보여줄지
+-- 여부. 산업안전보건관리비는 사업개요 도급공사비 기준 자동 계산 추정치를
+-- 기본값으로 채우고, 안전관리비(건설기술진흥법) 세부 8개 항목·예비 안전관리비는
+-- 직접 입력하며 합계는 항상 자동 계산된다(documents.content.safetyCostAmounts).
+-- 이 플래그를 켜는 발주처는 sections에서 "safety_cost" 항목을 반드시 제거할 것.
+alter table public.agency_templates add column if not exists show_safety_cost_plan boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

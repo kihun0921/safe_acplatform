@@ -122,6 +122,14 @@ const TEMPLATES = [
     // 형식으로 바꿔달라는 요청으로 이 플래그가 생겼다(해당 필드는 아래
     // misc_admin에서 제거함).
     show_subcontractor_evaluation: true,
+    // "종사자(관계수급인) 안전보건 관리비용 기준"(실제 LH 샘플 화성동탄(2)
+    // 126~127p)을 계상현황 + 세부내역 표 고정 서식으로 보여준다. 산업안전보건
+    // 관리비는 사업개요 도급공사비 기준 자동 계산 추정치를 기본값으로 채우고,
+    // 안전관리비(건설기술진흥법) 세부 8개 항목·예비 안전관리비는 직접 입력하며
+    // 합계는 항상 자동 계산된다 — 기존 sections의 범용 "safety_cost" 항목 안
+    // textarea 2개(자유 입력)였는데 표 형식으로 바꿔달라는 요청으로 이 플래그가
+    // 생겼다(해당 항목은 아래 sections에서 제거함).
+    show_safety_cost_plan: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -225,32 +233,6 @@ const TEMPLATES = [
             default:
               "안전보건공단(KOSHA)의 재해사례 및 위험성평가 지원시스템(KRAS), 고용노동부 고시·지침, 동종 업종 사망재해 사례 등을 확보하여 본 계획서의 위험성평가 항목 및 근로자 안전교육 자료에 반영하였다.\n" +
               "활용자료: (미입력) / 반영내용: (미입력)",
-          },
-        ],
-      },
-      {
-        id: "safety_cost",
-        label: "종사자(관계수급인) 안전보건 관리비용 기준",
-        fields: [
-          {
-            key: "safety_cost_basis",
-            label: "산업안전보건관리비 / 안전관리비 계상현황",
-            type: "textarea",
-            placeholder: "산업안전보건법상 산업안전보건관리비, 건설기술진흥법상 안전관리비(정기안전점검비/가설구조물 안전성확인/안전관리계획 작성/통행안전관리대책/계측 및 CCTV 모니터링 등 세부항목)의 계상금액과 산정기준을 입력하세요",
-            default:
-              "· 산업안전보건관리비(산업안전보건법): 계상금액 (미입력)원 — Min[① (재료비+직접노무비)×요율×1.2, ② (재료비+직접노무비+지급자재비/1.1)×요율]\n" +
-              "· 안전관리비(건설기술진흥법 시행령 제98조, 8개 세부항목): 정기안전점검비, 가설구조물 구조적 안전성 확인비, 안전관리계획 작성 및 검토비용, 공사장 주변 통행안전관리대책 비용, 계측장비·CCTV 등 안전모니터링 장치 설치·운용 비용, 무선설비 및 무선통신 안전관리체계 구축·운용 비용 등\n" +
-              "합계: (미입력)원 — 발주처 현장설명서 붙임 「안전관리비 세부현황」 기준, 계약체결·설계변경 등에 따라 금액이 변경될 경우 재확인하여 반영",
-          },
-          {
-            key: "safety_cost_distribution",
-            label: "관계수급인 배분 및 사용기준",
-            type: "textarea",
-            placeholder: "관계수급인별 배분 방식(공사금액·투입인원 비율, 고위험작업 가중치), 사용항목(안전관리자 인건비/안전시설비/개인보호구/교육비 등), 집행 및 확인절차(월별 사용내역서 제출, 공정률별 최소 사용기준)를 입력하세요",
-            default:
-              "산업안전보건관리비는 원도급사가 관계수급인의 공사금액 비율 또는 실제 투입인원·작업기간 비율에 따라 배분하며, 고위험작업(굴착·흙막이가시설·고소작업·밀폐공간·중장비 사용 등)에 참여하는 관계수급인에는 위험도 가중치(1.2~1.5배)를 적용하여 우선 배분한다.\n" +
-              "사용항목: 안전관리자 등 인건비, 안전시설비, 개인보호구, 안전보건교육비 및 행사비, 근로자 건강장해 예방비, 건설재해예방 기술지도비, 스마트 안전장비 등\n" +
-              "집행 및 확인절차: 관계수급인은 매월 안전보건관리비 사용내역서를 작성하여 원도급사에 제출, 원도급사는 이를 취합·정산. 공정률별 최소 사용기준(50~70%: 50% 이상, 70~90%: 70% 이상, 90% 이상: 90% 이상) 준수, 미달 시 사유서 제출 및 익월 집행계획 반영",
           },
         ],
       },
@@ -539,6 +521,7 @@ for (const t of TEMPLATES) {
   const showCouncilMeetingPlan = t.show_council_meeting_plan ?? false;
   const showIntegrityPledge = t.show_integrity_pledge ?? false;
   const showSubcontractorEvaluation = t.show_subcontractor_evaluation ?? false;
+  const showSafetyCostPlan = t.show_safety_cost_plan ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -564,6 +547,7 @@ for (const t of TEMPLATES) {
         show_council_meeting_plan: showCouncilMeetingPlan,
         show_integrity_pledge: showIntegrityPledge,
         show_subcontractor_evaluation: showSubcontractorEvaluation,
+        show_safety_cost_plan: showSafetyCostPlan,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -594,6 +578,7 @@ for (const t of TEMPLATES) {
         show_council_meeting_plan: showCouncilMeetingPlan,
         show_integrity_pledge: showIntegrityPledge,
         show_subcontractor_evaluation: showSubcontractorEvaluation,
+        show_safety_cost_plan: showSafetyCostPlan,
       })
       .select("id")
       .single();

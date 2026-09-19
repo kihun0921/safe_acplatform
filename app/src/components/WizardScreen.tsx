@@ -32,6 +32,7 @@ export default function WizardScreen({
   const ppeQtySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emergencyContactSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safetyCostSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const workforceSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -62,10 +63,11 @@ export default function WizardScreen({
     // 변수를 잡아둔다 — 이 객체 자체는 이 effect 안에서 속성만 추가될 뿐
     // 교체되지 않으므로 나중에 추가된 타이머도 그대로 보인다.
     const hazardTimersMap = hazardSaveTimers.current;
+    const workforceTimersMap = workforceSaveTimers.current;
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]):not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]):not([data-accident-image-input]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
+        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]):not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]):not([data-accident-image-input]):not([data-workforce-field]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -302,6 +304,84 @@ export default function WizardScreen({
       emergencyContactTbody.appendChild(tr);
       saveEmergencyContactRows(true);
     };
+
+    // ── 작업투입 인력 인적사항(Ⅷ. sec-workforce)의 3개 관리대장/명단/편성표:
+    // hazardRows와 동일한 이유(표마다 컬럼 구성은 다르지만 구조가 같음)로,
+    // tableKey → documents.content 키 매핑 하나로 공용 저장·추가·삭제 함수를 쓴다.
+    const workforceContentKey: Record<string, string> = {
+      vulnerable_workers: "workforceVulnerableRows",
+      fire_watch: "workforceFireWatchRows",
+      pair_work: "workforcePairWorkRows",
+    };
+
+    const renumberWorkforceRows = (tableKey: string) => {
+      const tbody = root.querySelector<HTMLElement>(`[data-workforce-tbody="${tableKey}"]`);
+      if (!tbody) return;
+      Array.from(tbody.querySelectorAll<HTMLElement>("tr")).forEach((tr, i) => {
+        const seq = tr.querySelector<HTMLElement>("[data-workforce-seq]");
+        if (seq) seq.textContent = String(i + 1);
+      });
+    };
+
+    const serializeWorkforceRows = (tableKey: string) => {
+      const tbody = root.querySelector<HTMLElement>(`[data-workforce-tbody="${tableKey}"]`);
+      if (!tbody) return [] as Record<string, string>[];
+      return Array.from(tbody.querySelectorAll<HTMLElement>("tr")).map((tr) => {
+        const row: Record<string, string> = { id: tr.dataset.workforceRowId ?? "" };
+        tr.querySelectorAll<HTMLInputElement>("[data-workforce-field]").forEach((el) => {
+          const key = el.dataset.workforceField;
+          if (key) row[key] = el.value;
+        });
+        return row;
+      });
+    };
+
+    const saveWorkforceRows = (tableKey: string, immediate = false): Promise<void> => {
+      const contentKey = workforceContentKey[tableKey];
+      if (!contentKey) return Promise.resolve();
+      if (workforceSaveTimers.current[tableKey]) clearTimeout(workforceSaveTimers.current[tableKey]);
+      const run = async () => {
+        setSaving(true);
+        try {
+          await fetch(`/api/documents/${documentId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ [contentKey]: serializeWorkforceRows(tableKey) }),
+          });
+          setSavedAt(new Date());
+        } finally {
+          setSaving(false);
+        }
+      };
+      if (immediate) return run();
+      workforceSaveTimers.current[tableKey] = setTimeout(run, 15000);
+      return Promise.resolve();
+    };
+
+    const flushAllWorkforceSaves = (): Promise<void[]> =>
+      Promise.all(Object.keys(workforceContentKey).map((tableKey) => saveWorkforceRows(tableKey, true)));
+
+    const appendWorkforceRow = (tableKey: string) => {
+      const tbody = root.querySelector<HTMLElement>(`[data-workforce-tbody="${tableKey}"]`);
+      const template = root.querySelector<HTMLTemplateElement>(`template[data-workforce-row-template="${tableKey}"]`);
+      if (!tbody || !template) return;
+      const fragment = template.content.cloneNode(true) as DocumentFragment;
+      const tr = fragment.querySelector<HTMLElement>("tr");
+      if (!tr) return;
+      tr.dataset.workforceRowId = `wf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      tbody.appendChild(tr);
+      renumberWorkforceRows(tableKey);
+      saveWorkforceRows(tableKey, true);
+    };
+
+    const deleteWorkforceRow = (tr: HTMLElement, tableKey: string) => {
+      if (!confirm("이 행을 삭제하시겠습니까?")) return;
+      tr.remove();
+      renumberWorkforceRows(tableKey);
+      saveWorkforceRows(tableKey, true);
+    };
+
+    Object.keys(workforceContentKey).forEach(renumberWorkforceRows);
 
     // src/lib/riskTemplates.ts의 categorizeRiskProcess()와 반드시 같은 규칙을 유지할 것 —
     // 서버가 초기 렌더링 시 매기는 분류와 클라이언트에서 새로 추가한 행의 분류가
@@ -871,6 +951,19 @@ export default function WizardScreen({
         }
         return;
       }
+      const workforceAddKey = btn.getAttribute("data-workforce-add");
+      if (workforceAddKey) {
+        e.preventDefault();
+        appendWorkforceRow(workforceAddKey);
+        return;
+      }
+      const workforceDeleteKey = btn.getAttribute("data-workforce-delete");
+      if (workforceDeleteKey) {
+        e.preventDefault();
+        const tr = btn.closest<HTMLElement>("tr[data-workforce-row-id]");
+        if (tr) deleteWorkforceRow(tr, workforceDeleteKey);
+        return;
+      }
       if (btn.hasAttribute("data-risk-tab")) {
         e.preventDefault();
         onRiskTabClick(btn);
@@ -930,6 +1023,7 @@ export default function WizardScreen({
           void savePpeQuantities(true);
           void saveEmergencyContactRows(true);
           void saveSafetyCostAmounts(true);
+          void flushAllWorkforceSaves();
           return;
         }
         void exportDocument(exportFormat!, btn as HTMLButtonElement);
@@ -944,6 +1038,7 @@ export default function WizardScreen({
         void savePpeQuantities(true);
         void saveEmergencyContactRows(true);
         void saveSafetyCostAmounts(true);
+        void flushAllWorkforceSaves();
       }
     };
 
@@ -958,6 +1053,7 @@ export default function WizardScreen({
         await savePpeQuantities(true);
         await saveEmergencyContactRows(true);
         await saveSafetyCostAmounts(true);
+        await flushAllWorkforceSaves();
         const res = await fetch(`/api/documents/${documentId}/export?format=${format}`);
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -1085,6 +1181,7 @@ export default function WizardScreen({
       if (emergencyContactSaveTimer.current) clearTimeout(emergencyContactSaveTimer.current);
       if (safetyCostSaveTimer.current) clearTimeout(safetyCostSaveTimer.current);
       Object.values(hazardTimersMap).forEach((t) => clearTimeout(t));
+      Object.values(workforceTimersMap).forEach((t) => clearTimeout(t));
     };
   }, [documentId, downloadsLocked, router]);
 

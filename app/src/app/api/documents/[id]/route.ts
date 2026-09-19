@@ -34,6 +34,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     emergencyContactRows,
     safetyCostAmounts,
     accidentLevelAttachments,
+    workforceVulnerableRows,
+    workforceFireWatchRows,
+    workforcePairWorkRows,
     percentComplete,
     status,
   } = body ?? {};
@@ -61,6 +64,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (emergencyContactRows) contentPatch.emergencyContactRows = emergencyContactRows;
   if (safetyCostAmounts) contentPatch.safetyCostAmounts = safetyCostAmounts;
   if (accidentLevelAttachments) contentPatch.accidentLevelAttachments = accidentLevelAttachments;
+  if (workforceVulnerableRows) contentPatch.workforceVulnerableRows = workforceVulnerableRows;
+  if (workforceFireWatchRows) contentPatch.workforceFireWatchRows = workforceFireWatchRows;
+  if (workforcePairWorkRows) contentPatch.workforcePairWorkRows = workforcePairWorkRows;
 
   if (Object.keys(contentPatch).length > 0 || typeof percentComplete === "number" || status) {
     const { error } = await supabase.rpc("merge_document_content", {

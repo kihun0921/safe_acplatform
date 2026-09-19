@@ -383,7 +383,7 @@ export function extractWizardSections(
           .find("td")
           .each((_, td) => {
             const $td = $(td);
-            if ($td.find("[data-risk-delete], [data-emergency-contact-delete]").length) return;
+            if ($td.find("[data-risk-delete], [data-emergency-contact-delete], [data-workforce-delete]").length) return;
             // 위험성평가 표처럼 셀 안에 실제 입력요소(input/textarea/select)가 있으면
             // 그 값을 읽고, 아니면(정적 텍스트 셀) 기존처럼 텍스트를 읽는다.
             const control = $td.find("input, textarea, select").first();

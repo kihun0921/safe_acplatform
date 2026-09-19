@@ -264,6 +264,14 @@ alter table public.agency_templates add column if not exists show_safety_cost_pl
 -- 필드를 반드시 제거할 것.
 alter table public.agency_templates add column if not exists show_accident_level_uploads boolean not null default false;
 
+-- show_workforce_plan: "작업투입 인력 인적사항"을 3개 소서식 고정 형태로
+-- 보여줄지 여부(안전취약근로자 식별/화재감시자 등 지정/2인1조 편성표). 각
+-- 소서식은 목적·기준 고정문구 + 기준표(고정 3행) + 관리대장·명단·편성표(행
+-- 추가·삭제 가능한 표, documents.content.workforceVulnerableRows/
+-- workforceFireWatchRows/workforcePairWorkRows)로 구성된다. 이 플래그를 켜는
+-- 발주처는 sections에서 "workforce" 항목을 반드시 제거할 것.
+alter table public.agency_templates add column if not exists show_workforce_plan boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).

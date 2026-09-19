@@ -137,6 +137,19 @@ export type AgencyTemplateRow = {
   // 켜는 발주처는 sections의 accident_level에서 accident_history/
   // safety_certification 필드를 반드시 제거할 것.
   show_accident_level_uploads?: boolean;
+  // "작업투입 인력 인적사항"(실제 LH 샘플 화성동탄(2) 165~169p)을 3개 소서식
+  // 고정 형태로 보여줄지 여부: (1)안전취약근로자(고령·여성·외국인) 식별 —
+  // 목적 고정문구 + 식별기준/안전관리방안 고정 표(3행) + 식별·관리대장(행
+  // 추가·삭제 가능, documents.content.workforceVulnerableRows), (2)화재감시자·
+  // 작업지휘자·감시자 지정 — 목적 고정문구 + 지정기준/임무 고정 표(3행) +
+  // 지정 명단(행 추가·삭제 가능, documents.content.workforceFireWatchRows),
+  // (3)위험작업 시 2인1조 편성표 — 대상 고정문구 + 편성표(행 추가·삭제 가능,
+  // documents.content.workforcePairWorkRows). 기존에는 sections의 범용
+  // "workforce" 항목 안 textarea 3개(자유 입력)였는데, 실제 서식대로 표로
+  // 바꿔달라는 요청으로 이 플래그가 생겼다 — 이 플래그를 켜는 발주처는
+  // sections에서 "workforce" 항목을 반드시 제거할 것(section_order의
+  // "workforce" id 참조는 그대로 두어도 된다 — 새 전용 섹션이 같은 id로 렌더된다).
+  show_workforce_plan?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

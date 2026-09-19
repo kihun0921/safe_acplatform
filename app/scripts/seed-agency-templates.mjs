@@ -139,6 +139,13 @@ const TEMPLATES = [
     // 서술)였는데 증빙자료 첨부 방식으로 바꿔달라는 요청으로 이 플래그가 생겼다
     // (해당 항목은 아래 sections에서 전체 제거함).
     show_accident_level_uploads: true,
+    // "작업투입 인력 인적사항"(실제 LH 샘플 화성동탄(2) 165~169p)을 3개 소서식
+    // 고정 형태로 보여준다(안전취약근로자 식별/화재감시자 등 지정/2인1조
+    // 편성표). 각 소서식은 목적·기준 고정문구 + 기준표(고정 3행) + 관리대장·
+    // 명단·편성표(행 추가·삭제 가능) 구조다 — 기존 sections의 범용 "workforce"
+    // 항목 안 textarea 3개(자유 입력)였는데 실제 서식대로 표로 바꿔달라는
+    // 요청으로 이 플래그가 생겼다(해당 항목은 아래 sections에서 전체 제거함).
+    show_workforce_plan: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -172,44 +179,6 @@ const TEMPLATES = [
     // 겹쳐서 끈다.
     disabled_common_sections: ["emergency", "target"],
     sections: [
-      {
-        id: "workforce",
-        label: "작업투입 인력 인적사항 (작업개시 전까지 제출)",
-        fields: [
-          {
-            key: "vulnerable_workers",
-            label: "안전취약근로자 식별 (55세 이상 고령자·여성근로자·외국인노동자)",
-            type: "textarea",
-            placeholder: "성명/소속/구분(고령·여성·외국인)/세부사항(연령·국적·체류자격)/담당 세부공정/배치 시 안전조치사항을 입력하세요",
-            default:
-              "성명: (미입력) / 소속: (미입력) / 구분: 고령자(만 55세 이상)\n" +
-              "담당 세부공정: (미입력)\n" +
-              "배치 시 안전조치사항: 중량물 취급 제한, 단독작업 배제(2인1조 편성 우선 적용), 작업시간 조정(휴식시간 추가 부여), 작업 전 건강상태(고혈압·심혈관질환 등) 확인",
-          },
-          {
-            key: "fire_watch_and_director",
-            label: "화재감시자·작업지휘자·감시자(신호수) 지정",
-            type: "textarea",
-            placeholder: "지정구분(화재감시자/작업지휘자/감시자)/성명/소속/담당 작업(장소)/지정일/교육이수사항을 입력하세요",
-            default:
-              "지정구분: 화재감시자 / 성명: (미입력) / 소속: (미입력)\n" +
-              "담당 작업(장소): 용접·용단 등 화기작업 시, 작업반경 11m 이내 가연물이 있거나 불티가 날릴 우려가 있는 장소\n" +
-              "지정일: (미입력) / 교육이수사항: 화재감시자 교육 이수\n" +
-              "임무: 화재위험 감시, 화재 발생 시 신속한 대피 유도, 소화기 등 소화설비 사용법과 위치 숙지, 초기진압, 작업 종료 후 30분 이상 잔불 확인",
-          },
-          {
-            key: "pair_work",
-            label: "위험작업 시 2인1조 편성표",
-            type: "textarea",
-            placeholder: "작업내용/작업일자/1조(주작업자)/2조(보조·감시자)/소속/비상연락처를 입력하세요",
-            default:
-              "작업내용: 밀폐공간·고소작업 등 위험작업\n" +
-              "작업일자: 착공 후 수시\n" +
-              "1조(주작업자): (미입력) / 2조(보조·감시자): (미입력)\n" +
-              "소속: (미입력) / 비상연락처: (미입력)",
-          },
-        ],
-      },
       {
         id: "safety_council",
         label: "안전보건관리 협의체 구성 및 운영",
@@ -511,6 +480,7 @@ for (const t of TEMPLATES) {
   const showSubcontractorEvaluation = t.show_subcontractor_evaluation ?? false;
   const showSafetyCostPlan = t.show_safety_cost_plan ?? false;
   const showAccidentLevelUploads = t.show_accident_level_uploads ?? false;
+  const showWorkforcePlan = t.show_workforce_plan ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -538,6 +508,7 @@ for (const t of TEMPLATES) {
         show_subcontractor_evaluation: showSubcontractorEvaluation,
         show_safety_cost_plan: showSafetyCostPlan,
         show_accident_level_uploads: showAccidentLevelUploads,
+        show_workforce_plan: showWorkforcePlan,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -570,6 +541,7 @@ for (const t of TEMPLATES) {
         show_subcontractor_evaluation: showSubcontractorEvaluation,
         show_safety_cost_plan: showSafetyCostPlan,
         show_accident_level_uploads: showAccidentLevelUploads,
+        show_workforce_plan: showWorkforcePlan,
       })
       .select("id")
       .single();

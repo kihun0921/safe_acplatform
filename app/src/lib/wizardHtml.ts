@@ -3099,6 +3099,304 @@ ${slotsHtml}
 `;
 }
 
+// "작업투입 인력 인적사항"(실제 LH 샘플 화성동탄(2) 165~169p) — 3개 소서식.
+// 목적/대상 안내문과 식별·지정 기준표는 법정 표준 기준이라 고정이고, 실제 인력
+// 명단(안전취약근로자 관리대장/화재감시자 등 지정명단/2인1조 편성표)만 현장마다
+// 달라 행을 자유롭게 추가·삭제할 수 있어야 한다 — riskRows/emergencyContactRows와
+// 같은 이유로 field-N 체계 대신 documents.content.workforce{Vulnerable,FireWatch,
+// PairWork}Rows에 각각 배열로 저장한다. 3개 표가 컬럼 구성만 다를 뿐 구조가
+// 완전히 같아서(연번 자동 표시 + 입력칸들 + 삭제버튼, 템플릿 clone으로 행 추가)
+// 표 하나당 새로 손으로 짜지 않고 공용 빌더(buildWorkforceDynamicTableHtml)로
+// tableKey만 바꿔 3번 호출한다. wizardExport.ts 쪽도 이미 표(<table>) 전체를
+// 그대로 추출하는 범용 로직이 있어 삭제버튼(data-workforce-delete)만 제외
+// 목록에 추가하면 되고, 셀 값 자체는 별도 처리가 필요 없다.
+interface WorkforceColumn {
+  key: string;
+  label: string;
+  placeholder?: string;
+}
+
+interface WorkforceCriteriaRow {
+  category: string;
+  criteria: string;
+  measure: string;
+}
+
+const VULNERABLE_WORKER_CRITERIA_ROWS: WorkforceCriteriaRow[] = [
+  {
+    category: "고령근로자",
+    criteria: "만 55세 이상 근로자",
+    measure:
+      "중량물 취급 제한, 단독작업 배제(2인1조 편성 우선 적용), 작업시간 조정(휴식시간 추가 부여), 작업 전 건강상태(고혈압·심혈관질환 등) 확인",
+  },
+  {
+    category: "여성근로자",
+    criteria: "임신 중이거나 산후 1년 미만인 여성근로자",
+    measure: "중량물 취급작업·유해가스 취급작업 등 임산부 유해·위험 작업 배치 금지, 작업시간 및 휴게시간 배려",
+  },
+  {
+    category: "외국인노동자",
+    criteria: "체류자격 확인이 필요한 외국인 근로자",
+    measure: "모국어 또는 이해 가능한 언어로 안전보건교육 실시, 작업지시서·경고표지 다국어 병기, 통역 지원 체계 마련",
+  },
+];
+
+const FIRE_WATCH_CRITERIA_ROWS: WorkforceCriteriaRow[] = [
+  {
+    category: "화재감시자",
+    criteria: "용접·용단 등 화기작업 시, 작업반경 11m 이내 가연물이 있거나 불티가 날릴 우려가 있는 장소",
+    measure: "화재위험 감시, 화재 발생 시 신속한 대피 유도, 소화기 등 소화설비 사용법과 위치 숙지, 초기진압, 작업 종료 후 30분 이상 잔불 확인",
+  },
+  {
+    category: "작업지휘자",
+    criteria: "크레인 등을 이용한 양중작업, 여러 근로자가 협동하는 위험작업",
+    measure: "작업방법과 근로자 배치 결정, 작업 진행상황 감독, 안전대·안전모 등 보호구 착용상태 확인, 이상 발견 시 즉시 작업중지",
+  },
+  {
+    category: "감시자(신호수)",
+    criteria: "차량계 건설기계 후진·선회 작업, 굴착기계 작업반경 내 근로자 접근 우려 작업",
+    measure: "운전자와 신호체계 사전협의 및 수신호 실시, 근로자 접근 통제, 위험 발견 시 즉시 작업중지 요청",
+  },
+];
+
+function buildWorkforceCriteriaTableHtml(title: string, headers: [string, string, string], rows: WorkforceCriteriaRow[]): string {
+  const bodyRows = rows
+    .map(
+      (r) => `<tr>
+<td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top whitespace-nowrap w-[14%]">${escapeHtmlPolicy(
+        r.category
+      )}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top w-[32%]">${escapeHtmlPolicy(r.criteria)}</td>
+<td class="px-3 py-2 border-b border-neutral-100 align-top">${escapeHtmlPolicy(r.measure)}</td>
+</tr>`
+    )
+    .join("\n");
+  return `<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[14%]">${escapeHtmlPolicy(
+    headers[0]
+  )}</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[32%]">${escapeHtmlPolicy(
+    headers[1]
+  )}</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">${escapeHtmlPolicy(headers[2])}</th>
+</tr>
+</thead>
+<tbody>
+${bodyRows}
+</tbody>
+</table>`;
+}
+
+function buildWorkforceRowHtml(
+  tableKey: string,
+  columns: WorkforceColumn[],
+  row: Record<string, string>,
+  seq?: number
+): string {
+  const id = row.id ?? "";
+  const cells = columns
+    .map(
+      (col) => `<td class="p-2"><input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-workforce-field="${col.key}" placeholder="${escapeHtmlPolicy(
+        col.placeholder ?? col.label
+      )}" type="text" value="${escapeHtmlPolicy(row[col.key] ?? "")}"/></td>`
+    )
+    .join("\n");
+  // seq(연번)는 클라이언트 JS(renumberWorkforceRows)가 행 추가·삭제 때마다 다시
+  // 매기지만, 다운로드 문서(export)는 브라우저 JS 없이 이 HTML을 그대로 파싱하므로
+  // 서버 렌더링 시점에도 실제 번호를 채워 둬야 한다(비워두면 내보낸 문서의 연번
+  // 열이 항상 빈 칸으로 나가는 문제가 있었다).
+  return `<tr data-workforce-row-id="${escapeHtmlPolicy(id)}">
+<td class="p-2 text-center text-neutral-400" data-workforce-seq>${seq ?? ""}</td>
+${cells}
+<td class="p-2 text-center">
+<button class="text-neutral-400 hover:text-status-danger transition" data-workforce-delete="${tableKey}" type="button" title="행 삭제">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
+</td>
+</tr>`;
+}
+
+function buildWorkforceDynamicTableHtml(
+  tableKey: string,
+  title: string,
+  addLabel: string,
+  columns: WorkforceColumn[],
+  rows: Record<string, string>[] | undefined,
+  exampleRow: Record<string, string>
+): string {
+  const initialRows = rows?.length ? rows : [{ id: `${tableKey}-example`, ...exampleRow }];
+  const bodyRows = initialRows.map((r, i) => buildWorkforceRowHtml(tableKey, columns, r, i + 1)).join("\n");
+  const blankRow = buildWorkforceRowHtml(tableKey, columns, {});
+  const headerCells = columns
+    .map(
+      (c) =>
+        `<th class="text-left px-2 py-2 font-bold text-neutral-700 border-b border-neutral-200">${escapeHtmlPolicy(
+          c.label
+        )}</th>`
+    )
+    .join("\n");
+  return `<div>
+<div class="flex items-center justify-between mb-2">
+<p class="font-bold text-neutral-800">${escapeHtmlPolicy(title)}</p>
+<button class="text-xs font-semibold text-primary hover:underline flex items-center gap-1" data-workforce-add="${tableKey}" type="button">
+<span class="material-symbols-outlined text-base">add_circle</span>${escapeHtmlPolicy(addLabel)}
+</button>
+</div>
+<table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden" data-workforce-table="${tableKey}">
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-center px-2 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-10">연번</th>
+${headerCells}
+<th class="text-center px-2 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-12">관리</th>
+</tr>
+</thead>
+<tbody data-workforce-tbody="${tableKey}">
+${bodyRows}
+</tbody>
+</table>
+<template data-workforce-row-template="${tableKey}">${blankRow}</template>
+</div>`;
+}
+
+const WORKFORCE_VULNERABLE_COLUMNS: WorkforceColumn[] = [
+  { key: "name", label: "성명" },
+  { key: "company", label: "소속(업체명)" },
+  { key: "category", label: "구분", placeholder: "고령자/여성근로자/외국인" },
+  { key: "detail", label: "세부사항", placeholder: "연령/국적,체류자격 등" },
+  { key: "process", label: "담당 세부공정" },
+  { key: "measure", label: "배치시 안전조치사항" },
+  { key: "confirm", label: "확인" },
+];
+
+const WORKFORCE_FIRE_WATCH_COLUMNS: WorkforceColumn[] = [
+  { key: "type", label: "지정구분", placeholder: "화재감시자/작업지휘자/감시자" },
+  { key: "name", label: "성명" },
+  { key: "company", label: "소속(업체명)" },
+  { key: "location", label: "담당 작업(장소)" },
+  { key: "assignedDate", label: "지정일" },
+  { key: "training", label: "교육이수사항" },
+  { key: "signature", label: "서명" },
+];
+
+const WORKFORCE_PAIR_WORK_COLUMNS: WorkforceColumn[] = [
+  { key: "workContent", label: "작업내용(세부공정)" },
+  { key: "workDate", label: "작업일자" },
+  { key: "company", label: "소속(업체명)" },
+  { key: "primaryWorker", label: "1조 성명(주작업자)" },
+  { key: "secondaryWorker", label: "2조 성명(보조·감시자)" },
+  { key: "emergencyContact", label: "비상연락처" },
+  { key: "confirm", label: "확인" },
+];
+
+function buildWorkforcePlanNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-workforce">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  10
+                </span>
+<span class="group-hover:text-neutral-900">작업투입 인력 인적사항</span>
+</div>
+</a>
+`;
+}
+
+function buildWorkforcePlanSectionHtml(
+  vulnerableRows: Record<string, string>[] | undefined,
+  fireWatchRows: Record<string, string>[] | undefined,
+  pairWorkRows: Record<string, string>[] | undefined
+): string {
+  return `<!-- ════════ SECTION: 작업투입 인력 인적사항 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-workforce">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅷ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">작업투입 인력 인적사항 (작업개시 전까지 제출)</h2>
+</div>
+<div class="p-6 space-y-8">
+<div class="space-y-3">
+<p class="font-bold text-neutral-800">1. 안전취약근로자(55세 이상 고령자·여성근로자·외국인노동자) 식별</p>
+${dipReadonlyBlock(
+    "가. 목적",
+    "「중대재해 처벌 등에 관한 법률」 및 안전보건관리계획 수립지침에 따라 55세 이상 고령근로자, 여성근로자, 외국인노동자 등 안전취약근로자를 사전에 식별하고 배치단계에서부터 적정한 안전관리 방안을 적용하여 재해를 예방한다."
+  )}
+<div>
+<p class="text-xs font-bold text-neutral-700 mb-1">나. 식별기준 및 안전관리 방안</p>
+${buildWorkforceCriteriaTableHtml("식별기준", ["구분", "식별 기준", "안전관리 방안"], VULNERABLE_WORKER_CRITERIA_ROWS)}
+</div>
+${buildWorkforceDynamicTableHtml(
+    "vulnerable_workers",
+    "다. 안전취약근로자 식별 및 관리대장",
+    "인력 추가",
+    WORKFORCE_VULNERABLE_COLUMNS,
+    vulnerableRows,
+    {
+      name: "홍길동",
+      company: "(주)ㅇㅇ산업",
+      category: "고령자",
+      detail: "만58세",
+      process: "토공사(굴착)",
+      measure: "중량물 취급 제한, 단독작업 배제(2인1조), 작업시간 중 휴식 추가 부여",
+      confirm: "관리감독자",
+    }
+  )}
+</div>
+<div class="space-y-3">
+<p class="font-bold text-neutral-800">2. 화재감시자·작업지휘자·감시자 지정(해당 시)</p>
+${dipReadonlyBlock(
+    "가. 목적",
+    "화기작업 등 화재위험작업 시 화재감시자, 위험작업 시 작업지휘자·신호수(감시자)를 지정하여 사고를 예방하고 비상상황 발생 시 신속하게 대응한다."
+  )}
+<div>
+<p class="text-xs font-bold text-neutral-700 mb-1">나. 지정기준 및 임무</p>
+${buildWorkforceCriteriaTableHtml("지정기준", ["구분", "지정 대상 작업", "주요 임무 및 관리기준"], FIRE_WATCH_CRITERIA_ROWS)}
+</div>
+${buildWorkforceDynamicTableHtml(
+    "fire_watch",
+    "다. 지정 명단(서식)",
+    "인원 추가",
+    WORKFORCE_FIRE_WATCH_COLUMNS,
+    fireWatchRows,
+    {
+      type: "화재감시자",
+      name: "김안전",
+      company: "(주)ㅇㅇ산업",
+      location: "흙막이 버팀보 용접작업",
+      assignedDate: "착공전",
+      training: "화재감시자 교육이수",
+      signature: "",
+    }
+  )}
+</div>
+<div class="space-y-3">
+<p class="font-bold text-neutral-800">3. 위험작업 시 2인1조 편성표</p>
+${dipReadonlyBlock(
+    "가. 대상",
+    "밀폐공간 작업, 고소작업, 중량물 취급작업 등 단독작업 시 위험성이 높은 작업에 대해 2인1조로 편성하여 상호 감시·지원 체계를 갖춘다."
+  )}
+${buildWorkforceDynamicTableHtml(
+    "pair_work",
+    "나. 2인1조 편성표",
+    "편성 추가",
+    WORKFORCE_PAIR_WORK_COLUMNS,
+    pairWorkRows,
+    {
+      workContent: "이동식 사다리 고소작업",
+      workDate: "착공 후 수시",
+      company: "(주)ㅇㅇ산업",
+      primaryWorker: "박작업(주작업자)",
+      secondaryWorker: "이감시(지지·감시)",
+      emergencyContact: "010-0000-0000",
+      confirm: "관리감독자",
+    }
+  )}
+</div>
+<p class="text-[11px] text-neutral-500">※ 관계수급인(협력업체)은 작업투입 인력이 확정되는 대로 현장소장에게 인적사항을 통보하며, 명단 변경 시에는 지체 없이 갱신하여 제출한다.</p>
+</div>
+</section>
+`;
+}
+
 // "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
 // 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
 // 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
@@ -3402,7 +3700,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_integrity_pledge ? 1 : 0) +
     (agencyTemplate?.show_subcontractor_evaluation ? 1 : 0) +
     (agencyTemplate?.show_safety_cost_plan ? 1 : 0) +
-    (agencyTemplate?.show_accident_level_uploads ? 1 : 0);
+    (agencyTemplate?.show_accident_level_uploads ? 1 : 0) +
+    (agencyTemplate?.show_workforce_plan ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -3566,6 +3865,13 @@ ${templateOptions
   const accidentLevelUploadsSectionHtml = agencyTemplate?.show_accident_level_uploads
     ? buildAccidentLevelUploadsSectionHtml(accidentLevelAttachments, accidentLevelImageUrls ?? {})
     : "";
+  const workforceVulnerableRows = doc.content?.workforceVulnerableRows as Record<string, string>[] | undefined;
+  const workforceFireWatchRows = doc.content?.workforceFireWatchRows as Record<string, string>[] | undefined;
+  const workforcePairWorkRows = doc.content?.workforcePairWorkRows as Record<string, string>[] | undefined;
+  const workforcePlanNavHtml = agencyTemplate?.show_workforce_plan ? buildWorkforcePlanNavHtml() : "";
+  const workforcePlanSectionHtml = agencyTemplate?.show_workforce_plan
+    ? buildWorkforcePlanSectionHtml(workforceVulnerableRows, workforceFireWatchRows, workforcePairWorkRows)
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -3638,6 +3944,10 @@ ${templateOptions
       `${accidentLevelUploadsNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${workforcePlanNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
       `${riskAssessmentRulesNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">`
     )
@@ -3688,7 +3998,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}${councilMeetingPlanSectionHtml}${integrityPledgeSectionHtml}${subcontractorEvaluationSectionHtml}${safetyCostSectionHtml}${accidentLevelUploadsSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}${councilMeetingPlanSectionHtml}${integrityPledgeSectionHtml}${subcontractorEvaluationSectionHtml}${safetyCostSectionHtml}${accidentLevelUploadsSectionHtml}${workforcePlanSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     )
     .replace(
       '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
@@ -3748,6 +4058,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.subcontractor_evaluation = "적격업체(관계수급인) 선정 평가기준";
     commonLabels.safety_cost = "종사자(관계수급인) 안전보건 관리비용 기준";
     if (agencyTemplate.show_accident_level_uploads) commonLabels.accident_level = "재해발생 수준";
+    if (agencyTemplate.show_workforce_plan) commonLabels.workforce = "작업투입 인력 인적사항";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

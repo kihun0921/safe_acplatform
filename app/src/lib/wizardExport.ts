@@ -25,25 +25,31 @@ export interface WizardSection {
   // 목록에서는 제외하고(data-org-diagram-field), 대신 이 구조화된 형태로 뽑아
   // 다운로드 문서에서도 조직도와 동일한 박스+연결선 다이어그램으로 그린다.
   emergencyTeam?: EmergencyTeamData;
+  // "재해발생 수준"의 증빙자료(산재요양승인확인서/산업재해율 조회결과/안전보건
+  // 경영시스템 인증서) 첨부 이미지. 이 함수(extractWizardSections)는 HTML 문자열만
+  // 다루는 순수 파싱 함수라 Storage에서 실제 이진 데이터를 읽어올 수 없으므로, 이
+  // 필드는 여기서 채워지지 않고 export route가 extractWizardSections 호출 이후
+  // sections 배열에서 id로 찾아 직접 채워 넣는다(비동기 I/O가 필요해서).
+  accidentImages?: { label: string; buffer: Buffer }[];
 }
 
 function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string | boolean>) {
   // WizardScreen.tsx의 field-N 인덱싱 쿼리(input:not([type=hidden]):not([data-risk-field])
   // :not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field])
   // :not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field])
-  // :not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]),
-  // textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select])
-  // :not([data-risk-field]))와 반드시 동일한 요소 집합·순서를 훑어야 한다 — 위험성평가 표
-  // 입력요소, 표준서식 선택 드롭다운, 안전보건경영방침 이미지 파일 입력, 현장설명서
-  // 공정추출용 파일 입력, 유해·위험 기계기구물질 관리계획의 항목별 체크박스/세부실행계획
-  // 입력, 보호구 지급 예정수량, 유관기관 비상연락체계, 안전보건 관리비용 금액은 각각
-  // 별도 저장 경로(riskRows, template_id, content.safetyPolicy, 즉시 처리 후 폐기,
-  // hazard*Rows, ppeQuantities, emergencyContactRows, safetyCostAmounts)를 쓰므로
-  // 애초에 field-N 인덱스 대상에서 빠지는데, 여기서 다르게 세면 그 뒤에 나오는 모든
-  // 필드의 인덱스가 밀려서 엉뚱한 값이 출력물에 들어간다. readonly 필드(공고 정보
-  // 자동 채움 값, 법정 고정문구 안내 textarea, 안전관리비 합계 등)는 인덱스 집계에는
-  // 그대로 포함시키되(기존 문서들의 field-N 매핑이 밀리지 않도록) 저장된 값을 그
-  // 위에 덮어쓰지는 않는다 — WizardScreen.tsx와 동일한 원칙.
+  // :not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve])
+  // :not([data-accident-image-input]), textarea:not([data-risk-field]):not([data-hazard-field]),
+  // select:not([data-template-select]):not([data-risk-field]))와 반드시 동일한 요소 집합·순서를
+  // 훑어야 한다 — 위험성평가 표 입력요소, 표준서식 선택 드롭다운, 안전보건경영방침/재해발생
+  // 수준 증빙자료 이미지 파일 입력, 현장설명서 공정추출용 파일 입력, 유해·위험 기계기구물질
+  // 관리계획의 항목별 체크박스/세부실행계획 입력, 보호구 지급 예정수량, 유관기관 비상연락체계,
+  // 안전보건 관리비용 금액은 각각 별도 저장 경로(riskRows, template_id, content.safetyPolicy,
+  // 즉시 처리 후 폐기, hazard*Rows, ppeQuantities, emergencyContactRows, safetyCostAmounts,
+  // accidentLevelAttachments)를 쓰므로 애초에 field-N 인덱스 대상에서 빠지는데, 여기서
+  // 다르게 세면 그 뒤에 나오는 모든 필드의 인덱스가 밀려서 엉뚱한 값이 출력물에 들어간다.
+  // readonly 필드(공고 정보 자동 채움 값, 법정 고정문구 안내 textarea, 안전관리비 합계
+  // 등)는 인덱스 집계에는 그대로 포함시키되(기존 문서들의 field-N 매핑이 밀리지 않도록)
+  // 저장된 값을 그 위에 덮어쓰지는 않는다 — WizardScreen.tsx와 동일한 원칙.
   const els = $("input, textarea, select").filter((_, el) => {
     const $el = $(el);
     const type = $el.attr("type");
@@ -58,6 +64,7 @@ function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string |
     if ($el.attr("data-safety-cost-industrial") !== undefined) return false;
     if ($el.attr("data-safety-cost-item") !== undefined) return false;
     if ($el.attr("data-safety-cost-reserve") !== undefined) return false;
+    if ($el.attr("data-accident-image-input") !== undefined) return false;
     if (el.tagName === "select" && $el.attr("data-template-select") !== undefined) return false;
     return true;
   });

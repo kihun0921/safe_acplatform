@@ -65,7 +65,7 @@ export default function WizardScreen({
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]):not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
+        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]):not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]):not([data-accident-image-input]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -621,6 +621,88 @@ export default function WizardScreen({
       await savePolicyState("image", "");
     };
 
+    // ── 재해발생 수준(Ⅵ. sec-accident_level) 증빙자료 첨부: 안전보건 경영방침
+    // 이미지 첨부와 동일한 방식(비공개 Storage 버킷에 업로드 후 경로만 저장)이지만
+    // 슬롯이 3개(산재요양승인확인서/산업재해율 조회결과/안전보건경영시스템
+    // 인증서)라 슬롯 key별로 공용 로직을 쓴다.
+    const accidentLevelSection = root.querySelector<HTMLElement>("#sec-accident_level");
+
+    const saveAccidentLevelAttachments = async () => {
+      if (!accidentLevelSection) return;
+      setSaving(true);
+      try {
+        const attachments: Record<string, string | null> = {};
+        accidentLevelSection.querySelectorAll<HTMLElement>("[data-accident-slot]").forEach((slotEl) => {
+          const key = slotEl.dataset.accidentSlot;
+          if (key) attachments[key] = slotEl.dataset.accidentSlotPath || null;
+        });
+        await fetch(`/api/documents/${documentId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accidentLevelAttachments: attachments }),
+        });
+        setSavedAt(new Date());
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    const onAccidentImageChange = async (e: Event) => {
+      const input = e.target as HTMLInputElement;
+      if (!input.matches("[data-accident-image-input]")) return;
+      const slotEl = input.closest<HTMLElement>("[data-accident-slot]");
+      const slotKey = slotEl?.dataset.accidentSlot;
+      const file = input.files?.[0];
+      if (!slotEl || !slotKey || !file) return;
+      const status = slotEl.querySelector<HTMLElement>("[data-accident-image-status]");
+      if (status) status.textContent = "업로드 중...";
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new Error("로그인이 필요합니다.");
+        const ext = file.name.split(".").pop() || "png";
+        const path = `${documentId}/${slotKey}-${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("accident-level-attachments")
+          .upload(path, file, { upsert: true, contentType: file.type });
+        if (uploadError) throw uploadError;
+
+        slotEl.dataset.accidentSlotPath = path;
+        const previewWrap = slotEl.querySelector<HTMLElement>("[data-accident-image-preview-wrap]");
+        const previewImg = slotEl.querySelector<HTMLImageElement>("[data-accident-image-preview]");
+        if (previewImg) previewImg.src = URL.createObjectURL(file);
+        if (previewWrap) previewWrap.classList.remove("hidden");
+        if (status) status.textContent = "업로드된 자료가 저장되어 있습니다.";
+        await saveAccidentLevelAttachments();
+      } catch (err) {
+        if (status) status.textContent = "업로드 실패 — 다시 시도해 주세요.";
+        console.error("[WizardScreen] accident level attachment upload failed", err);
+      } finally {
+        input.value = "";
+      }
+    };
+
+    const onAccidentImageRemove = async (btn: HTMLElement) => {
+      const slotEl = btn.closest<HTMLElement>("[data-accident-slot]");
+      if (!slotEl) return;
+      if (!confirm("첨부한 자료를 삭제하시겠습니까?")) return;
+      const path = slotEl.dataset.accidentSlotPath;
+      if (path) {
+        const supabase = createClient();
+        await supabase.storage.from("accident-level-attachments").remove([path]).catch(() => {});
+      }
+      slotEl.dataset.accidentSlotPath = "";
+      const previewWrap = slotEl.querySelector<HTMLElement>("[data-accident-image-preview-wrap]");
+      const previewImg = slotEl.querySelector<HTMLImageElement>("[data-accident-image-preview]");
+      const status = slotEl.querySelector<HTMLElement>("[data-accident-image-status]");
+      if (previewImg) previewImg.src = "";
+      if (previewWrap) previewWrap.classList.add("hidden");
+      if (status) status.textContent = "아직 업로드된 자료가 없습니다(미첨부 시 없는 것으로 처리됩니다).";
+      await saveAccidentLevelAttachments();
+    };
+
     const onTemplateSelectChange = async (e: Event) => {
       const el = e.target as HTMLSelectElement;
       if (!el.matches("[data-template-select]")) return;
@@ -804,6 +886,11 @@ export default function WizardScreen({
         void onPolicyImageRemove();
         return;
       }
+      if (btn.hasAttribute("data-accident-image-remove")) {
+        e.preventDefault();
+        void onAccidentImageRemove(btn);
+        return;
+      }
       if (btn.hasAttribute("data-toc-group-toggle")) {
         e.preventDefault();
         onTocGroupToggle(btn);
@@ -977,6 +1064,7 @@ export default function WizardScreen({
     root.addEventListener("change", onTemplateSelectChange);
     root.addEventListener("change", onRiskDbSelectChange);
     root.addEventListener("change", onPolicyImageChange);
+    root.addEventListener("change", onAccidentImageChange);
     root.addEventListener("change", onProcessExtractFileChange);
     root.addEventListener("click", onClick);
     root.addEventListener("click", onTocClick);
@@ -986,6 +1074,7 @@ export default function WizardScreen({
       root.removeEventListener("change", onTemplateSelectChange);
       root.removeEventListener("change", onRiskDbSelectChange);
       root.removeEventListener("change", onPolicyImageChange);
+      root.removeEventListener("change", onAccidentImageChange);
       root.removeEventListener("change", onProcessExtractFileChange);
       root.removeEventListener("click", onClick);
       root.removeEventListener("click", onTocClick);

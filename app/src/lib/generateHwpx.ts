@@ -316,6 +316,15 @@ function buildSection0Xml(
         paragraphs.push(textParagraph(row.join(" | "), "0", false));
       }
     }
+    if (section.accidentImages?.length) {
+      // 이 생성기는 표/이미지를 지원하지 않으므로(관리방침 이미지도 동일한 이유로
+      // 실제 삽입 없이 문구만 남김), 첨부된 자료명만 텍스트로 남긴다. 실제 이미지는
+      // DOCX/PDF 다운로드로 확인해야 한다.
+      paragraphs.push(emptyParagraph());
+      for (const img of section.accidentImages) {
+        paragraphs.push(textParagraph(`붙임: ${img.label} (이미지 첨부됨 — DOCX/PDF에서 확인)`, "0", false));
+      }
+    }
     paragraphs.push(emptyParagraph());
   });
 

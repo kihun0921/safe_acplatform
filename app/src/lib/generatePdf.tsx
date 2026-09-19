@@ -1,4 +1,5 @@
 import path from "path";
+import { Fragment } from "react";
 import type { ReactElement } from "react";
 import { renderToBuffer, Document, Page, View, Text, Image, Svg, Rect, Line, StyleSheet, Font } from "@react-pdf/renderer";
 import type {
@@ -300,6 +301,36 @@ function ManagementPolicyImagePage({ imageBuffer }: { imageBuffer: Buffer }) {
   );
 }
 
+// "재해발생 수준" 증빙자료(산재요양승인확인서/산업재해율 조회결과/안전보건경영
+// 시스템 인증서) 첨부 이미지를 제목 + 이미지 그대로 한 페이지에 넣는다.
+// ManagementPolicyImagePage와 로직은 같지만 여러 장이 나올 수 있고 각각 제목이
+// 다르므로 별도 컴포넌트로 둔다.
+function LabeledImagePage({ imageBuffer, label }: { imageBuffer: Buffer; label: string }) {
+  const dims = readImageDimensions(imageBuffer);
+  const isPng = imageBuffer.length >= 8 && imageBuffer.readUInt32BE(0) === 0x89504e47;
+  const isJpg = imageBuffer.length >= 2 && imageBuffer[0] === 0xff && imageBuffer[1] === 0xd8;
+  if (!dims || (!isPng && !isJpg)) {
+    return (
+      <Page size="A4" style={styles.policyPage}>
+        <Text style={styles.policyTitle}>{label}</Text>
+        <Text>첨부된 이미지 형식을 지원하지 않아 표시할 수 없습니다. PNG 또는 JPEG로 다시 업로드해 주세요.</Text>
+      </Page>
+    );
+  }
+  const mime = isPng ? "image/png" : "image/jpeg";
+  const dataUri = `data:${mime};base64,${imageBuffer.toString("base64")}`;
+  const maxWidth = 500;
+  const maxHeight = 650;
+  const scale = Math.min(1, maxWidth / dims.width, maxHeight / dims.height);
+  return (
+    <Page size="A4" style={styles.policyPage}>
+      <Text style={[styles.policyTitle, { marginBottom: 16 }]}>{label}</Text>
+      {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is a PDF-embed primitive (no alt prop), not an HTML <img> */}
+      <Image src={dataUri} style={{ width: dims.width * scale, height: dims.height * scale }} />
+    </Page>
+  );
+}
+
 function ManagementPolicyStandardPage({ data }: { data: ManagementPolicyData }) {
   return (
     <Page size="A4" style={styles.policyPage}>
@@ -474,42 +505,47 @@ export async function generateWizardPdf(
       )}
       {orgChart && <OrgChartPage data={orgChart} />}
       {sections.map((section, i) => (
-        <Page key={section.id} size="A4" style={styles.page}>
-          {i === 0 && <Text style={styles.title}>{title}</Text>}
-          <Text style={styles.heading}>{section.heading}</Text>
-          {section.emergencyTeam && <EmergencyTeamDiagram data={section.emergencyTeam} />}
-          {section.fields.map((f, idx) => (
-            <View key={idx} style={styles.fieldRow}>
-              <Text style={styles.fieldLabel}>{f.label}</Text>
-              <Text style={styles.fieldValue}>{f.value || "(미입력)"}</Text>
-            </View>
+        <Fragment key={section.id}>
+          <Page size="A4" style={styles.page}>
+            {i === 0 && <Text style={styles.title}>{title}</Text>}
+            <Text style={styles.heading}>{section.heading}</Text>
+            {section.emergencyTeam && <EmergencyTeamDiagram data={section.emergencyTeam} />}
+            {section.fields.map((f, idx) => (
+              <View key={idx} style={styles.fieldRow}>
+                <Text style={styles.fieldLabel}>{f.label}</Text>
+                <Text style={styles.fieldValue}>{f.value || "(미입력)"}</Text>
+              </View>
+            ))}
+            {section.tables.map(
+              (t, tIdx) =>
+                t.rows.length > 0 && (
+                  <View key={tIdx} style={styles.table}>
+                    {t.headers.length > 0 && (
+                      <View style={styles.tableRow}>
+                        {t.headers.map((h, idx) => (
+                          <Text key={idx} style={styles.tableHeaderCell}>
+                            {h}
+                          </Text>
+                        ))}
+                      </View>
+                    )}
+                    {t.rows.map((row, rIdx) => (
+                      <View key={rIdx} style={styles.tableRow}>
+                        {row.map((cell, cIdx) => (
+                          <Text key={cIdx} style={styles.tableCell}>
+                            {cell}
+                          </Text>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                )
+            )}
+          </Page>
+          {section.accidentImages?.map((img, idx) => (
+            <LabeledImagePage key={idx} imageBuffer={img.buffer} label={img.label} />
           ))}
-          {section.tables.map(
-            (t, tIdx) =>
-              t.rows.length > 0 && (
-                <View key={tIdx} style={styles.table}>
-                  {t.headers.length > 0 && (
-                    <View style={styles.tableRow}>
-                      {t.headers.map((h, idx) => (
-                        <Text key={idx} style={styles.tableHeaderCell}>
-                          {h}
-                        </Text>
-                      ))}
-                    </View>
-                  )}
-                  {t.rows.map((row, rIdx) => (
-                    <View key={rIdx} style={styles.tableRow}>
-                      {row.map((cell, cIdx) => (
-                        <Text key={cIdx} style={styles.tableCell}>
-                          {cell}
-                        </Text>
-                      ))}
-                    </View>
-                  ))}
-                </View>
-              )
-          )}
-        </Page>
+        </Fragment>
       ))}
     </Document>
   );

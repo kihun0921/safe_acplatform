@@ -3026,6 +3026,71 @@ ${dipReadonlyBlock("바. 집행 및 확인절차", SAFETY_COST_EXECUTION_TEXT)}
 `;
 }
 
+// "재해발생 수준" — 자유 서술 대신 증빙자료(이미지) 첨부 방식으로 바꿨다. 산재
+// 요양승인확인서·산업재해율 조회결과는 필수, 안전보건경영시스템 인증서는 있는
+// 경우에만 첨부한다. 각 자료는 안전보건 경영방침 이미지 첨부와 동일한 방식으로
+// Storage(accident-level-attachments 버킷)에 올리고, 다운로드 문서(DOCX/PDF)에는
+// 첨부된 이미지 그대로 한 페이지씩 삽입된다(미첨부 항목은 생략). HWPX는 표·이미지를
+// 지원하지 않는 생성기라 첨부 여부만 문구로 표시한다.
+export const ACCIDENT_LEVEL_SLOTS: { key: string; label: string; required: boolean }[] = [
+  { key: "accident_report", label: "산재요양승인확인서", required: true },
+  { key: "accident_rate", label: "산업재해율 조회결과", required: true },
+  { key: "iso_cert", label: "안전보건경영시스템 인증서", required: false },
+];
+
+function buildAccidentLevelUploadsNavHtml(): string {
+  return `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-accident_level">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center text-[10px] font-mono">
+                  09
+                </span>
+<span class="group-hover:text-neutral-900">재해발생 수준</span>
+</div>
+</a>
+`;
+}
+
+function buildAccidentLevelUploadsSectionHtml(
+  attachments: Record<string, string | null | undefined>,
+  imageUrls: Record<string, string | null | undefined>
+): string {
+  const slotsHtml = ACCIDENT_LEVEL_SLOTS.map(({ key, label, required }) => {
+    const path = attachments[key] ?? "";
+    const url = imageUrls[key] ?? "";
+    const hasImage = Boolean(url);
+    return `<div class="border border-neutral-200 rounded-lg p-4" data-accident-slot="${key}" data-accident-slot-path="${escapeHtmlPolicy(
+      path
+    )}">
+<div class="flex items-center justify-between mb-2">
+<p class="font-bold text-neutral-800 text-sm">${escapeHtmlPolicy(label)}${required ? "" : " (해당 시 첨부)"}</p>
+</div>
+<input type="file" accept="image/png,image/jpeg" data-accident-image-input class="text-xs" />
+<div class="mt-3 ${hasImage ? "" : "hidden"}" data-accident-image-preview-wrap>
+<img data-accident-image-preview src="${escapeHtmlPolicy(url)}" class="max-w-full max-h-[420px] rounded-lg border border-neutral-200" alt="${escapeHtmlPolicy(
+      label
+    )}"/>
+<button type="button" data-accident-image-remove class="mt-2 text-xs text-rose-600 hover:underline">삭제</button>
+</div>
+<p class="text-[11px] text-neutral-400 mt-1" data-accident-image-status>${
+      hasImage ? "업로드된 자료가 저장되어 있습니다." : "아직 업로드된 자료가 없습니다(미첨부 시 없는 것으로 처리됩니다)."
+    }</p>
+</div>`;
+  }).join("\n");
+
+  return `<!-- ════════ SECTION: 재해발생 수준 ════════ -->
+<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-accident_level">
+<div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
+<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">Ⅵ</span>
+<h2 class="font-headline font-bold text-base text-neutral-900">재해발생 수준</h2>
+</div>
+<div class="p-6 space-y-4">
+<p class="text-xs text-neutral-500">각 증빙자료를 이미지(PNG/JPG)로 첨부하세요. 첨부된 자료는 다운로드 문서에 그대로 한 페이지씩 포함되며, 첨부하지 않은 항목은 없는 것으로 처리됩니다.</p>
+${slotsHtml}
+</div>
+</section>
+`;
+}
+
 // "위험성평가 실시규정" — 산업안전보건법 제36조에 따른 실시규정 전문(붙임1, 실제 LH
 // 샘플 화성동탄(2) 131~145p)과 서식 2종(교육일지/회의록)을 팝업(모달)에서 작성한다.
 // 15페이지 분량이라 위저드 본문에 그대로 펼쳐 두면 스크롤이 지나치게 길어지므로,
@@ -3250,7 +3315,8 @@ export function buildWizardHtml(
   viewerIsAdmin?: boolean,
   agencyTemplate?: AgencyTemplateRow | null,
   availableTemplates?: { id: string; name: string }[],
-  safetyPolicyImageUrl?: string | null
+  safetyPolicyImageUrl?: string | null,
+  accidentLevelImageUrls?: Record<string, string | null | undefined>
 ): string {
   // The wizard's raw HTML was originally a static Stitch mockup for one demo
   // project (LH / 화성태안3지구). Swap in this document's real title/agency, and
@@ -3327,7 +3393,8 @@ export function buildWizardHtml(
     (agencyTemplate?.show_council_meeting_plan ? 1 : 0) +
     (agencyTemplate?.show_integrity_pledge ? 1 : 0) +
     (agencyTemplate?.show_subcontractor_evaluation ? 1 : 0) +
-    (agencyTemplate?.show_safety_cost_plan ? 1 : 0);
+    (agencyTemplate?.show_safety_cost_plan ? 1 : 0) +
+    (agencyTemplate?.show_accident_level_uploads ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
   // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
@@ -3483,6 +3550,14 @@ ${templateOptions
   const safetyCostSectionHtml = agencyTemplate?.show_safety_cost_plan
     ? buildSafetyCostSectionHtml(safetyCostAmounts, safetyBudget)
     : "";
+  const accidentLevelAttachments =
+    (doc.content?.accidentLevelAttachments as Record<string, string | null> | undefined) ?? {};
+  const accidentLevelUploadsNavHtml = agencyTemplate?.show_accident_level_uploads
+    ? buildAccidentLevelUploadsNavHtml()
+    : "";
+  const accidentLevelUploadsSectionHtml = agencyTemplate?.show_accident_level_uploads
+    ? buildAccidentLevelUploadsSectionHtml(accidentLevelAttachments, accidentLevelImageUrls ?? {})
+    : "";
 
   let html = HTML_documents_wizard
     .replace("__ADMIN_RETURN_LINK__", adminReturnLinkHtml)
@@ -3551,6 +3626,10 @@ ${templateOptions
       `${safetyCostNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
     )
     .replace(
+      '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">',
+      `${accidentLevelUploadsNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-risk">`
+    )
+    .replace(
       '<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">',
       `${riskAssessmentRulesNavHtml}<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-attachments">`
     )
@@ -3601,7 +3680,7 @@ ${templateOptions
 </div>
 </div>
 </section>
-${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}${councilMeetingPlanSectionHtml}${integrityPledgeSectionHtml}${subcontractorEvaluationSectionHtml}${safetyCostSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
+${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectionHtml}${educationPlanSectionHtml}${hazardMachinerySectionHtml}${hazardVehicleSectionHtml}${hazardSubstanceSectionHtml}${dailyInspectionPlanSectionHtml}${ptwPlanSectionHtml}${protectionEquipmentSectionHtml}${emergencyPlanSectionHtml}${councilMeetingPlanSectionHtml}${integrityPledgeSectionHtml}${subcontractorEvaluationSectionHtml}${safetyCostSectionHtml}${accidentLevelUploadsSectionHtml}<!-- ════════ SECTION Ⅱ: 안전보건관리체계 및 위험성평가 ════════ -->`
     )
     .replace(
       '<!-- ════════ SECTION Ⅵ: 기타사항 및 별첨문서 선택 (부록) ════════ -->',
@@ -3660,6 +3739,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     commonLabels.integrity_pledge = "안전보건관리비 집행 청렴서약서";
     commonLabels.subcontractor_evaluation = "적격업체(관계수급인) 선정 평가기준";
     commonLabels.safety_cost = "종사자(관계수급인) 안전보건 관리비용 기준";
+    if (agencyTemplate.show_accident_level_uploads) commonLabels.accident_level = "재해발생 수준";
     html = applySectionOrder(html, agencyTemplate.section_order, extraLabels, commonLabels);
   }
 

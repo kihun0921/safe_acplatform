@@ -254,6 +254,16 @@ alter table public.agency_templates add column if not exists show_subcontractor_
 -- 이 플래그를 켜는 발주처는 sections에서 "safety_cost" 항목을 반드시 제거할 것.
 alter table public.agency_templates add column if not exists show_safety_cost_plan boolean not null default false;
 
+-- show_accident_level_uploads: "재해발생 수준"을 자유 서술 대신 증빙자료 첨부
+-- 방식으로 보여줄지 여부. 산재요양승인확인서 / 산업재해율 조회결과 / 안전보건
+-- 경영시스템 인증서(있는 경우) 3종을 각각 이미지(PNG/JPG)로 업로드하며, 업로드된
+-- 각 자료는 다운로드 문서(DOCX/PDF)에서 그 자체로 한 페이지씩 삽입된다(HWPX는
+-- 표/이미지를 지원하지 않는 생성기라 첨부 여부만 문구로 표시). 첨부하지 않은
+-- 항목은 "미첨부"로 처리하고 별도 안내문 없이 생략한다. 이 플래그를 켜는
+-- 발주처는 sections의 accident_level에서 accident_history/safety_certification
+-- 필드를 반드시 제거할 것.
+alter table public.agency_templates add column if not exists show_accident_level_uploads boolean not null default false;
+
 alter table public.documents add column if not exists template_id uuid references public.agency_templates(id) on delete set null;
 -- 공통 6대 목차 중 이 발주처 서식에서는 끄고 싶은 것들 (예: overview, risk, execution,
 -- emergency, target, attachments 중 일부). 기본은 전부 켜짐(빈 배열).
@@ -560,6 +570,36 @@ create policy safety_policy_images_owner_all on storage.objects
   )
   with check (
     bucket_id = 'safety-policy-images'
+    and exists (
+      select 1 from public.documents d
+      where d.id::text = (storage.foldername(name))[1]
+        and (d.member_id = auth.uid() or public.is_admin())
+    )
+  );
+
+-- ============================================================================
+-- storage: accident-level-attachments — "재해발생 수준"의 산재요양승인확인서 /
+-- 산업재해율 조회결과 / 안전보건경영시스템 인증서 증빙자료 이미지를 업로드하는
+-- 전용 버킷. safety-policy-images와 동일한 방식(경로 "<document_id>/<파일명>",
+-- RLS로 실제 소유권 검증)을 그대로 따른다.
+-- ============================================================================
+insert into storage.buckets (id, name, public)
+values ('accident-level-attachments', 'accident-level-attachments', false)
+on conflict (id) do nothing;
+
+drop policy if exists accident_level_attachments_owner_all on storage.objects;
+create policy accident_level_attachments_owner_all on storage.objects
+  for all
+  using (
+    bucket_id = 'accident-level-attachments'
+    and exists (
+      select 1 from public.documents d
+      where d.id::text = (storage.foldername(name))[1]
+        and (d.member_id = auth.uid() or public.is_admin())
+    )
+  )
+  with check (
+    bucket_id = 'accident-level-attachments'
     and exists (
       select 1 from public.documents d
       where d.id::text = (storage.foldername(name))[1]

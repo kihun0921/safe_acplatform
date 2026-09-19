@@ -115,6 +115,15 @@ export type AgencyTemplateRow = {
   // 달라는 요청으로 이 플래그가 생겼다 — 이 플래그를 켜는 발주처는 sections에서
   // "safety_cost" 항목을 반드시 제거할 것.
   show_safety_cost_plan?: boolean;
+  // "재해발생 수준"을 자유 서술 대신 증빙자료 첨부 방식으로 보여줄지 여부.
+  // 산재요양승인확인서 / 산업재해율 조회결과 / 안전보건경영시스템 인증서(있는
+  // 경우) 3종을 각각 이미지(PNG/JPG)로 업로드하며(documents.content.
+  // accidentLevelAttachments), 업로드된 자료는 다운로드 문서(DOCX/PDF)에서
+  // 그 자체로 한 페이지씩 삽입된다(HWPX는 이미지를 지원하지 않아 첨부 여부만
+  // 문구로 표시). 첨부하지 않은 항목은 미첨부로 처리하고 생략한다. 이 플래그를
+  // 켜는 발주처는 sections의 accident_level에서 accident_history/
+  // safety_certification 필드를 반드시 제거할 것.
+  show_accident_level_uploads?: boolean;
 };
 
 // section_order의 한 그룹 = 실제 문서의 장(章) 하나. roman/title은 좌측 목차에

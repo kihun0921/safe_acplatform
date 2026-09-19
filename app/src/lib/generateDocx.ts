@@ -312,6 +312,52 @@ function buildManagementPolicyImagePage(imageBuffer: Buffer): (Paragraph | Table
   ];
 }
 
+// "재해발생 수준" 증빙자료(산재요양승인확인서/산업재해율 조회결과/안전보건경영
+// 시스템 인증서) 첨부 이미지를 제목 + 이미지 그대로 한 페이지에 넣는다.
+// buildManagementPolicyImagePage와 로직은 같지만 재사용 시 관리방침 전용 안내
+// 문구가 섞이지 않도록 별도 함수로 둔다.
+function buildLabeledImagePage(imageBuffer: Buffer, label: string): (Paragraph | Table)[] {
+  const dims = readImageDimensions(imageBuffer);
+  const isPng = imageBuffer.length >= 8 && imageBuffer.readUInt32BE(0) === 0x89504e47;
+  const isJpg = imageBuffer.length >= 2 && imageBuffer[0] === 0xff && imageBuffer[1] === 0xd8;
+  if (!dims || (!isPng && !isJpg)) {
+    return [
+      new Paragraph({
+        spacing: { after: 200 },
+        children: [
+          new TextRun({
+            text: `첨부된 "${label}" 이미지 형식을 지원하지 않아 표시할 수 없습니다. PNG 또는 JPEG로 다시 업로드해 주세요.`,
+            font: FONT,
+            size: 22,
+          }),
+        ],
+      }),
+    ];
+  }
+
+  const maxWidthPx = 620;
+  const scale = Math.min(1, maxWidthPx / dims.width);
+  const width = Math.round(dims.width * scale);
+  const height = Math.round(dims.height * scale);
+
+  return [
+    new Paragraph({
+      spacing: { after: 200 },
+      children: [new TextRun({ text: label, bold: true, size: 24, font: FONT })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new ImageRun({
+          type: isPng ? "png" : "jpg",
+          data: imageBuffer,
+          transformation: { width, height },
+        }),
+      ],
+    }),
+  ];
+}
+
 function buildManagementPolicyStandardPage(data: ManagementPolicyData): (Paragraph | Table)[] {
   const shadedBox = (text: string): Table =>
     new Table({
@@ -545,6 +591,15 @@ export async function generateWizardDocx(
 
     if (section.emergencyTeam) {
       children.push(...buildEmergencyTeamDiagram(section.emergencyTeam));
+    }
+
+    if (section.accidentImages?.length) {
+      section.accidentImages.forEach((img, i) => {
+        children.push(...buildLabeledImagePage(img.buffer, img.label));
+        if (i < section.accidentImages!.length - 1) {
+          children.push(new Paragraph({ children: [new PageBreak()] }));
+        }
+      });
     }
 
     for (const field of section.fields) {

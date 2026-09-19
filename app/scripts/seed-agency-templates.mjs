@@ -130,6 +130,13 @@ const TEMPLATES = [
     // textarea 2개(자유 입력)였는데 표 형식으로 바꿔달라는 요청으로 이 플래그가
     // 생겼다(해당 항목은 아래 sections에서 제거함).
     show_safety_cost_plan: true,
+    // "재해발생 수준"을 자유 서술 대신 증빙자료(이미지) 첨부 방식으로 보여준다.
+    // 산재요양승인확인서·산업재해율 조회결과는 필수, 안전보건경영시스템 인증서는
+    // 있는 경우에만 첨부하며, 첨부된 이미지는 다운로드 문서에 그대로 한 페이지씩
+    // 포함된다 — 기존 sections의 범용 "accident_level" 항목 안 textarea 2개(자유
+    // 서술)였는데 증빙자료 첨부 방식으로 바꿔달라는 요청으로 이 플래그가 생겼다
+    // (해당 항목은 아래 sections에서 전체 제거함).
+    show_accident_level_uploads: true,
     // 실제 목차 순서(표지 → Ⅰ.안전보건관리체계 → Ⅱ.실행계획 → Ⅲ.운영관리 →
     // Ⅳ.중대산업재해 등 비상 상황시 조치계획 → Ⅴ.기타사항 → Ⅵ.재해발생 수준 →
     // Ⅶ.붙임 → Ⅷ.작업투입 인력 인적사항)에 맞춰, 공통 6대 목차와 아래 sections의
@@ -233,31 +240,6 @@ const TEMPLATES = [
             default:
               "안전보건공단(KOSHA)의 재해사례 및 위험성평가 지원시스템(KRAS), 고용노동부 고시·지침, 동종 업종 사망재해 사례 등을 확보하여 본 계획서의 위험성평가 항목 및 근로자 안전교육 자료에 반영하였다.\n" +
               "활용자료: (미입력) / 반영내용: (미입력)",
-          },
-        ],
-      },
-      {
-        id: "accident_level",
-        label: "재해발생 수준",
-        fields: [
-          {
-            key: "accident_history",
-            label: "산업재해 현황 (산재요양승인확인서 / 산업재해율 조회결과)",
-            type: "textarea",
-            placeholder: "근로복지공단 산재요양 승인/반려여부, 최근 3년간 사고사망만인율·재해율(고용노동부 산업재해율 조회결과) 등 실적을 입력하세요",
-            default:
-              "근로복지공단 확인 결과: 최근 1년간 소속 근로자의 산업재해로 인한 4일 이상 요양사실 없음, 산재 요양신청서 반려 사실 없음\n" +
-              "고용노동부 산업재해율 조회결과: 최근 3년간 사고사망만인율 — 당사 0.00‰ (동종동규모 평균 대비 이하), 재해율 — 당사 (미입력)% (동종동규모 평균 (미입력)%)",
-          },
-          {
-            key: "safety_certification",
-            label: "안전보건경영시스템 인증 현황",
-            type: "textarea",
-            placeholder: "ISO45001, KOSHA-MS 등 인증서 번호·인증범위·유효기간을 입력하세요",
-            default:
-              "인증명: ISO 45001:2018(안전보건경영시스템) / 인증범위: 토목 및 건축 공사\n" +
-              "인증서 번호: (미입력) / 최초 인증일: (미입력) / 유효기간: (미입력)\n" +
-              "※ 본 인증서는 최초 인증 결정일로부터 12개월 이내에 사후관리 심사가 진행되는 것을 전제로 유지되며, 기한 내 심사가 완료되지 않을 경우 인증 유지에 제한이 있을 수 있습니다.",
           },
         ],
       },
@@ -522,6 +504,7 @@ for (const t of TEMPLATES) {
   const showIntegrityPledge = t.show_integrity_pledge ?? false;
   const showSubcontractorEvaluation = t.show_subcontractor_evaluation ?? false;
   const showSafetyCostPlan = t.show_safety_cost_plan ?? false;
+  const showAccidentLevelUploads = t.show_accident_level_uploads ?? false;
   if (existing) {
     const { error } = await admin
       .from("agency_templates")
@@ -548,6 +531,7 @@ for (const t of TEMPLATES) {
         show_integrity_pledge: showIntegrityPledge,
         show_subcontractor_evaluation: showSubcontractorEvaluation,
         show_safety_cost_plan: showSafetyCostPlan,
+        show_accident_level_uploads: showAccidentLevelUploads,
       })
       .eq("id", existing.id);
     if (error) throw error;
@@ -579,6 +563,7 @@ for (const t of TEMPLATES) {
         show_integrity_pledge: showIntegrityPledge,
         show_subcontractor_evaluation: showSubcontractorEvaluation,
         show_safety_cost_plan: showSafetyCostPlan,
+        show_accident_level_uploads: showAccidentLevelUploads,
       })
       .select("id")
       .single();

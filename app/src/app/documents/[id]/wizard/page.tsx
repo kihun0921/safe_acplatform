@@ -4,7 +4,7 @@ import WizardScreen from "@/components/WizardScreen";
 import DocumentPaywallModal from "@/components/DocumentPaywallModal";
 import DocumentPriceEditor from "@/components/DocumentPriceEditor";
 import { pickAnnouncementPdf, extractBusinessOverviewFromPdf } from "@/lib/extractBusinessOverview";
-import { buildWizardHtml, SCRIPT_documents_wizard, type PdfOverview } from "@/lib/wizardHtml";
+import { buildWizardHtml, SCRIPT_documents_wizard, ACCIDENT_LEVEL_SLOTS, type PdfOverview } from "@/lib/wizardHtml";
 import { isDocumentUnlocked } from "@/lib/documentAccess";
 import { classifyConstructionType, buildInitialRiskRows, type RiskRow } from "@/lib/riskTemplates";
 
@@ -100,6 +100,21 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     safetyPolicyImageUrl = signed?.signedUrl ?? null;
   }
 
+  // 재해발생 수준 증빙자료(산재요양승인확인서/산업재해율 조회결과/안전보건경영
+  // 시스템 인증서): 위와 동일하게 비공개 버킷이라 볼 때마다 서명 URL을 새로
+  // 만들어야 한다.
+  const accidentLevelAttachments =
+    (doc.content?.accidentLevelAttachments as Record<string, string | null> | undefined) ?? {};
+  const accidentLevelImageUrls: Record<string, string | null> = {};
+  for (const slot of ACCIDENT_LEVEL_SLOTS) {
+    const path = accidentLevelAttachments[slot.key];
+    if (!path) continue;
+    const { data: signed } = await supabase.storage
+      .from("accident-level-attachments")
+      .createSignedUrl(path, 3600);
+    accidentLevelImageUrls[slot.key] = signed?.signedUrl ?? null;
+  }
+
   const html = buildWizardHtml(
     doc,
     announcement,
@@ -108,7 +123,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     showAdminReturnLink,
     selectedTemplate,
     availableTemplates ?? [],
-    safetyPolicyImageUrl
+    safetyPolicyImageUrl,
+    accidentLevelImageUrls
   );
 
   return (

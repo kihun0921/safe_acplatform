@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { buildWizardHtml, type PdfOverview } from "@/lib/wizardHtml";
+import { buildWizardHtml, ACCIDENT_LEVEL_SLOTS, type PdfOverview } from "@/lib/wizardHtml";
 import {
   extractWizardSections,
   extractCoverPageData,
@@ -138,6 +138,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 
   const orgChart = showOrgChart ? extractOrgChartData(html, savedFields) : undefined;
+
+  // 재해발생 수준 증빙자료: 안전보건 경영방침 이미지와 동일하게 이진 데이터라
+  // wizardExport.ts가 아니라 여기서 직접 Storage에서 읽어와, sections 배열에서
+  // "sec-accident_level"을 찾아 직접 채워 넣는다(비동기 I/O라 extractWizardSections
+  // 내부에서는 할 수 없음).
+  if (selectedTemplate?.show_accident_level_uploads) {
+    const attachments = (doc.content?.accidentLevelAttachments ?? {}) as Record<string, string | null>;
+    const accidentSection = sections.find((s) => s.id === "sec-accident_level");
+    if (accidentSection) {
+      const images: { label: string; buffer: Buffer }[] = [];
+      for (const slot of ACCIDENT_LEVEL_SLOTS) {
+        const path = attachments[slot.key];
+        if (!path) continue;
+        const { data: blob } = await supabase.storage.from("accident-level-attachments").download(path);
+        if (blob) images.push({ label: slot.label, buffer: Buffer.from(await blob.arrayBuffer()) });
+      }
+      if (images.length > 0) accidentSection.accidentImages = images;
+    }
+  }
 
   const title = (doc.title ?? "안전보건관리계획서").replace(/\s*계획서$/, "") + " 안전보건관리계획서";
   const filename = encodeURIComponent(title);

@@ -749,7 +749,11 @@ function buildManagementPolicySectionHtml(params: {
 </div>
 <div data-policy-panel="image" ${isImage ? "" : "hidden"}>
 <p class="text-[11px] text-neutral-500 mb-2">이미 만들어진 안전보건경영방침 게시물(이미지)이 있으면 그대로 첨부하세요. 다운로드 문서 표지 다음 페이지에 이미지 그대로 삽입됩니다.</p>
-<input type="file" accept="image/png,image/jpeg" data-policy-image-input class="text-xs" />
+<label class="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary border border-primary px-3 py-1.5 rounded-lg cursor-pointer hover:opacity-90 transition">
+<span class="material-symbols-outlined text-base" data-icon="upload_file">upload_file</span>
+<span>이미지 파일 선택</span>
+<input type="file" accept="image/png,image/jpeg" data-policy-image-input class="hidden" />
+</label>
 <div class="mt-3 ${imageUrl ? "" : "hidden"}" data-policy-image-preview-wrap>
 <img data-policy-image-preview src="${imageUrl ? escapeHtmlPolicy(imageUrl) : ""}" class="max-w-full max-h-[420px] rounded-lg border border-neutral-200" alt="안전보건경영방침"/>
 <button type="button" data-policy-image-remove class="mt-2 text-xs text-rose-600 hover:underline">이미지 삭제</button>
@@ -3064,7 +3068,11 @@ function buildAccidentLevelUploadsSectionHtml(
 <div class="flex items-center justify-between mb-2">
 <p class="font-bold text-neutral-800 text-sm">${escapeHtmlPolicy(label)}${required ? "" : " (해당 시 첨부)"}</p>
 </div>
-<input type="file" accept="image/png,image/jpeg" data-accident-image-input class="text-xs" />
+<label class="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary border border-primary px-3 py-1.5 rounded-lg cursor-pointer hover:opacity-90 transition">
+<span class="material-symbols-outlined text-base" data-icon="upload_file">upload_file</span>
+<span>이미지 파일 선택</span>
+<input type="file" accept="image/png,image/jpeg" data-accident-image-input class="hidden" />
+</label>
 <div class="mt-3 ${hasImage ? "" : "hidden"}" data-accident-image-preview-wrap>
 <img data-accident-image-preview src="${escapeHtmlPolicy(url)}" class="max-w-full max-h-[420px] rounded-lg border border-neutral-200" alt="${escapeHtmlPolicy(
       label

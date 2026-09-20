@@ -3,6 +3,7 @@ import fs from "fs";
 import JSZip from "jszip";
 import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData, OrgChartData } from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
+import { readImageDimensions } from "./imageDimensions";
 
 // HWPX(.hwpx)는 한글과컴퓨터의 개방형 문서 표준(OWPML, KS X 6101)으로, ZIP 컨테이너 안에
 // XML 파일들이 들어있는 구조다(DOCX/OOXML과 비슷한 개념). 다만 header.xml에는 문서 전체의
@@ -63,11 +64,192 @@ function patchHeaderXmlForTables(headerXml: string): string {
     .replace("</hh:borderFills>", `${newBorderFills}\n</hh:borderFills>`);
 }
 
+// 템플릿의 문단모양(paraPr) 20개 중 가운데 정렬(horizontal="CENTER")은 하나도
+// 없어서(전부 JUSTIFY 또는 LEFT), 조직도 박스 안 텍스트·화살표를 가운데
+// 맞추려면 새로 하나 추가해야 한다. id=0 문단모양을 그대로 복사하고
+// align만 CENTER로 바꿔 id=20으로 추가한다(다른 속성은 기존 값 그대로라
+// 위험이 낮다).
+const CENTER_PARA_PR_ID = "20";
+
+function patchHeaderXmlForCenterAlign(headerXml: string): string {
+  const newParaPr = `<hh:paraPr id="${CENTER_PARA_PR_ID}" tabPrIDRef="0" condense="0" fontLineHeight="0" snapToGrid="1" suppressLineNumbers="0" checked="0" textDir="LTR">
+<hh:align horizontal="CENTER" vertical="BASELINE"/>
+<hh:heading type="NONE" idRef="0" level="0"/>
+<hh:breakSetting breakLatinWord="KEEP_WORD" breakNonLatinWord="BREAK_WORD" widowOrphan="0" keepWithNext="0" keepLines="0" pageBreakBefore="0" lineWrap="BREAK"/>
+<hh:autoSpacing eAsianEng="0" eAsianNum="0"/>
+<hp:switch>
+<hp:case hp:required-namespace="http://www.hancom.co.kr/hwpml/2016/HwpUnitChar">
+<hh:margin><hc:intent value="0" unit="HWPUNIT"/><hc:left value="0" unit="HWPUNIT"/><hc:right value="0" unit="HWPUNIT"/><hc:prev value="0" unit="HWPUNIT"/><hc:next value="0" unit="HWPUNIT"/></hh:margin>
+<hh:lineSpacing type="PERCENT" value="160" unit="HWPUNIT"/>
+</hp:case>
+<hp:default>
+<hh:margin><hc:intent value="0" unit="HWPUNIT"/><hc:left value="0" unit="HWPUNIT"/><hc:right value="0" unit="HWPUNIT"/><hc:prev value="0" unit="HWPUNIT"/><hc:next value="0" unit="HWPUNIT"/></hh:margin>
+<hh:lineSpacing type="PERCENT" value="160" unit="HWPUNIT"/>
+</hp:default>
+</hp:switch>
+<hh:border borderFillIDRef="2" offsetLeft="0" offsetRight="0" offsetTop="0" offsetBottom="0" connect="0" ignoreMargin="0"/>
+</hh:paraPr>`;
+  return headerXml
+    .replace(/<hh:paraProperties itemCnt="20">/, '<hh:paraProperties itemCnt="21">')
+    .replace("</hh:paraProperties>", `${newParaPr}\n</hh:paraProperties>`);
+}
+
+interface BoxNode {
+  role: string;
+  name: string;
+  contact: string;
+}
+
+// 조직도·비상대책반 구성: DOCX(orgChartBoxCell)와 동일하게 "테두리 있는 표 칸을
+// 박스처럼 쓰고 그 사이에 화살표 문단을 두는" 방식을 hp:tbl로 재현한다 —
+// 유니코드 트리 문자보다 실제 다이어그램에 훨씬 가깝다.
+function buildBoxCellXml(node: BoxNode, width: number, colAddr: number): string {
+  const lines = [node.role, node.name || "(미입력)", node.contact || "(미입력)"];
+  const cellParas = lines
+    .map(
+      (line) =>
+        `<hp:p id="${nextId()}" paraPrIDRef="${CENTER_PARA_PR_ID}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0"><hp:t>${escapeXml(
+          line
+        )}</hp:t></hp:run></hp:p>`
+    )
+    .join("\n");
+  return `<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}">
+<hp:cellAddr colAddr="${colAddr}" rowAddr="0"/>
+<hp:cellSpan colSpan="1" rowSpan="1"/>
+<hp:cellSz width="${width}" height="${BOX_ROW_HEIGHT}"/>
+<hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="200" bottom="200"/>
+<hp:subList id="0" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="${width}" textHeight="0" hasTextRef="0" hasNumRef="0">
+${cellParas}
+</hp:subList>
+</hp:tc>`;
+}
+
+function buildBoxRowTableXml(nodes: BoxNode[], fullWidth: boolean): string {
+  const columnCount = nodes.length;
+  const totalWidth = fullWidth ? TABLE_TOTAL_WIDTH : Math.round(TABLE_TOTAL_WIDTH * 0.5);
+  const colWidth = Math.round(totalWidth / columnCount);
+  const cells = nodes.map((n, i) => buildBoxCellXml(n, colWidth, i)).join("\n");
+  const tblId = nextId();
+  const horzAlign = fullWidth ? "LEFT" : "CENTER";
+  return `<hp:tbl id="${tblId}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="1" colCnt="${columnCount}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
+<hp:sz width="${totalWidth}" widthRelTo="ABSOLUTE" height="${BOX_ROW_HEIGHT}" heightRelTo="ABSOLUTE" protect="0"/>
+<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="${horzAlign}" vertOffset="0" horzOffset="0"/>
+<hp:outMargin left="0" right="0" top="0" bottom="0"/>
+<hp:inMargin left="0" right="0" top="0" bottom="0"/>
+<hp:tr>${cells}</hp:tr>
+</hp:tbl>`;
+}
+
+function boxRowParagraph(nodes: BoxNode[], fullWidth: boolean): string {
+  return `<hp:p id="${nextId()}" paraPrIDRef="${CENTER_PARA_PR_ID}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">
+<hp:run charPrIDRef="0">${buildBoxRowTableXml(nodes, fullWidth)}</hp:run>
+<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
+</hp:p>`;
+}
+
+function arrowParagraph(): string {
+  return `<hp:p id="${nextId()}" paraPrIDRef="${CENTER_PARA_PR_ID}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">
+<hp:run charPrIDRef="0"><hp:t>↓</hp:t></hp:run>
+<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
+</hp:p>`;
+}
+
+// ── 이미지 첨부(hp:pic) ────────────────────────────────────────────────────
+// 안전보건 경영방침 이미지, 재해발생 수준 증빙자료(산재요양승인확인서 등)를
+// 실제 그림으로 끼워 넣는다. HWPX의 그림은 문서 밖 바이너리 데이터를
+// Contents/BinData/에 두고 header.xml이 아니라 content.hpf의 매니페스트
+// (opf:item)에 등록한 뒤, 문단 안 hp:pic 객체가 hc:img binaryItemIDRef로
+// 그 항목 id를 참조하는 구조다. section0.xml을 문자열로 조립하는 시점에는
+// 아직 zip에 파일을 추가할 수 없으므로, 등록이 필요한 이미지를 registered
+// 배열에 모아 뒀다가 generateWizardHwpx에서 한 번에 zip/content.hpf에 반영한다.
+export interface RegisteredHwpxImage {
+  id: string;
+  ext: "png" | "jpg";
+  buffer: Buffer;
+}
+
+// 문서 전체에서 96dpi를 가정한다(DOCX 내보내기와 동일 — docx 라이브러리의
+// ImageRun도 px 값을 96dpi 기준으로 EMU 변환한다). 1inch = 7200 HWPUNIT,
+// 1inch = 96px 이므로 1px = 75 HWPUNIT.
+const HWPUNIT_PER_PX = 75;
+const IMAGE_MAX_WIDTH_PX = 620;
+
+function detectImageFormat(buf: Buffer): "png" | "jpg" | null {
+  if (buf.length >= 8 && buf.readUInt32BE(0) === 0x89504e47) return "png";
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xd8) return "jpg";
+  return null;
+}
+
+function buildImageParagraphs(
+  buffer: Buffer,
+  label: string | undefined,
+  registered: RegisteredHwpxImage[],
+  pageBreak: boolean
+): string {
+  const format = detectImageFormat(buffer);
+  const dims = format ? readImageDimensions(buffer) : null;
+  if (!format || !dims) {
+    return textParagraph(
+      `첨부된 "${label ?? "이미지"}" 형식을 지원하지 않아 표시할 수 없습니다. PNG 또는 JPEG로 다시 업로드해 주세요.`,
+      "0",
+      pageBreak
+    );
+  }
+
+  const scale = Math.min(1, IMAGE_MAX_WIDTH_PX / dims.width);
+  const widthUnit = Math.round(dims.width * scale * HWPUNIT_PER_PX);
+  const heightUnit = Math.round(dims.height * scale * HWPUNIT_PER_PX);
+
+  const imageId = `hwpximage${registered.length + 1}`;
+  registered.push({ id: imageId, ext: format, buffer });
+
+  const picId = nextId();
+  const picXml = `<hp:pic id="${picId}" reverse="0" zOrder="0" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${picId}" reverseVideo="0" isVectorImage="0">
+<hp:offset x="0" y="0"/>
+<hp:orgSz width="${widthUnit}" height="${heightUnit}"/>
+<hp:curSz width="${widthUnit}" height="${heightUnit}"/>
+<hp:flip horizontal="0" vertical="0"/>
+<hp:rotationInfo angle="0" centerX="${Math.round(widthUnit / 2)}" centerY="${Math.round(heightUnit / 2)}" rotateimage="1"/>
+<hp:renderingInfo>
+<hc:transMatrix e1="1" e2="0" e3="0" e4="1" e5="0" e6="0"/>
+<hc:scaMatrix e1="1" e2="0" e3="0" e4="1" e5="0" e6="0"/>
+<hc:rotMatrix e1="1" e2="0" e3="0" e4="1" e5="0" e6="0"/>
+</hp:renderingInfo>
+<hp:sz width="${widthUnit}" widthRelTo="ABSOLUTE" height="${heightUnit}" heightRelTo="ABSOLUTE" protect="0"/>
+<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="CENTER" vertOffset="0" horzOffset="0"/>
+<hp:outMargin left="0" right="0" top="0" bottom="0"/>
+<hp:imgRect>
+<hc:pt0 x="0" y="0"/>
+<hc:pt1 x="${widthUnit}" y="0"/>
+<hc:pt2 x="${widthUnit}" y="${heightUnit}"/>
+<hc:pt3 x="0" y="${heightUnit}"/>
+</hp:imgRect>
+<hp:imgClip left="0" top="0" right="${dims.width}" bottom="${dims.height}"/>
+<hp:inMargin left="0" right="0" top="0" bottom="0"/>
+<hp:imgDim dimwidth="${dims.width}" dimheight="${dims.height}"/>
+<hc:img binaryItemIDRef="${imageId}" bright="0" contrast="0" effect="REAL_PIC" alpha="0"/>
+</hp:pic>`;
+
+  const paragraphs: string[] = [];
+  if (label) {
+    paragraphs.push(textParagraph(label, "5", pageBreak));
+  }
+  paragraphs.push(`<hp:p id="${nextId()}" paraPrIDRef="${CENTER_PARA_PR_ID}" styleIDRef="0" pageBreak="${
+    label ? 0 : pageBreak ? 1 : 0
+  }" columnBreak="0" merged="0">
+<hp:run charPrIDRef="0">${picXml}</hp:run>
+<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
+</hp:p>`);
+  return paragraphs.join("\n");
+}
+
 // 위저드 화면 좌우 여백을 뺀 A4 본문 폭과 같은 값(다른 문단의 hp:lineseg
 // horzsize="42520"과 통일) — 표를 문서 폭 전체로 채운다.
 const TABLE_TOTAL_WIDTH = 42520;
 const TABLE_ROW_HEIGHT = 1200;
 const TABLE_CELL_MARGIN = 141;
+// 조직도 박스는 역할/성명/연락처 3줄이 들어가 일반 표 행보다 더 높아야 한다.
+const BOX_ROW_HEIGHT = 3200;
 
 // DOCX 내보내기(generateDocx.ts)와 같은 기준: "연번"/"구분"처럼 원래 짧은
 // 값만 들어가는 컬럼은 폭을 줄이고 나머지 컬럼이 남는 폭을 나눠 갖는다.
@@ -272,21 +454,18 @@ const OVERVIEW_PAGE_PARAGRAPH_BUILDERS: Record<string, (data: OverviewPageData) 
   lh_standard: buildLhOverviewPageParagraphs,
 };
 
-// "안전보건 경영방침 및 목표": 회사가 자체 이미지를 첨부했더라도, 이 생성기는
-// 실제 한글 프로그램에서 열어 검증할 방법이 없는 순수 텍스트 XML 조립 방식이라
-// 임의 바이너리 이미지를 OWPML BinData로 안전하게 끼워 넣는 기능은 아직 없다.
-// 그래서 이미지 모드에서는 DOCX/PDF를 안내하는 문구로 대체하고, 표준 문구
-// 모드에서는 실제 서식을 텍스트로 재현한다.
-function buildManagementPolicyParagraphs(data: ManagementPolicyData, hasImage: boolean): string[] {
-  if (data.mode === "image" && hasImage) {
+// "안전보건 경영방침 및 목표": 회사가 자체 이미지를 첨부했으면 그 이미지를
+// 그대로 삽입하고(hp:pic), 아니면 표준 문구를 텍스트로 재현한다.
+function buildManagementPolicyParagraphs(
+  data: ManagementPolicyData,
+  imageBuffer: Buffer | null | undefined,
+  registered: RegisteredHwpxImage[]
+): string[] {
+  if (data.mode === "image" && imageBuffer) {
     return [
       textParagraph("안전보건 경영방침 및 목표", "5", false),
       emptyParagraph(),
-      textParagraph(
-        "회사에서 첨부한 안전보건경영방침 이미지는 DOCX 또는 PDF 다운로드에서 확인하실 수 있습니다.",
-        "0",
-        false
-      ),
+      buildImageParagraphs(imageBuffer, undefined, registered, false),
       emptyParagraph(),
     ];
   }
@@ -308,29 +487,22 @@ function buildManagementPolicyParagraphs(data: ManagementPolicyData, hasImage: b
   return paragraphs;
 }
 
-// "안전보건관리 조직구성"을 실제 조직도 다이어그램으로 그린다. 이 생성기는 순수
-// 텍스트 XML 조립 방식이라(표/도형/연결선 자체를 지원하지 않음) DOCX·PDF처럼
-// 진짜 박스+연결선 다이어그램은 만들 수 없고, 유니코드 트리 문자로 위저드
-// 화면과 같은 위계(현장소장 → 안전관리자 → 관리감독자 → 작업 1·2팀장, 곧은
-// 한 줄로 이어지다 마지막에만 갈라짐)만 최대한 비슷하게 표현한다.
-function nodeLine(node: { role: string; name: string; contact: string }): string {
-  return `${node.role} — ${node.name || "(미입력)"} / 연락처: ${node.contact || "(미입력)"}`;
-}
-
+// "안전보건관리 조직구성"을 DOCX(buildOrgChartPage)와 같은 박스+화살표 표
+// 다이어그램으로 그린다(현장소장 → 안전관리자 → 관리감독자가 한 줄씩 이어지고
+// 마지막에 작업 1·2팀장만 나란히 배치 — 위저드 화면과 동일한 위계).
 function buildOrgChartParagraphs(data: OrgChartData): string[] {
   return [
     textParagraph("안전보건관리 조직구성", "5", false),
     emptyParagraph(),
     textParagraph("나. 현장 사업소 조직도(임무 및 비상연락망 포함)", "0", false),
     emptyParagraph(),
-    textParagraph(nodeLine(data.siteManager), "0", false),
-    textParagraph("  │", "0", false),
-    textParagraph(`  └─ ${nodeLine(data.safetyManager)}`, "0", false),
-    textParagraph("      │", "0", false),
-    textParagraph(`      └─ ${nodeLine(data.supervisor)}`, "0", false),
-    textParagraph("          │", "0", false),
-    textParagraph(`          ├─ ${nodeLine(data.team1)}`, "0", false),
-    textParagraph(`          └─ ${nodeLine(data.team2)}`, "0", false),
+    boxRowParagraph([data.siteManager], false),
+    arrowParagraph(),
+    boxRowParagraph([data.safetyManager], false),
+    arrowParagraph(),
+    boxRowParagraph([data.supervisor], false),
+    arrowParagraph(),
+    boxRowParagraph([data.team1, data.team2], true),
     emptyParagraph(),
     textParagraph("※ 위 선임 기술인력은 변경될 수 있습니다.", "0", false),
     emptyParagraph(),
@@ -340,12 +512,13 @@ function buildOrgChartParagraphs(data: OrgChartData): string[] {
 function buildSection0Xml(
   title: string,
   sections: WizardSection[],
+  registeredImages: RegisteredHwpxImage[],
   cover?: CoverPageData,
   coverStyle: CoverStyle = "generic",
   overviewPage?: OverviewPageData,
   overviewPageStyle?: string | null,
   managementPolicy?: ManagementPolicyData,
-  hasManagementPolicyImage?: boolean,
+  managementPolicyImage?: Buffer | null,
   orgChart?: OrgChartData
 ): string {
   const baseSection0 = fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "section0.xml"), "utf8");
@@ -375,7 +548,7 @@ function buildSection0Xml(
   }
   let managementPolicyInserted = false;
   if (managementPolicy) {
-    const policyParagraphs = buildManagementPolicyParagraphs(managementPolicy, Boolean(hasManagementPolicyImage));
+    const policyParagraphs = buildManagementPolicyParagraphs(managementPolicy, managementPolicyImage, registeredImages);
     if (policyParagraphs.length) {
       policyParagraphs[0] = policyParagraphs[0].replace(
         'pageBreak="0"',
@@ -406,18 +579,16 @@ function buildSection0Xml(
     paragraphs.push(textParagraph(section.heading, "5", i > 0));
     paragraphs.push(emptyParagraph());
     if (section.emergencyTeam) {
-      // 조직도와 동일하게 이 생성기는 표/도형을 지원하지 않으므로, 유니코드 트리
-      // 문자로 위계(대책반장 → 안전관리자 → 3개 팀 → 협력업체·근로자)를 표현한다.
+      // 조직도와 동일한 박스+화살표 표 다이어그램(대책반장 → 안전관리자 →
+      // 3개 팀 → 협력업체·근로자).
       const t = section.emergencyTeam;
-      paragraphs.push(textParagraph(nodeLine(t.chief), "0", false));
-      paragraphs.push(textParagraph("  │", "0", false));
-      paragraphs.push(textParagraph(`  └─ ${nodeLine(t.safetyManager)}`, "0", false));
-      paragraphs.push(textParagraph("      │", "0", false));
-      paragraphs.push(textParagraph(`      ├─ ${nodeLine(t.controlTeam)}`, "0", false));
-      paragraphs.push(textParagraph(`      ├─ ${nodeLine(t.rescueTeam)}`, "0", false));
-      paragraphs.push(textParagraph(`      └─ ${nodeLine(t.supportTeam)}`, "0", false));
-      paragraphs.push(textParagraph("          │", "0", false));
-      paragraphs.push(textParagraph("          └─ 협력업체, 근로자", "0", false));
+      paragraphs.push(boxRowParagraph([t.chief], false));
+      paragraphs.push(arrowParagraph());
+      paragraphs.push(boxRowParagraph([t.safetyManager], false));
+      paragraphs.push(arrowParagraph());
+      paragraphs.push(boxRowParagraph([t.controlTeam, t.rescueTeam, t.supportTeam], true));
+      paragraphs.push(arrowParagraph());
+      paragraphs.push(textParagraph("협력업체, 근로자", "0", false));
       paragraphs.push(emptyParagraph());
     }
     for (const field of section.fields) {
@@ -436,13 +607,11 @@ function buildSection0Xml(
       paragraphs.push(emptyParagraph());
     }
     if (section.accidentImages?.length) {
-      // 이 생성기는 표/이미지를 지원하지 않으므로(관리방침 이미지도 동일한 이유로
-      // 실제 삽입 없이 문구만 남김), 첨부된 자료명만 텍스트로 남긴다. 실제 이미지는
-      // DOCX/PDF 다운로드로 확인해야 한다.
-      paragraphs.push(emptyParagraph());
-      for (const img of section.accidentImages) {
-        paragraphs.push(textParagraph(`붙임: ${img.label} (이미지 첨부됨 — DOCX/PDF에서 확인)`, "0", false));
-      }
+      // DOCX(buildLabeledImagePage)와 동일하게 자료마다 제목 + 이미지 그대로
+      // 한 페이지씩 넣는다.
+      section.accidentImages.forEach((img) => {
+        paragraphs.push(buildImageParagraphs(img.buffer, img.label, registeredImages, true));
+      });
     }
     paragraphs.push(emptyParagraph());
   });
@@ -470,23 +639,45 @@ export async function generateWizardHwpx(
   zip.file("settings.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "settings.xml")));
   zip.file(
     "Contents/header.xml",
-    patchHeaderXmlForTables(fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "header.xml"), "utf8"))
-  );
-  zip.file("Contents/content.hpf", fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "content.hpf")));
-  zip.file(
-    "Contents/section0.xml",
-    buildSection0Xml(
-      title,
-      sections,
-      cover,
-      coverStyle,
-      overviewPage,
-      overviewPageStyle,
-      managementPolicy,
-      Boolean(managementPolicyImage),
-      orgChart
+    patchHeaderXmlForCenterAlign(
+      patchHeaderXmlForTables(fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "header.xml"), "utf8"))
     )
   );
+  const registeredImages: RegisteredHwpxImage[] = [];
+  const section0Xml = buildSection0Xml(
+    title,
+    sections,
+    registeredImages,
+    cover,
+    coverStyle,
+    overviewPage,
+    overviewPageStyle,
+    managementPolicy,
+    managementPolicyImage,
+    orgChart
+  );
+  zip.file("Contents/section0.xml", section0Xml);
+
+  // hp:pic이 참조하는 바이너리 파일들을 BinData/에 넣고, content.hpf의
+  // opf:manifest에 같은 id로 등록한다(header.xml이 아니라 content.hpf 쪽에
+  // 이미지 매니페스트가 있다 — 표 테두리(header.xml)와는 다른 경로).
+  const contentHpfTemplate = fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "content.hpf"), "utf8");
+  const imageManifestItems = registeredImages
+    .map(
+      (img) =>
+        `<opf:item id="${img.id}" href="BinData/${img.id}.${img.ext}" media-type="image/${
+          img.ext === "jpg" ? "jpeg" : "png"
+        }"/>`
+    )
+    .join("\n");
+  const contentHpf = imageManifestItems
+    ? contentHpfTemplate.replace("</opf:manifest>", `${imageManifestItems}\n</opf:manifest>`)
+    : contentHpfTemplate;
+  zip.file("Contents/content.hpf", contentHpf);
+  for (const img of registeredImages) {
+    zip.file(`BinData/${img.id}.${img.ext}`, img.buffer);
+  }
+
   zip.file("META-INF/container.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "container.xml")));
   zip.file("META-INF/container.rdf", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "container.rdf")));
   zip.file("META-INF/manifest.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "manifest.xml")));

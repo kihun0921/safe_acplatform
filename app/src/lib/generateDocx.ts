@@ -13,6 +13,7 @@ import {
   AlignmentType,
   BorderStyle,
   VerticalAlign,
+  TableLayoutType,
 } from "docx";
 import type {
   WizardSection,
@@ -30,6 +31,26 @@ const FONT = "맑은 고딕";
 
 const CELL_BORDER = { style: BorderStyle.SINGLE, size: 4, color: "999999" } as const;
 const CELL_BORDERS = { top: CELL_BORDER, bottom: CELL_BORDER, left: CELL_BORDER, right: CELL_BORDER };
+const CELL_MARGINS = { top: 60, bottom: 60, left: 100, right: 100 };
+
+// 위험성평가·작업투입 인력 명단 등 위저드에서 나오는 표는 컬럼 폭·의미가 제각각이라
+// 지금까지는 전 컬럼을 균등폭으로 나눴는데, "연번"·"구분"처럼 원래 짧은 값만 들어가는
+// 컬럼까지 "안전관리 방안"처럼 긴 서술형 컬럼과 같은 폭을 받아 표 전체가 정렬이
+// 안 맞아 보이는 원인이었다. 헤더 텍스트로 짧은 값 컬럼을 가려내 폭을 줄이고 남는
+// 폭을 나머지 컬럼에 고르게 배분하며, 그런 짧은 값 컬럼은 가운데 정렬(그 외는
+// 왼쪽 정렬)해 표를 읽기 쉽게 만든다.
+const NARROW_COLUMN_PATTERN =
+  /^(연번|번호|no\.?|구분|분류|확인|서명|지정일|지정구분|작업일자|성명|소속|담당|비고|등급|점수|위험성|빈도|강도)/i;
+
+function isNarrowColumn(header: string): boolean {
+  return NARROW_COLUMN_PATTERN.test(header.trim());
+}
+
+function computeColumnWidths(headerLikeRow: string[], columnCount: number): number[] {
+  const weights = Array.from({ length: columnCount }, (_, i) => (isNarrowColumn(headerLikeRow[i] ?? "") ? 1 : 2.4));
+  const total = weights.reduce((a, b) => a + b, 0);
+  return weights.map((w) => Math.round((w / total) * 1000) / 10);
+}
 
 function coverLabelCell(text: string): TableCell {
   return new TableCell({
@@ -629,17 +650,27 @@ export async function generateWizardDocx(
     for (const t of section.tables) {
       if (t.rows.length === 0) continue;
       const { headers, rows } = t;
+      const columnCount = headers.length || rows[0]?.length || 1;
+      const widths = computeColumnWidths(headers.length ? headers : rows[0] ?? [], columnCount);
       const tableRows: TableRow[] = [];
 
       if (headers.length > 0) {
         tableRows.push(
           new TableRow({
+            tableHeader: true,
             children: headers.map(
-              (h: string) =>
+              (h: string, i: number) =>
                 new TableCell({
-                  width: { size: 100 / headers.length, type: WidthType.PERCENTAGE },
+                  width: { size: widths[i], type: WidthType.PERCENTAGE },
+                  verticalAlign: VerticalAlign.CENTER,
+                  shading: { fill: "F3F4F6" },
+                  borders: CELL_BORDERS,
+                  margins: CELL_MARGINS,
                   children: [
-                    new Paragraph({ children: [new TextRun({ text: h, bold: true, size: 18, font: FONT })] }),
+                    new Paragraph({
+                      alignment: isNarrowColumn(h) ? AlignmentType.CENTER : AlignmentType.LEFT,
+                      children: [new TextRun({ text: h, bold: true, size: 18, font: FONT })],
+                    }),
                   ],
                 })
             ),
@@ -651,17 +682,27 @@ export async function generateWizardDocx(
         tableRows.push(
           new TableRow({
             children: row.map(
-              (cell: string) =>
+              (cell: string, i: number) =>
                 new TableCell({
-                  width: { size: 100 / (headers.length || row.length), type: WidthType.PERCENTAGE },
-                  children: [new Paragraph({ children: [new TextRun({ text: cell, size: 18, font: FONT })] })],
+                  width: { size: widths[i], type: WidthType.PERCENTAGE },
+                  verticalAlign: VerticalAlign.CENTER,
+                  borders: CELL_BORDERS,
+                  margins: CELL_MARGINS,
+                  children: [
+                    new Paragraph({
+                      alignment: isNarrowColumn(headers[i] ?? "") ? AlignmentType.CENTER : AlignmentType.LEFT,
+                      children: [new TextRun({ text: cell, size: 18, font: FONT })],
+                    }),
+                  ],
                 })
             ),
           })
         );
       }
 
-      children.push(new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+      children.push(
+        new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE }, layout: TableLayoutType.FIXED })
+      );
       children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
     }
   });

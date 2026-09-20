@@ -17,6 +17,7 @@ import {
   insertCoverNavAndSection,
   applySectionOrder,
   COMMON_SECTIONS,
+  normalizeAgencyName,
   type AgencyTemplateRow,
 } from "@/lib/agencyTemplates";
 
@@ -3704,14 +3705,19 @@ export function buildWizardHtml(
     (agencyTemplate?.show_workforce_plan ? 1 : 0);
 
   // 표준서식 선택 드롭다운: 이 문서의 발주처(agency)에 실제로 등록된 표준서식이
-  // 있을 때만 선택지를 보여준다(현재는 LH만 프로토타입으로 등록됨). 선택을
-  // 바꾸면 WizardScreen이 PATCH 후 새로고침해 여기서 만든 추가 섹션을 반영한다.
+  // 있을 때만 선택지를 보여준다. 등록된 서식이 정확히 1개뿐이면(현재 모든
+  // 발주처가 그렇다) 고를 필요가 없는 드롭다운("OO 표준 서식 (공통)"/"OO 표준
+  // 서식 (2025 개정판)" 두 항목이 사실상 같은 서식을 가리켜 혼란만 준다는
+  // 피드백으로 바뀜) 대신 서식 이름 그대로 한 줄로 보여준다. 실제로 여러 버전이
+  // 등록된 발주처가 생기면 그때 드롭다운이 다시 나타난다. 선택을 바꾸면
+  // WizardScreen이 PATCH 후 새로고침해 여기서 만든 추가 섹션을 반영한다.
   const templateOptions = availableTemplates ?? [];
   const selectedTemplateId = doc.template_id ?? "";
+  const cleanAgencyName = escapeHtml(normalizeAgencyName((doc.agency ?? "").trim()) || "발주기관");
   const templateSelectHtml =
-    templateOptions.length > 0
+    templateOptions.length > 1
       ? `<select aria-label="발주처 표준 서식 선택" data-template-select class="text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-primary focus:border-primary">
-<option value=""${selectedTemplateId ? "" : " selected"}>${agencyName} 표준 서식 (공통)</option>
+<option value=""${selectedTemplateId ? "" : " selected"}>${cleanAgencyName} 표준 서식 (공통)</option>
 ${templateOptions
   .map(
     (t) =>
@@ -3719,7 +3725,9 @@ ${templateOptions
   )
   .join("\n")}
 </select>`
-      : `<span aria-label="발주처 표준 서식" class="text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5"><span class="material-symbols-outlined text-sm text-neutral-400">description</span>${agencyName} 표준 서식</span>`;
+      : templateOptions.length === 1
+      ? `<span aria-label="발주처 표준 서식" class="text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5"><span class="material-symbols-outlined text-sm text-neutral-400">description</span>${escapeHtml(templateOptions[0].name)}</span>`
+      : `<span aria-label="발주처 표준 서식" class="text-xs font-medium text-neutral-700 bg-neutral-50 border border-neutral-300 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5"><span class="material-symbols-outlined text-sm text-neutral-400">description</span>${cleanAgencyName} 표준 서식</span>`;
 
   // "안전보건 경영방침 및 목표": 회사별로 이미지 첨부/표준 문구 중 어느 쪽을 쓰는지,
   // 이미지가 있다면 그 URL은 documents.content.safetyPolicy에 저장되고, 페이지 서버

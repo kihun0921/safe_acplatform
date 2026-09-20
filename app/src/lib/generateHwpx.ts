@@ -30,6 +30,129 @@ function nextId(): number {
   return idCounter;
 }
 
+// ── 실제 표(hp:tbl) 지원 ──────────────────────────────────────────────────
+// 템플릿의 header.xml에 원래 정의된 borderFill(id 1·2)은 전부 네 변 type="NONE"
+// (선 없음)이라 표 테두리로 못 쓴다. 그래서 zip을 만들 때 header.xml에 실선
+// borderFill 2개를 새로 추가한다: id=3(본문 셀, 흰 배경+회색 실선), id=4(헤더
+// 셀, 옅은 회색 배경+회색 실선 — DOCX 내보내기의 헤더 배경(F3F4F6)과 맞춤).
+const TABLE_BODY_BORDER_FILL_ID = "3";
+const TABLE_HEADER_BORDER_FILL_ID = "4";
+
+function patchHeaderXmlForTables(headerXml: string): string {
+  const newBorderFills = `<hh:borderFill id="${TABLE_BODY_BORDER_FILL_ID}" threeD="0" shadow="0" centerLine="NONE" breakCellSeparateLine="0">
+<hh:slash type="NONE" Crooked="0" isCounter="0"/>
+<hh:backSlash type="NONE" Crooked="0" isCounter="0"/>
+<hh:leftBorder type="SOLID" width="0.1 mm" color="#999999"/>
+<hh:rightBorder type="SOLID" width="0.1 mm" color="#999999"/>
+<hh:topBorder type="SOLID" width="0.1 mm" color="#999999"/>
+<hh:bottomBorder type="SOLID" width="0.1 mm" color="#999999"/>
+<hh:diagonal type="NONE" width="0.1 mm" color="#000000"/>
+</hh:borderFill>
+<hh:borderFill id="${TABLE_HEADER_BORDER_FILL_ID}" threeD="0" shadow="0" centerLine="NONE" breakCellSeparateLine="0">
+<hh:slash type="NONE" Crooked="0" isCounter="0"/>
+<hh:backSlash type="NONE" Crooked="0" isCounter="0"/>
+<hh:leftBorder type="SOLID" width="0.1 mm" color="#999999"/>
+<hh:rightBorder type="SOLID" width="0.1 mm" color="#999999"/>
+<hh:topBorder type="SOLID" width="0.1 mm" color="#999999"/>
+<hh:bottomBorder type="SOLID" width="0.1 mm" color="#999999"/>
+<hh:diagonal type="NONE" width="0.1 mm" color="#000000"/>
+<hc:fillBrush><hc:winBrush faceColor="#F3F4F6" hatchColor="#999999" alpha="0"/></hc:fillBrush>
+</hh:borderFill>`;
+  return headerXml
+    .replace(/<hh:borderFills itemCnt="2">/, '<hh:borderFills itemCnt="4">')
+    .replace("</hh:borderFills>", `${newBorderFills}\n</hh:borderFills>`);
+}
+
+// 위저드 화면 좌우 여백을 뺀 A4 본문 폭과 같은 값(다른 문단의 hp:lineseg
+// horzsize="42520"과 통일) — 표를 문서 폭 전체로 채운다.
+const TABLE_TOTAL_WIDTH = 42520;
+const TABLE_ROW_HEIGHT = 1200;
+const TABLE_CELL_MARGIN = 141;
+
+// DOCX 내보내기(generateDocx.ts)와 같은 기준: "연번"/"구분"처럼 원래 짧은
+// 값만 들어가는 컬럼은 폭을 줄이고 나머지 컬럼이 남는 폭을 나눠 갖는다.
+const NARROW_COLUMN_PATTERN =
+  /^(연번|번호|no\.?|구분|분류|확인|서명|지정일|지정구분|작업일자|성명|소속|담당|비고|등급|점수|위험성|빈도|강도)/i;
+
+function isNarrowColumn(header: string): boolean {
+  return NARROW_COLUMN_PATTERN.test(header.trim());
+}
+
+function computeColumnWidths(headerLikeRow: string[], columnCount: number): number[] {
+  const weights = Array.from({ length: columnCount }, (_, i) => (isNarrowColumn(headerLikeRow[i] ?? "") ? 1 : 2.4));
+  const total = weights.reduce((a, b) => a + b, 0);
+  return weights.map((w) => Math.round((w / total) * TABLE_TOTAL_WIDTH));
+}
+
+// 표 셀 안의 문단들("\n"이 섞인 셀 값은 줄마다 별도 hp:p로 나눠야 줄바꿈이 보임).
+function cellParagraphs(text: string): string {
+  const lines = (text || "").split("\n");
+  return lines
+    .map(
+      (line) =>
+        `<hp:p id="${nextId()}" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0"><hp:t>${escapeXml(
+          line
+        )}</hp:t></hp:run></hp:p>`
+    )
+    .join("\n");
+}
+
+function buildTableCellXml(text: string, width: number, colAddr: number, rowAddr: number, isHeader: boolean): string {
+  const borderFillId = isHeader ? TABLE_HEADER_BORDER_FILL_ID : TABLE_BODY_BORDER_FILL_ID;
+  return `<hp:tc name="" header="${isHeader ? 1 : 0}" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${borderFillId}">
+<hp:cellAddr colAddr="${colAddr}" rowAddr="${rowAddr}"/>
+<hp:cellSpan colSpan="1" rowSpan="1"/>
+<hp:cellSz width="${width}" height="${TABLE_ROW_HEIGHT}"/>
+<hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="${TABLE_CELL_MARGIN}" bottom="${TABLE_CELL_MARGIN}"/>
+<hp:subList id="0" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="${width}" textHeight="0" hasTextRef="0" hasNumRef="0">
+${cellParagraphs(text)}
+</hp:subList>
+</hp:tc>`;
+}
+
+// section.tables(위험성평가·유해위험 기계/차량/물질 관리계획·작업투입 인력
+// 명단 등 위저드 대부분의 표 콘텐츠)를 실제 OWPML 표(hp:tbl)로 만든다. 예전엔
+// " | "로 이어붙인 텍스트 한 줄이었는데(표라고 부를 수 없는 수준), 한글에서
+// 열었을 때 실제 격자·테두리가 있는 표로 보이도록 바꿨다.
+function buildTableXml(headers: string[], rows: string[][]): string {
+  const columnCount = headers.length || rows[0]?.length || 1;
+  const widths = computeColumnWidths(headers.length ? headers : rows[0] ?? [], columnCount);
+  const rowCount = rows.length + (headers.length ? 1 : 0);
+  const tblId = nextId();
+
+  const rowXmls: string[] = [];
+  let rowAddr = 0;
+  if (headers.length) {
+    const cells = headers.map((h, i) => buildTableCellXml(h, widths[i], i, rowAddr, true)).join("\n");
+    rowXmls.push(`<hp:tr>${cells}</hp:tr>`);
+    rowAddr += 1;
+  }
+  for (const row of rows) {
+    const cells = row
+      .map((cell, i) => buildTableCellXml(cell, widths[i] ?? widths[widths.length - 1], i, rowAddr, false))
+      .join("\n");
+    rowXmls.push(`<hp:tr>${cells}</hp:tr>`);
+    rowAddr += 1;
+  }
+
+  return `<hp:tbl id="${tblId}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="1" rowCnt="${rowCount}" colCnt="${columnCount}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
+<hp:sz width="${TABLE_TOTAL_WIDTH}" widthRelTo="ABSOLUTE" height="${rowCount * TABLE_ROW_HEIGHT}" heightRelTo="ABSOLUTE" protect="0"/>
+<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/>
+<hp:outMargin left="0" right="0" top="0" bottom="0"/>
+<hp:inMargin left="0" right="0" top="0" bottom="0"/>
+${rowXmls.join("\n")}
+</hp:tbl>`;
+}
+
+// 표는 문단 하나의 run 안에 들어가는 인라인 객체다(HWPX는 워드의 자유배치
+// 표와 달리 표 자체가 하나의 문단을 차지하는 형태로 다룬다).
+function tableParagraph(headers: string[], rows: string[][], pageBreak: boolean): string {
+  return `<hp:p id="${nextId()}" paraPrIDRef="0" styleIDRef="0" pageBreak="${pageBreak ? 1 : 0}" columnBreak="0" merged="0">
+<hp:run charPrIDRef="0">${buildTableXml(headers, rows)}</hp:run>
+<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
+</hp:p>`;
+}
+
 function textParagraph(text: string, charPrIDRef: string, pageBreak: boolean): string {
   return `<hp:p id="${nextId()}" paraPrIDRef="0" styleIDRef="0" pageBreak="${pageBreak ? 1 : 0}" columnBreak="0" merged="0">
 <hp:run charPrIDRef="${charPrIDRef}"><hp:t>${escapeXml(text)}</hp:t></hp:run>
@@ -309,12 +432,8 @@ function buildSection0Xml(
     for (const t of section.tables) {
       if (t.rows.length === 0) continue;
       paragraphs.push(emptyParagraph());
-      if (t.headers.length > 0) {
-        paragraphs.push(textParagraph(t.headers.join(" | "), "0", false));
-      }
-      for (const row of t.rows) {
-        paragraphs.push(textParagraph(row.join(" | "), "0", false));
-      }
+      paragraphs.push(tableParagraph(t.headers, t.rows, false));
+      paragraphs.push(emptyParagraph());
     }
     if (section.accidentImages?.length) {
       // 이 생성기는 표/이미지를 지원하지 않으므로(관리방침 이미지도 동일한 이유로
@@ -349,7 +468,10 @@ export async function generateWizardHwpx(
 
   zip.file("version.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "version.xml")));
   zip.file("settings.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "settings.xml")));
-  zip.file("Contents/header.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "header.xml")));
+  zip.file(
+    "Contents/header.xml",
+    patchHeaderXmlForTables(fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "header.xml"), "utf8"))
+  );
   zip.file("Contents/content.hpf", fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "content.hpf")));
   zip.file(
     "Contents/section0.xml",

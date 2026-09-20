@@ -661,7 +661,7 @@ export async function generateWizardDocx(
             children: headers.map(
               (h: string, i: number) =>
                 new TableCell({
-                  width: { size: widths[i], type: WidthType.PERCENTAGE },
+                  width: { size: widths[i] ?? widths[widths.length - 1], type: WidthType.PERCENTAGE },
                   verticalAlign: VerticalAlign.CENTER,
                   shading: { fill: "F3F4F6" },
                   borders: CELL_BORDERS,
@@ -684,7 +684,7 @@ export async function generateWizardDocx(
             children: row.map(
               (cell: string, i: number) =>
                 new TableCell({
-                  width: { size: widths[i], type: WidthType.PERCENTAGE },
+                  width: { size: widths[i] ?? widths[widths.length - 1], type: WidthType.PERCENTAGE },
                   verticalAlign: VerticalAlign.CENTER,
                   borders: CELL_BORDERS,
                   margins: CELL_MARGINS,

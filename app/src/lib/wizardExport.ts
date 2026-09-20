@@ -383,12 +383,21 @@ export function extractWizardSections(
           .find("td")
           .each((_, td) => {
             const $td = $(td);
-            if ($td.find("[data-risk-delete], [data-emergency-contact-delete], [data-workforce-delete]").length) return;
+            if (
+              $td.find("[data-risk-delete], [data-emergency-contact-delete], [data-workforce-delete], [data-hazard-delete]")
+                .length
+            )
+              return;
             // 위험성평가 표처럼 셀 안에 실제 입력요소(input/textarea/select)가 있으면
             // 그 값을 읽고, 아니면(정적 텍스트 셀) 기존처럼 텍스트를 읽는다.
             const control = $td.find("input, textarea, select").first();
             const text = control.length ? fieldValue($, control.get(0)) : $td.text().replace(/\s+/g, " ").trim();
             row.push(text);
+            // colspan="2" 같은 병합 셀(예: 적격업체 평가기준의 "합계" 행)은 물리적으로
+            // <td> 하나뿐이라, 그대로 두면 그 뒤 실제 셀들이 전부 한 칸씩 앞으로
+            // 밀려 헤더와 어긋난다 — 병합폭만큼 빈 칸을 채워 논리 컬럼 수를 맞춘다.
+            const colspan = Math.max(1, parseInt($td.attr("colspan") ?? "1", 10) || 1);
+            for (let i = 1; i < colspan; i += 1) row.push("");
           });
         if (row.length) rows.push(row);
       });

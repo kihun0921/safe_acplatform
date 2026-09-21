@@ -30,6 +30,17 @@ function ensureFontsRegistered() {
       { src: path.join(fontsDir, "NotoSansKR-Bold.ttf"), fontWeight: "bold" },
     ],
   });
+  // react-pdf(@react-pdf/textkit)의 기본 줄바꿈은 공백 위치 기준이라, 한글처럼
+  // 공백 없이 죽 이어지는 긴 복합어(예: "안전보건표지부착·안전수칙게시")가 좁은
+  // 표 칸(유해·위험 기계/차량/물질 관리계획 상세 표의 "관리계획" 칸 등)에 들어가면
+  // 줄바꿈 없이 그대로 넘쳐흘러 옆 칸 글자와 겹쳐 보이는 버그가 실제로 있었다
+  // (텍스트에 U+200B 같은 폭 0 공백을 끼워 넣는 방법은 이 폰트에 그 글리프
+  // 자체가 없어 더 큰 깨짐을 만들어 시도했다가 되돌림 — fontkit으로 직접 확인).
+  // react-pdf가 제공하는 하이픈 콜백을 글자 단위로 등록하면 텍스트 내용은 그대로
+  // 두고 "필요할 때만" 아무 글자 사이에서나 줄바꿈할 수 있게 된다 — 이미 한 줄에
+  // 들어가는 글은 전혀 영향받지 않고, 정말 넘칠 때만 그 지점에 작은 하이픈이
+  // 붙어 다음 줄로 넘어간다(완전 무해하진 않지만 겹쳐 보이는 것보다 훨씬 낫다).
+  Font.registerHyphenationCallback((word) => word.split(""));
   fontsRegistered = true;
 }
 

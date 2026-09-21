@@ -444,6 +444,10 @@ function emptyParagraph(): string {
 </hp:p>`;
 }
 
+function emptyParagraphs(count: number): string[] {
+  return Array.from({ length: count }, () => emptyParagraph());
+}
+
 // ── 표지 전용 표(제목 박스·공사개요 표·결재란) ────────────────────────────
 // DOCX(coverLabelCell/coverValueCell/approvalCell/buildTitleBox)와 같은
 // 구조를 hp:tbl로 재현한다. 예전엔 표지 전체가 그냥 왼쪽 정렬 텍스트
@@ -572,11 +576,14 @@ function buildApprovalTableParagraph(cover: CoverPageData): string {
 // 동일한 구성으로 재현한다. 다른 발주처의 실제 표지 샘플이 확보되면 이 함수
 // 옆에 buildXxxCoverParagraphs()를 추가하고 COVER_PARAGRAPH_BUILDERS에 등록한다.
 function buildLhStandardCoverParagraphs(cover: CoverPageData): string[] {
+  // 실제 LH 샘플 표지는 내용이 페이지 위쪽 절반 정도에 여유 있게 퍼져 있는데
+  // (제목→공사개요표→제출일자→발주처·회사명→결재란 사이 간격이 큼), 예전엔
+  // 빈 줄을 한 줄씩만 둬서 내용이 페이지 맨 위에 다닥다닥 붙어 있었다 — DOCX/
+  // PDF 표지의 간격(before/after 스페이싱)에 맞춰 블록 사이 여백을 넉넉하게 늘렸다.
   const paragraphs: string[] = [];
-  paragraphs.push(emptyParagraph());
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(3));
   paragraphs.push(titleBoxParagraph("안 전 보 건 관 리 계 획 서"));
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(3));
   paragraphs.push(
     coverFieldTableParagraph([
       { label: "공 사(용 역) 명", value: cover.projectName },
@@ -585,15 +592,15 @@ function buildLhStandardCoverParagraphs(cover: CoverPageData): string[] {
       { label: "계상된 안전관리비", value: cover.safetyBudget },
     ])
   );
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(4));
   paragraphs.push(textParagraph(cover.submitDate, "0", false, CENTER_PARA_PR_ID));
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(3));
   paragraphs.push(textParagraph(`${cover.agency || "발주기관"} 귀하`, "5", false, CENTER_PARA_PR_ID));
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(3));
   paragraphs.push(textParagraph(cover.companyName || "(미입력)", "5", false, CENTER_PARA_PR_ID));
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(4));
   paragraphs.push(buildApprovalTableParagraph(cover));
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(2));
   return paragraphs;
 }
 
@@ -601,9 +608,9 @@ function buildLhStandardCoverParagraphs(cover: CoverPageData): string[] {
 // 문구는 DOCX(buildGenericCover)와 동일하게 가운데 정렬로 맞춘다.
 function buildGenericCoverParagraphs(cover: CoverPageData): string[] {
   const paragraphs: string[] = [];
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(3));
   paragraphs.push(titleBoxParagraph("안전보건관리계획서"));
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(3));
   paragraphs.push(
     textParagraph(`공사(용역)명 : ${cover.projectName || "(미입력)"}`, "0", false, CENTER_PARA_PR_ID)
   );
@@ -619,13 +626,15 @@ function buildGenericCoverParagraphs(cover: CoverPageData): string[] {
   paragraphs.push(
     textParagraph(`계상된 안전관리비 : ${cover.safetyBudget || "(미입력)"}`, "0", false, CENTER_PARA_PR_ID)
   );
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(4));
   paragraphs.push(textParagraph(cover.submitDate, "0", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(3));
   paragraphs.push(textParagraph(`${cover.agency || "발주기관"} 귀하`, "5", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(3));
   paragraphs.push(textParagraph(cover.companyName || "(미입력)", "5", false, CENTER_PARA_PR_ID));
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(4));
   paragraphs.push(buildApprovalTableParagraph(cover));
-  paragraphs.push(emptyParagraph());
+  paragraphs.push(...emptyParagraphs(2));
   return paragraphs;
 }
 

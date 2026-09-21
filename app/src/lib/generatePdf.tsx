@@ -109,7 +109,6 @@ function sanitizeForPdf<T>(value: T): T {
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontFamily: "NotoSansKR", fontSize: 10 },
-  title: { fontSize: 18, fontWeight: "bold", textAlign: "center", marginBottom: 20 },
   heading: { fontSize: 14, fontWeight: "bold", marginBottom: 14, borderBottom: "2pt solid #1e3a5f", paddingBottom: 6 },
   fieldRow: { flexDirection: "row", marginBottom: 6 },
   fieldLabel: { fontWeight: "bold", width: 140 },
@@ -601,7 +600,6 @@ export async function generateWizardPdf(
 ): Promise<Buffer> {
   ensureFontsRegistered();
 
-  title = pdfSafeText(title);
   sections = sanitizeForPdf(sections);
   cover = cover && sanitizeForPdf(cover);
   overviewPage = overviewPage && sanitizeForPdf(overviewPage);
@@ -622,10 +620,9 @@ export async function generateWizardPdf(
         <ManagementPolicyStandardPage data={managementPolicy} />
       )}
       {orgChart && <OrgChartPage data={orgChart} />}
-      {sections.map((section, i) => (
+      {sections.map((section) => (
         <Fragment key={section.id}>
           <Page size="A4" style={styles.page}>
-            {i === 0 && <Text style={styles.title}>{title}</Text>}
             <Text style={styles.heading}>{section.heading}</Text>
             {section.emergencyTeam && <EmergencyTeamDiagram data={section.emergencyTeam} />}
             {section.fields.map((f, idx) => (

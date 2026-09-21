@@ -685,14 +685,6 @@ export async function generateWizardDocx(
     children.push(...buildOrgChartPage(orgChart));
   }
 
-  children.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 400 },
-      children: [new TextRun({ text: title, bold: true, size: 36, font: FONT })],
-    })
-  );
-
   sections.forEach((section, sectionIndex) => {
     if (sectionIndex > 0) {
       children.push(new Paragraph({ children: [new PageBreak()] }));

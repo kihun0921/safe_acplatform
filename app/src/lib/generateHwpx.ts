@@ -808,18 +808,15 @@ function buildSection0Xml(
     paragraphs.push(...orgParagraphs);
     orgChartInserted = true;
   }
-  paragraphs.push(
-    textParagraph(
-      title,
-      "5",
-      Boolean(cover) || overviewPageInserted || managementPolicyInserted || orgChartInserted,
-      CENTER_PARA_PR_ID
-    )
-  );
-  paragraphs.push(emptyParagraph());
+  // 예전엔 여기서 문서 제목(공사명)을 한 번 더 큰 글씨로 찍었는데, DOCX/PDF와
+  // 마찬가지로 표지에 이미 나온 제목이 본문 맨 앞에 맥락 없이 또 나온다는
+  // 지적을 받아 제거했다. 다만 이 문단이 갖고 있던 "표지/개요/조직도 뒤에는
+  // 새 페이지로 시작한다"는 페이지나눔 조건은 사라지면 안 되므로, 첫 번째
+  // 섹션의 제목 문단으로 그대로 옮긴다.
+  const needsPageBreakBeforeFirstSection = Boolean(cover) || overviewPageInserted || managementPolicyInserted || orgChartInserted;
 
   sections.forEach((section, i) => {
-    paragraphs.push(textParagraph(section.heading, "5", i > 0));
+    paragraphs.push(textParagraph(section.heading, "5", i === 0 ? needsPageBreakBeforeFirstSection : i > 0));
     paragraphs.push(emptyParagraph());
     if (section.emergencyTeam) {
       // 조직도와 동일한 박스+화살표 표 다이어그램(대책반장 → 안전관리자 →

@@ -198,6 +198,16 @@ export interface CoverPageData {
   writerName: string;
 }
 
+// 발주처 API가 자동으로 채운 금액은 이미 "4,850,000,000원" 처럼 콤마·단위가
+// 붙어 있지만, 사용자가 이 입력칸에 직접 숫자만 타이핑해 고치면("13416254513")
+// 콤마 없이 그대로 다운로드 문서에 나가는 실제 문제가 있었다. 값 전체가 순수
+// 숫자로만 이뤄진 경우에만 천단위 콤마를 넣고, 이미 단위·콤마가 붙어 있거나
+// "(미입력)" 같은 안내문구면 그대로 둔다.
+function formatAmountForDisplay(value: string): string {
+  const trimmed = value.trim();
+  return /^\d+$/.test(trimmed) ? Number(trimmed).toLocaleString("ko-KR") : value;
+}
+
 export function extractCoverPageData(
   html: string,
   savedFields: Record<string, string | boolean>,
@@ -215,8 +225,8 @@ export function extractCoverPageData(
     projectName: byId("wizard-field-project-name"),
     agency: byId("wizard-field-agency"),
     period: byId("wizard-field-period"),
-    contractAmount: byId("wizard-field-contract-amount"),
-    safetyBudget: byId("wizard-field-safety-budget"),
+    contractAmount: formatAmountForDisplay(byId("wizard-field-contract-amount")),
+    safetyBudget: formatAmountForDisplay(byId("wizard-field-safety-budget")),
     submitDate,
     companyName,
     writerName,
@@ -256,7 +266,7 @@ export function extractOverviewPageData(
     chapterTitle,
     projectName: byId("wizard-field-project-name"),
     period: byId("wizard-field-period"),
-    contractAmount: byId("wizard-field-contract-amount"),
+    contractAmount: formatAmountForDisplay(byId("wizard-field-contract-amount")),
     location: byId("wizard-field-site-location"),
     mainContentLines,
   };

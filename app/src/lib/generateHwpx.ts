@@ -166,7 +166,7 @@ function buildBoxCellXml(node: BoxNode, width: number, colAddr: number): string 
 <hp:cellAddr colAddr="${colAddr}" rowAddr="0"/>
 <hp:cellSpan colSpan="1" rowSpan="1"/>
 <hp:cellSz width="${width}" height="${BOX_ROW_HEIGHT}"/>
-<hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="200" bottom="200"/>
+<hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="${TABLE_CELL_MARGIN_V}" bottom="${TABLE_CELL_MARGIN_V}"/>
 <hp:subList id="0" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="${width}" textHeight="0" hasTextRef="0" hasNumRef="0">
 ${cellParas}
 </hp:subList>
@@ -295,8 +295,11 @@ function buildImageParagraphs(
 // 위저드 화면 좌우 여백을 뺀 A4 본문 폭과 같은 값(다른 문단의 hp:lineseg
 // horzsize="42520"과 통일) — 표를 문서 폭 전체로 채운다.
 const TABLE_TOTAL_WIDTH = 42520;
-const TABLE_ROW_HEIGHT = 1200;
+// 표 줄간격을 넓혀달라는 요청으로 행 높이와 셀 위아래 여백을 늘렸다(좌우
+// 여백은 좁은 칸의 실제 글자 공간을 줄이므로 그대로 둔다).
+const TABLE_ROW_HEIGHT = 1600;
 const TABLE_CELL_MARGIN = 141;
+const TABLE_CELL_MARGIN_V = 280;
 // 조직도 박스는 역할/성명/연락처 3줄이 들어가 일반 표 행보다 더 높아야 한다.
 const BOX_ROW_HEIGHT = 3200;
 
@@ -348,7 +351,7 @@ function buildTableCellXml(
 <hp:cellAddr colAddr="${colAddr}" rowAddr="${rowAddr}"/>
 <hp:cellSpan colSpan="1" rowSpan="1"/>
 <hp:cellSz width="${width}" height="${TABLE_ROW_HEIGHT}"/>
-<hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="${TABLE_CELL_MARGIN}" bottom="${TABLE_CELL_MARGIN}"/>
+<hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="${TABLE_CELL_MARGIN_V}" bottom="${TABLE_CELL_MARGIN_V}"/>
 <hp:subList id="0" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="${width}" textHeight="0" hasTextRef="0" hasNumRef="0">
 ${cellParagraphs(text, width, paraPrIDRef)}
 </hp:subList>
@@ -477,7 +480,7 @@ function coverTableCellXml(cell: CoverCell, colAddr: number, rowAddr: number, ro
 <hp:cellAddr colAddr="${colAddr}" rowAddr="${rowAddr}"/>
 <hp:cellSpan colSpan="1" rowSpan="1"/>
 <hp:cellSz width="${cell.width}" height="${rowHeight}"/>
-<hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="150" bottom="150"/>
+<hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="${TABLE_CELL_MARGIN_V}" bottom="${TABLE_CELL_MARGIN_V}"/>
 <hp:subList id="0" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="${cell.width}" textHeight="0" hasTextRef="0" hasNumRef="0">
 ${paras}
 </hp:subList>
@@ -528,7 +531,7 @@ function coverFieldTableParagraph(rows: { label: string; value: string }[]): str
       { text: r.value || "(미입력)", width: valueWidth },
     ]),
     TABLE_TOTAL_WIDTH,
-    1200,
+    TABLE_ROW_HEIGHT,
     "LEFT"
   );
 }
@@ -566,7 +569,7 @@ function buildApprovalTableParagraph(cover: CoverPageData): string {
       ],
     ],
     width,
-    900,
+    TABLE_ROW_HEIGHT,
     "CENTER"
   );
 }

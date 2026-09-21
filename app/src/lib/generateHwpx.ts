@@ -38,6 +38,40 @@ function nextId(): number {
   return idCounter;
 }
 
+// ── 긴 한 줄 텍스트 강제 줄바꿈 ────────────────────────────────────────────
+// 이 생성기는 각 <hp:p>에 <hp:lineseg> 하나(그 문단이 "한 줄"이라는 하드코딩된
+// 힌트)만 넣는다. 실제 한글 프로그램으로 직접 열어 검증한 결과, "\n"으로 이미
+// 짧게 나뉜 줄들은 문제없이 나오지만, 페이지 폭(또는 표 칸 폭)보다 긴 텍스트가
+// 한 문단에 통째로 들어가면 한글이 그 한 줄 자리에 전체 글자를 욱여넣으려다
+// 글자가 서로 겹쳐서 알아볼 수 없게 깨지는 실제 버그를 확인했다(최소 재현
+// 테스트 파일로 확인). 그래서 "\n" 줄바꿈뿐 아니라, 각 줄이 실제로 한 줄에
+// 들어갈 만큼 짧은지도 문자 수로 근사 계산해서 넘치면 강제로 더 잘게 쪼갠다.
+// HWPUNIT은 1pt = 100단위이고, 한글 전각 문자 폭은 대략 폰트 크기(포인트)와
+// 같다고 근사한다 — 완벽한 조판은 아니지만 겹침 사고를 막는 게 목적이라
+// 이 정도 근사로 충분하다(라틴 문자·숫자가 섞이면 실제로는 이보다 더 들어갈
+// 수 있어 오히려 더 안전한 쪽으로 근사한다).
+const HWPUNIT_PER_PT = 100;
+// 위저드 본문 폭(42520 유닛)·10pt 기준 근사치. 표 칸처럼 폭이 다른 자리는
+// maxCharsForWidth()로 그 칸의 실제 폭에 맞춰 따로 계산한다.
+const BODY_MAX_CHARS = 40;
+
+function maxCharsForWidth(widthUnit: number, fontSizePt: number): number {
+  return Math.max(4, Math.floor(widthUnit / (fontSizePt * HWPUNIT_PER_PT)));
+}
+
+function hardWrapLine(line: string, maxChars: number): string[] {
+  if (line.length <= maxChars) return [line];
+  const chunks: string[] = [];
+  for (let i = 0; i < line.length; i += maxChars) {
+    chunks.push(line.slice(i, i + maxChars));
+  }
+  return chunks;
+}
+
+function wrapTextLines(text: string, maxChars: number): string[] {
+  return (text ?? "").split("\n").flatMap((line) => hardWrapLine(line, maxChars));
+}
+
 // ── 실제 표(hp:tbl) 지원 ──────────────────────────────────────────────────
 // 템플릿의 header.xml에 원래 정의된 borderFill(id 1·2)은 전부 네 변 type="NONE"
 // (선 없음)이라 표 테두리로 못 쓴다. 그래서 zip을 만들 때 header.xml에 실선
@@ -77,6 +111,11 @@ function patchHeaderXmlForTables(headerXml: string): string {
 // align만 CENTER로 바꿔 id=20으로 추가한다(다른 속성은 기존 값 그대로라
 // 위험이 낮다).
 const CENTER_PARA_PR_ID = "20";
+// 템플릿에 이미 있는 왼쪽 정렬 문단모양(id=11, horizontal="LEFT") — 표의
+// 서술형(긴 설명) 칸에 쓴다. 기본값인 id=0은 JUSTIFY(양쪽 정렬)라 "1. ... /
+// 2. ..." 같은 번호 목록에서 마지막 줄 전까지 억지로 자간을 늘려 줄맞춤하는
+// 부자연스러운 모양이 되는데, LEFT는 그냥 왼쪽에 가지런히 붙는다.
+const LEFT_PARA_PR_ID = "11";
 
 function patchHeaderXmlForCenterAlign(headerXml: string): string {
   const newParaPr = `<hh:paraPr id="${CENTER_PARA_PR_ID}" tabPrIDRef="0" condense="0" fontLineHeight="0" snapToGrid="1" suppressLineNumbers="0" checked="0" textDir="LTR">
@@ -111,7 +150,10 @@ interface BoxNode {
 // 박스처럼 쓰고 그 사이에 화살표 문단을 두는" 방식을 hp:tbl로 재현한다 —
 // 유니코드 트리 문자보다 실제 다이어그램에 훨씬 가깝다.
 function buildBoxCellXml(node: BoxNode, width: number, colAddr: number): string {
-  const lines = [node.role, node.name || "(미입력)", node.contact || "(미입력)"];
+  const maxChars = maxCharsForWidth(width, 10);
+  const lines = [node.role, node.name || "(미입력)", node.contact || "(미입력)"].flatMap((line) =>
+    hardWrapLine(line, maxChars)
+  );
   const cellParas = lines
     .map(
       (line) =>
@@ -273,28 +315,42 @@ function computeColumnWidths(headerLikeRow: string[], columnCount: number): numb
   return weights.map((w) => Math.round((w / total) * TABLE_TOTAL_WIDTH));
 }
 
-// 표 셀 안의 문단들("\n"이 섞인 셀 값은 줄마다 별도 hp:p로 나눠야 줄바꿈이 보임).
-function cellParagraphs(text: string): string {
-  const lines = (text || "").split("\n");
+// 표 셀 안의 문단들. "\n" 줄바꿈은 물론, 셀 폭(width)보다 긴 한 줄도 강제로
+// 잘라야 한다 — 그렇지 않으면 실제 한글 프로그램에서 그 칸 자리에 전체
+// 텍스트를 욱여넣으려다 글자가 겹쳐서 깨진다(직접 재현·확인함).
+function cellParagraphs(text: string, width: number, paraPrIDRef: string): string {
+  const maxChars = maxCharsForWidth(width, 10);
+  const lines = wrapTextLines(text || "", maxChars);
   return lines
     .map(
       (line) =>
-        `<hp:p id="${nextId()}" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0"><hp:t>${escapeXml(
+        `<hp:p id="${nextId()}" paraPrIDRef="${paraPrIDRef}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0"><hp:t>${escapeXml(
           line
         )}</hp:t></hp:run></hp:p>`
     )
     .join("\n");
 }
 
-function buildTableCellXml(text: string, width: number, colAddr: number, rowAddr: number, isHeader: boolean): string {
+// 신고받은 정렬 요청: "연번"·"구분"류 좁은 칸(원래 값이 짧음)은 가운데 정렬,
+// 서술형 긴 설명 칸은 번호 목록("1. ... 2. ...")이 자연스럽게 왼쪽에 붙도록
+// 왼쪽 정렬. isNarrowColumn()은 이미 컬럼 폭 배분에도 쓰는 같은 판단 기준이다.
+function buildTableCellXml(
+  text: string,
+  width: number,
+  colAddr: number,
+  rowAddr: number,
+  isHeader: boolean,
+  isNarrow: boolean
+): string {
   const borderFillId = isHeader ? TABLE_HEADER_BORDER_FILL_ID : TABLE_BODY_BORDER_FILL_ID;
+  const paraPrIDRef = isNarrow ? CENTER_PARA_PR_ID : LEFT_PARA_PR_ID;
   return `<hp:tc name="" header="${isHeader ? 1 : 0}" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${borderFillId}">
 <hp:cellAddr colAddr="${colAddr}" rowAddr="${rowAddr}"/>
 <hp:cellSpan colSpan="1" rowSpan="1"/>
 <hp:cellSz width="${width}" height="${TABLE_ROW_HEIGHT}"/>
 <hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="${TABLE_CELL_MARGIN}" bottom="${TABLE_CELL_MARGIN}"/>
 <hp:subList id="0" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="${width}" textHeight="0" hasTextRef="0" hasNumRef="0">
-${cellParagraphs(text)}
+${cellParagraphs(text, width, paraPrIDRef)}
 </hp:subList>
 </hp:tc>`;
 }
@@ -305,20 +361,24 @@ ${cellParagraphs(text)}
 // 열었을 때 실제 격자·테두리가 있는 표로 보이도록 바꿨다.
 function buildTableXml(headers: string[], rows: string[][]): string {
   const columnCount = headers.length || rows[0]?.length || 1;
-  const widths = computeColumnWidths(headers.length ? headers : rows[0] ?? [], columnCount);
+  const headerLikeRow = headers.length ? headers : rows[0] ?? [];
+  const widths = computeColumnWidths(headerLikeRow, columnCount);
+  const narrowFlags = Array.from({ length: columnCount }, (_, i) => isNarrowColumn(headerLikeRow[i] ?? ""));
   const rowCount = rows.length + (headers.length ? 1 : 0);
   const tblId = nextId();
 
   const rowXmls: string[] = [];
   let rowAddr = 0;
   if (headers.length) {
-    const cells = headers.map((h, i) => buildTableCellXml(h, widths[i], i, rowAddr, true)).join("\n");
+    const cells = headers.map((h, i) => buildTableCellXml(h, widths[i], i, rowAddr, true, narrowFlags[i])).join("\n");
     rowXmls.push(`<hp:tr>${cells}</hp:tr>`);
     rowAddr += 1;
   }
   for (const row of rows) {
     const cells = row
-      .map((cell, i) => buildTableCellXml(cell, widths[i] ?? widths[widths.length - 1], i, rowAddr, false))
+      .map((cell, i) =>
+        buildTableCellXml(cell, widths[i] ?? widths[widths.length - 1], i, rowAddr, false, narrowFlags[i] ?? false)
+      )
       .join("\n");
     rowXmls.push(`<hp:tr>${cells}</hp:tr>`);
     rowAddr += 1;
@@ -361,10 +421,20 @@ function buildHazardDetailGroupsParagraphs(groups: HazardDetailGroup[]): string[
 }
 
 function textParagraph(text: string, charPrIDRef: string, pageBreak: boolean): string {
-  return `<hp:p id="${nextId()}" paraPrIDRef="0" styleIDRef="0" pageBreak="${pageBreak ? 1 : 0}" columnBreak="0" merged="0">
-<hp:run charPrIDRef="${charPrIDRef}"><hp:t>${escapeXml(text)}</hp:t></hp:run>
+  // 제목(charPrIDRef "5"/"6")은 본문보다 폰트가 커서 한 줄에 덜 들어가지만,
+  // 제목류 텍스트는 원래 짧은 문구뿐이라 실용적으로는 본문 기준 근사치를
+  // 그대로 써도 안전한 쪽(더 짧게 자르는 쪽)으로 작동한다.
+  const lines = wrapTextLines(text, BODY_MAX_CHARS);
+  return lines
+    .map(
+      (line, i) => `<hp:p id="${nextId()}" paraPrIDRef="0" styleIDRef="0" pageBreak="${
+        i === 0 && pageBreak ? 1 : 0
+      }" columnBreak="0" merged="0">
+<hp:run charPrIDRef="${charPrIDRef}"><hp:t>${escapeXml(line)}</hp:t></hp:run>
 <hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
-</hp:p>`;
+</hp:p>`
+    )
+    .join("\n");
 }
 
 function emptyParagraph(): string {
@@ -617,13 +687,9 @@ function buildSection0Xml(
       paragraphs.push(emptyParagraph());
     }
     for (const field of section.fields) {
-      // 한 <hp:p>는 한 줄이라, "\n"이 섞인 긴 텍스트(위험성평가 실시규정 등)는
-      // 줄마다 별도 문단으로 나눠야 실제로 줄바꿈이 보인다.
-      const lines = (field.value || "(미입력)").split("\n");
-      paragraphs.push(textParagraph(`${field.label}: ${lines[0]}`, "0", false));
-      for (const line of lines.slice(1)) {
-        paragraphs.push(textParagraph(line, "0", false));
-      }
+      // textParagraph()가 "\n" 줄바꿈과 한 줄 초과 텍스트 강제 줄바꿈을 모두
+      // 처리하므로(내부에서 여러 <hp:p>로 나눠 반환), 한 번만 호출하면 된다.
+      paragraphs.push(textParagraph(`${field.label}: ${field.value || "(미입력)"}`, "0", false));
     }
     for (const t of section.tables) {
       if (t.rows.length === 0) continue;

@@ -2430,13 +2430,23 @@ ${DIAGRAM_V_LINE}
 </tr>`
       )
       .join("\n");
+    // 다운로드 문서(DOCX/PDF/HWPX)는 이 섹션의 fields/tables를 각각 한데 모아서
+    // 뽑기 때문에(위저드 화면처럼 시나리오 하나하나가 "제목→예방조치→단계표"로
+    // 붙어서 안 나오고, fields 전부 → tables 전부 순서로 흩어짐), 시나리오 제목
+    // (<p>, input이 아니라서 애초에 안 뽑힘)이 사라지면 5개 시나리오의 "비상상황
+    // 사전대비(위험요인 예방조치)" 텍스트가 서로 구분 안 되는 채로 반복 출력되는
+    // 실제 버그가 있었다 — 라벨과 표 헤더 자체에 시나리오 제목을 넣어 어느
+    // 생성기를 거치든(추가 코드 변경 없이) 각 블록이 무엇에 관한 것인지 알 수
+    // 있게 한다.
     return `<div class="border border-neutral-200 rounded-lg p-4 space-y-3">
 <p class="font-bold text-neutral-800">${escapeHtmlPolicy(scenario.title)}</p>
-${dipReadonlyBlock("비상상황 사전대비(위험요인 예방조치)", scenario.prevention)}
+${dipReadonlyBlock(`${scenario.title} — 비상상황 사전대비(위험요인 예방조치)`, scenario.prevention)}
 <table class="w-full text-xs border border-neutral-200 rounded-lg overflow-hidden table-fixed">
 <thead>
 <tr class="bg-neutral-100">
-<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[22%]">비상상황 진행단계</th>
+<th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200 w-[22%]">${escapeHtmlPolicy(
+      scenario.title
+    )} · 진행단계</th>
 <th class="text-left px-3 py-2 font-bold text-neutral-700 border-b border-neutral-200">세부 조치사항</th>
 </tr>
 </thead>

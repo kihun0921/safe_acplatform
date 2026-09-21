@@ -23,6 +23,7 @@ import type {
   OrgChartData,
   OrgChartNode,
   EmergencyTeamData,
+  HazardDetailGroup,
 } from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
@@ -50,6 +51,101 @@ function computeColumnWidths(headerLikeRow: string[], columnCount: number): numb
   const weights = Array.from({ length: columnCount }, (_, i) => (isNarrowColumn(headerLikeRow[i] ?? "") ? 1 : 2.4));
   const total = weights.reduce((a, b) => a + b, 0);
   return weights.map((w) => Math.round((w / total) * 1000) / 10);
+}
+
+// 유해·위험 기계/차량/물질 관리계획: 실제 LH 샘플처럼 항목(장비명·물질명)별로
+// "관리계획 / 세부실행 계획" 표를 하나씩 둔다. 예전엔 팝업의 세부실행계획
+// textarea들이 일반 라벨+값 필드로 잡혀 어떤 장비·물질에 대한 내용인지 알
+// 수 없는 서술형 텍스트가 항목 수만큼 나열되는 버그가 있었다.
+function buildHazardDetailGroupsBlocks(groups: HazardDetailGroup[]): (Paragraph | Table)[] {
+  const blocks: (Paragraph | Table)[] = [];
+  groups.forEach((group) => {
+    blocks.push(
+      new Paragraph({
+        spacing: { before: 160, after: 80 },
+        children: [new TextRun({ text: group.name, bold: true, size: 20, font: FONT })],
+      })
+    );
+    const tableRows: TableRow[] = [
+      new TableRow({
+        tableHeader: true,
+        children: [
+          new TableCell({
+            width: { size: 22, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.CENTER,
+            shading: { fill: "F3F4F6" },
+            borders: CELL_BORDERS,
+            margins: CELL_MARGINS,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "관리계획", bold: true, size: 18, font: FONT })],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 78, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.CENTER,
+            shading: { fill: "F3F4F6" },
+            borders: CELL_BORDERS,
+            margins: CELL_MARGINS,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.LEFT,
+                children: [new TextRun({ text: "세부실행 계획", bold: true, size: 18, font: FONT })],
+              }),
+            ],
+          }),
+        ],
+      }),
+      ...group.entries.map(
+        (entry) =>
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 22, type: WidthType.PERCENTAGE },
+                verticalAlign: VerticalAlign.CENTER,
+                borders: CELL_BORDERS,
+                margins: CELL_MARGINS,
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [new TextRun({ text: entry.category, bold: true, size: 18, font: FONT })],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: 78, type: WidthType.PERCENTAGE },
+                verticalAlign: VerticalAlign.CENTER,
+                borders: CELL_BORDERS,
+                margins: CELL_MARGINS,
+                children: entry.detail.split("\n").map(
+                  (line) =>
+                    new Paragraph({
+                      alignment: AlignmentType.LEFT,
+                      children: [new TextRun({ text: line, size: 18, font: FONT })],
+                    })
+                ),
+              }),
+            ],
+          })
+      ),
+    ];
+    blocks.push(
+      new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE }, layout: TableLayoutType.FIXED })
+    );
+    if (group.note) {
+      blocks.push(
+        new Paragraph({
+          spacing: { before: 60, after: 120 },
+          children: [new TextRun({ text: `비고(관계법령): ${group.note}`, size: 16, font: FONT, color: "6b7280" })],
+        })
+      );
+    } else {
+      blocks.push(new Paragraph({ spacing: { after: 120 }, children: [] }));
+    }
+  });
+  return blocks;
 }
 
 function coverLabelCell(text: string): TableCell {
@@ -704,6 +800,10 @@ export async function generateWizardDocx(
         new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE }, layout: TableLayoutType.FIXED })
       );
       children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
+    }
+
+    if (section.hazardDetailGroups?.length) {
+      children.push(...buildHazardDetailGroupsBlocks(section.hazardDetailGroups));
     }
   });
 

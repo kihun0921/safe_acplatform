@@ -10,6 +10,7 @@ import type {
   OrgChartData,
   OrgChartNode,
   EmergencyTeamData,
+  HazardDetailGroup,
 } from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
@@ -63,6 +64,20 @@ const styles = StyleSheet.create({
   tableRow: { flexDirection: "row", borderBottom: "1pt solid #ccc" },
   tableHeaderCell: { flex: 1, padding: 5, fontWeight: "bold", backgroundColor: "#f3f4f6", fontSize: 9 },
   tableCell: { flex: 1, padding: 5, fontSize: 9 },
+  // 유해·위험 기계/차량/물질 관리계획: 항목(장비명·물질명)별 소표.
+  hazardGroupName: { fontSize: 11, fontWeight: "bold", marginTop: 14, marginBottom: 4 },
+  hazardCategoryHeaderCell: {
+    flex: 0.4,
+    padding: 5,
+    fontWeight: "bold",
+    backgroundColor: "#f3f4f6",
+    fontSize: 9,
+    textAlign: "center",
+  },
+  hazardDetailHeaderCell: { flex: 1.6, padding: 5, fontWeight: "bold", backgroundColor: "#f3f4f6", fontSize: 9 },
+  hazardCategoryCell: { flex: 0.4, padding: 5, fontSize: 9, fontWeight: "bold", textAlign: "center" },
+  hazardDetailCell: { flex: 1.6, padding: 5, fontSize: 9 },
+  hazardNote: { fontSize: 8, color: "#6b7280", marginTop: 4, marginBottom: 8 },
   // 표지(cover page) 전용 스타일 — LH 등 공공발주처 표준 표지 양식 재현.
   coverPage: { padding: 60, fontFamily: "NotoSansKR", fontSize: 11, justifyContent: "center" },
   coverTitleBox: {
@@ -436,6 +451,35 @@ function OrgChartPage({ data }: { data: OrgChartData }) {
 // 섹션 본문 중간(다른 표들과 같은 Page)에 들어가야 하므로 별도 <Page>가 아니라
 // <Svg>만 반환한다.
 const EMTEAM_BOX_W3 = 145;
+// 유해·위험 기계/차량/물질 관리계획: 항목(장비명·물질명)별로 "관리계획/세부실행
+// 계획" 표를 하나씩 둔다(실제 LH 샘플 서식과 동일). 예전엔 팝업의 세부실행계획
+// textarea들이 일반 라벨+값 필드로 잡혀 어떤 장비·물질에 대한 내용인지 알 수
+// 없는 서술형 텍스트가 항목 수만큼 나열되는 버그가 있었다.
+function HazardDetailGroupsBlock({ groups }: { groups: HazardDetailGroup[] }) {
+  return (
+    <>
+      {groups.map((group, gIdx) => (
+        <View key={gIdx} wrap={false}>
+          <Text style={styles.hazardGroupName}>{group.name}</Text>
+          <View style={styles.table}>
+            <View style={styles.tableRow}>
+              <Text style={styles.hazardCategoryHeaderCell}>관리계획</Text>
+              <Text style={styles.hazardDetailHeaderCell}>세부실행 계획</Text>
+            </View>
+            {group.entries.map((entry, eIdx) => (
+              <View key={eIdx} style={styles.tableRow}>
+                <Text style={styles.hazardCategoryCell}>{entry.category}</Text>
+                <Text style={styles.hazardDetailCell}>{entry.detail}</Text>
+              </View>
+            ))}
+          </View>
+          {group.note && <Text style={styles.hazardNote}>비고(관계법령): {group.note}</Text>}
+        </View>
+      ))}
+    </>
+  );
+}
+
 function EmergencyTeamDiagram({ data }: { data: EmergencyTeamData }) {
   const row1Y = 10;
   const row2Y = 86;
@@ -541,6 +585,9 @@ export async function generateWizardPdf(
                   </View>
                 )
             )}
+            {section.hazardDetailGroups?.length ? (
+              <HazardDetailGroupsBlock groups={section.hazardDetailGroups} />
+            ) : null}
           </Page>
           {section.accidentImages?.map((img, idx) => (
             <LabeledImagePage key={idx} imageBuffer={img.buffer} label={img.label} />

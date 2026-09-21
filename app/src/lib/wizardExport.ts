@@ -31,6 +31,71 @@ export interface WizardSection {
   // 필드는 여기서 채워지지 않고 export route가 extractWizardSections 호출 이후
   // sections 배열에서 id로 찾아 직접 채워 넣는다(비동기 I/O가 필요해서).
   accidentImages?: { label: string; buffer: Buffer }[];
+  // 유해·위험 기계/차량/물질 관리계획: 항목(장비명·물질명)별로 "관리계획/세부실행
+  // 계획/비고" 소표를 하나씩 둔다(실제 LH 샘플 서식과 동일). 예전엔 팝업의 세부
+  // 실행계획 textarea들이 일반 라벨+값 필드로 잡혀 어떤 장비·물질에 대한
+  // 내용인지 알 수 없는 서술형 텍스트가 항목 수만큼 나열되는 버그가 있었다 —
+  // extractWizardSections()가 개요표 항목명·체크박스와 팝업 세부 내용을 항목
+  // 단위로 묶어 이 배열에 담는다.
+  hazardDetailGroups?: HazardDetailGroup[];
+}
+
+export interface HazardDetailGroup {
+  name: string;
+  entries: { category: string; detail: string }[];
+  note: string;
+}
+
+// wizardHtml.ts의 HAZARD_MC_DETAIL_FIELDS/HAZARD_SB_DETAIL_FIELDS(팝업 세부
+// 실행계획 textarea들의 key·라벨)와 반드시 같은 값을 유지할 것 — 라벨 문구가
+// 바뀌면 여기도 같이 고쳐야 다운로드 문서의 표 헤더가 위저드 화면과 어긋나지
+// 않는다.
+const HAZARD_DETAIL_FIELDS_BY_SECTION: Record<string, { key: string; label: string }[]> = {
+  "sec-hazard_machinery": [
+    { key: "safetyCheck", label: "안전점검" },
+    { key: "ppe", label: "보호구 지급·착용" },
+    { key: "education", label: "안전보건교육" },
+    { key: "etc", label: "안전보건표지부착·안전수칙게시 및 기타 대책" },
+  ],
+  "sec-hazard_vehicle": [
+    { key: "safetyCheck", label: "안전점검" },
+    { key: "ppe", label: "보호구 지급·착용" },
+    { key: "education", label: "안전보건교육" },
+    { key: "etc", label: "안전보건표지부착·안전수칙게시 및 기타 대책" },
+  ],
+  "sec-hazard_substance": [
+    { key: "ppe", label: "보호구 지급·착용" },
+    { key: "education", label: "안전보건교육" },
+    { key: "signage", label: "안전보건표지부착·안전수칙게시" },
+    { key: "etc", label: "기타 대책(물질안전보건자료(MSDS) 부착 등)" },
+  ],
+};
+
+function extractHazardDetailGroups(
+  $: cheerio.CheerioAPI,
+  $section: ReturnType<cheerio.CheerioAPI>,
+  sectionId: string
+): HazardDetailGroup[] {
+  const detailFields = HAZARD_DETAIL_FIELDS_BY_SECTION[sectionId];
+  if (!detailFields) return [];
+  const modalPrefix = $section.attr("data-hazard-modal-prefix") ?? "";
+  const groups: HazardDetailGroup[] = [];
+  $section.find("tr[data-hazard-id]").each((_, tr) => {
+    const $tr = $(tr as Parameters<cheerio.CheerioAPI>[0]);
+    const id = $tr.attr("data-hazard-id") ?? "";
+    const nameEl = $tr.find('[data-hazard-field="name"]').get(0);
+    const name = (nameEl ? fieldValue($, nameEl) : "").trim() || "(미입력)";
+    const $modal = $(`[data-modal="${modalPrefix}-${id}"]`);
+    const entries = detailFields.map(({ key, label }) => {
+      const el = $modal.find(`[data-hazard-field="detail-${key}"]`).get(0);
+      const detail = (el ? fieldValue($, el) : "").trim() || "(미입력)";
+      return { category: label, detail };
+    });
+    const noteEl = $modal.find('[data-hazard-field="note"]').get(0);
+    const note = (noteEl ? fieldValue($, noteEl) : "").trim();
+    groups.push({ name, entries, note });
+  });
+  return groups;
 }
 
 function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string | boolean>) {
@@ -357,6 +422,12 @@ export function extractWizardSections(
       // 별도로 구조화해서 뽑아 박스+연결선 다이어그램으로 그리므로, 여기서 또
       // "역할 성명: 값" 식 일반 필드로 중복 출력하지 않는다.
       if ($el.attr("data-org-diagram-field") !== undefined) return;
+      // 유해·위험 기계/차량/물질 관리계획의 개요표 항목명·체크박스와 팝업 세부
+      // 실행계획 textarea는 아래 extractHazardDetailData()가 항목별로 구조화해서
+      // 표로 뽑으므로, 여기서 또 "안전점검: ..." 식 일반 라벨+값으로 나열하면
+      // 어떤 장비·물질에 대한 내용인지 알 수 없는 텍스트가 항목 수만큼 중복
+      // 출력된다(실제로 발생했던 버그).
+      if ($el.attr("data-hazard-field") !== undefined || $el.attr("data-hazard-check") !== undefined) return;
       const label = findLabel($, el);
       const value = fieldValue($, el);
       if (label) fields.push({ label, value });
@@ -405,8 +476,11 @@ export function extractWizardSections(
     });
 
     const emergencyTeam = id === "sec-emergency_plan" ? extractEmergencyTeamData($) : undefined;
+    const hazardDetailGroups = HAZARD_DETAIL_FIELDS_BY_SECTION[id]
+      ? extractHazardDetailGroups($, $section, id)
+      : undefined;
 
-    sections.push({ id, heading, fields, tables, emergencyTeam });
+    sections.push({ id, heading, fields, tables, emergencyTeam, hazardDetailGroups });
   });
 
   return sections;

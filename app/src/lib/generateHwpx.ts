@@ -1,7 +1,14 @@
 import path from "path";
 import fs from "fs";
 import JSZip from "jszip";
-import type { WizardSection, CoverPageData, OverviewPageData, ManagementPolicyData, OrgChartData } from "./wizardExport";
+import type {
+  WizardSection,
+  CoverPageData,
+  OverviewPageData,
+  ManagementPolicyData,
+  OrgChartData,
+  HazardDetailGroup,
+} from "./wizardExport";
 import type { CoverStyle } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
 
@@ -254,7 +261,7 @@ const BOX_ROW_HEIGHT = 3200;
 // DOCX 내보내기(generateDocx.ts)와 같은 기준: "연번"/"구분"처럼 원래 짧은
 // 값만 들어가는 컬럼은 폭을 줄이고 나머지 컬럼이 남는 폭을 나눠 갖는다.
 const NARROW_COLUMN_PATTERN =
-  /^(연번|번호|no\.?|구분|분류|확인|서명|지정일|지정구분|작업일자|성명|소속|담당|비고|등급|점수|위험성|빈도|강도)/i;
+  /^(연번|번호|no\.?|구분|분류|확인|서명|지정일|지정구분|작업일자|성명|소속|담당|비고|등급|점수|위험성|빈도|강도|관리계획)/i;
 
 function isNarrowColumn(header: string): boolean {
   return NARROW_COLUMN_PATTERN.test(header.trim());
@@ -333,6 +340,24 @@ function tableParagraph(headers: string[], rows: string[][], pageBreak: boolean)
 <hp:run charPrIDRef="0">${buildTableXml(headers, rows)}</hp:run>
 <hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
 </hp:p>`;
+}
+
+// 유해·위험 기계/차량/물질 관리계획: 항목(장비명·물질명)별로 "관리계획/세부실행
+// 계획" 표를 하나씩 둔다(DOCX·PDF와 동일한 구조). 예전엔 팝업의 세부실행계획
+// textarea들이 일반 라벨+값 필드로 잡혀 어떤 장비·물질에 대한 내용인지 알 수
+// 없는 서술형 텍스트가 항목 수만큼 나열되는 버그가 있었다.
+function buildHazardDetailGroupsParagraphs(groups: HazardDetailGroup[]): string[] {
+  const paragraphs: string[] = [];
+  groups.forEach((group) => {
+    paragraphs.push(textParagraph(group.name, "6", false));
+    const rows = group.entries.map((e) => [e.category, e.detail]);
+    paragraphs.push(tableParagraph(["관리계획", "세부실행 계획"], rows, false));
+    if (group.note) {
+      paragraphs.push(textParagraph(`비고(관계법령): ${group.note}`, "0", false));
+    }
+    paragraphs.push(emptyParagraph());
+  });
+  return paragraphs;
 }
 
 function textParagraph(text: string, charPrIDRef: string, pageBreak: boolean): string {
@@ -612,6 +637,9 @@ function buildSection0Xml(
       section.accidentImages.forEach((img) => {
         paragraphs.push(buildImageParagraphs(img.buffer, img.label, registeredImages, true));
       });
+    }
+    if (section.hazardDetailGroups?.length) {
+      paragraphs.push(...buildHazardDetailGroupsParagraphs(section.hazardDetailGroups));
     }
     paragraphs.push(emptyParagraph());
   });

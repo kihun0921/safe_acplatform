@@ -107,6 +107,21 @@ function sanitizeForPdf<T>(value: T): T {
   return value;
 }
 
+// DOCX(generateDocx.ts)·HWPX(generateHwpx.ts)와 같은 기준: "연번"·"구분"처럼
+// 원래 짧은 값만 들어가는 컬럼은 폭을 줄이고 가운데 정렬, 번호 목록
+// ("1. ... 2. ...")이 들어가는 서술형 긴 설명 컬럼은 왼쪽 정렬한다 — 예전엔
+// 모든 컬럼이 균등폭·정렬 지정 없음이라 표가 밋밋하고 컬럼 성격이 안 보였다.
+const NARROW_COLUMN_PATTERN =
+  /^(연번|번호|no\.?|구분|분류|확인|서명|지정일|지정구분|작업일자|성명|소속|담당|비고|등급|점수|위험성|빈도|강도|관리계획)/i;
+
+function isNarrowColumn(header: string): boolean {
+  return NARROW_COLUMN_PATTERN.test(header.trim());
+}
+
+function columnFlex(header: string): number {
+  return isNarrowColumn(header) ? 0.5 : 1.5;
+}
+
 const styles = StyleSheet.create({
   page: { padding: 40, fontFamily: "NotoSansKR", fontSize: 10 },
   heading: { fontSize: 14, fontWeight: "bold", marginBottom: 14, borderBottom: "2pt solid #1e3a5f", paddingBottom: 6 },
@@ -632,38 +647,53 @@ export async function generateWizardPdf(
               </View>
             ))}
             {section.tables.map(
-              (t, tIdx) =>
-                t.rows.length > 0 && (
-                  <View key={tIdx} style={styles.table}>
-                    {t.headers.length > 0 && (
-                      <View style={styles.tableRow}>
-                        {t.headers.map((h, idx) => (
-                          <Text
-                            key={idx}
-                            style={[
-                              styles.tableHeaderCell,
-                              idx === t.headers.length - 1 ? { borderRight: "none" } : undefined,
-                            ]}
-                          >
-                            {h}
-                          </Text>
-                        ))}
-                      </View>
-                    )}
-                    {t.rows.map((row, rIdx) => (
-                      <View key={rIdx} style={styles.tableRow}>
-                        {row.map((cell, cIdx) => (
-                          <Text
-                            key={cIdx}
-                            style={[styles.tableCell, cIdx === row.length - 1 ? { borderRight: "none" } : undefined]}
-                          >
-                            {cell}
-                          </Text>
-                        ))}
-                      </View>
-                    ))}
-                  </View>
-                )
+              (t, tIdx) => {
+                const headerLikeRow = t.headers.length ? t.headers : t.rows[0] ?? [];
+                return (
+                  t.rows.length > 0 && (
+                    <View key={tIdx} style={styles.table}>
+                      {t.headers.length > 0 && (
+                        <View style={styles.tableRow}>
+                          {t.headers.map((h, idx) => (
+                            <Text
+                              key={idx}
+                              style={[
+                                styles.tableHeaderCell,
+                                {
+                                  flex: columnFlex(headerLikeRow[idx] ?? ""),
+                                  textAlign: isNarrowColumn(headerLikeRow[idx] ?? "") ? "center" : "left",
+                                },
+                                idx === t.headers.length - 1 ? { borderRight: "none" } : undefined,
+                              ]}
+                            >
+                              {h}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+                      {t.rows.map((row, rIdx) => (
+                        <View key={rIdx} style={styles.tableRow}>
+                          {row.map((cell, cIdx) => (
+                            <Text
+                              key={cIdx}
+                              style={[
+                                styles.tableCell,
+                                {
+                                  flex: columnFlex(headerLikeRow[cIdx] ?? ""),
+                                  textAlign: isNarrowColumn(headerLikeRow[cIdx] ?? "") ? "center" : "left",
+                                },
+                                cIdx === row.length - 1 ? { borderRight: "none" } : undefined,
+                              ]}
+                            >
+                              {cell}
+                            </Text>
+                          ))}
+                        </View>
+                      ))}
+                    </View>
+                  )
+                );
+              }
             )}
             {section.hazardDetailGroups?.length ? (
               <HazardDetailGroupsBlock groups={section.hazardDetailGroups} />

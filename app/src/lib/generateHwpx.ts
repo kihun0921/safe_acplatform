@@ -420,14 +420,14 @@ function buildHazardDetailGroupsParagraphs(groups: HazardDetailGroup[]): string[
   return paragraphs;
 }
 
-function textParagraph(text: string, charPrIDRef: string, pageBreak: boolean): string {
+function textParagraph(text: string, charPrIDRef: string, pageBreak: boolean, paraPrIDRef: string = "0"): string {
   // 제목(charPrIDRef "5"/"6")은 본문보다 폰트가 커서 한 줄에 덜 들어가지만,
   // 제목류 텍스트는 원래 짧은 문구뿐이라 실용적으로는 본문 기준 근사치를
   // 그대로 써도 안전한 쪽(더 짧게 자르는 쪽)으로 작동한다.
   const lines = wrapTextLines(text, BODY_MAX_CHARS);
   return lines
     .map(
-      (line, i) => `<hp:p id="${nextId()}" paraPrIDRef="0" styleIDRef="0" pageBreak="${
+      (line, i) => `<hp:p id="${nextId()}" paraPrIDRef="${paraPrIDRef}" styleIDRef="0" pageBreak="${
         i === 0 && pageBreak ? 1 : 0
       }" columnBreak="0" merged="0">
 <hp:run charPrIDRef="${charPrIDRef}"><hp:t>${escapeXml(line)}</hp:t></hp:run>
@@ -444,75 +444,185 @@ function emptyParagraph(): string {
 </hp:p>`;
 }
 
-// 결재란(작성/검토/승인)은 발주처와 무관하게 공공 제출서식 어디서나 쓰이는
-// 공통 요소라 스타일 구분 없이 재사용한다.
-function buildApprovalParagraphs(cover: CoverPageData): string[] {
-  return [
-    textParagraph("구분 | 작성자 | 검토자 | 승인자", "0", false),
-    textParagraph(`직책 |  |  | `, "0", false),
-    textParagraph(`성명 | ${cover.writerName} |  | `, "0", false),
-    textParagraph(`서명 |  |  | `, "0", false),
-    emptyParagraph(),
-  ];
+// ── 표지 전용 표(제목 박스·공사개요 표·결재란) ────────────────────────────
+// DOCX(coverLabelCell/coverValueCell/approvalCell/buildTitleBox)와 같은
+// 구조를 hp:tbl로 재현한다. 예전엔 표지 전체가 그냥 왼쪽 정렬 텍스트
+// 줄이었고(제목도 가운데 정렬 안 됨), 결재란은 " | "로 이어붙인 가짜 표라서
+// DOCX/PDF 표지와 딴판이었다.
+interface CoverCell {
+  text: string;
+  width: number;
+  shaded?: boolean;
+  charPrIDRef?: string;
 }
 
-// LH가 실제로 요구하는 표준 표지 내용을, 이 생성기가 이미 쓰고 있는 "문단 텍스트 +
-// 다음 문단부터 페이지 나눔" 관례로 구성한다(HWPX 표 XML을 새로 만들지 않고, 기존
-// 표 출력 방식(" | "로 구분된 한 줄)과 통일된 형태를 유지). 다른 발주처의 실제
-// 표지 샘플이 확보되면 이 함수 옆에 buildXxxCoverParagraphs()를 추가하고
-// COVER_PARAGRAPH_BUILDERS에 등록한다.
+function coverTableCellXml(cell: CoverCell, colAddr: number, rowHeight: number): string {
+  const borderFillId = cell.shaded ? TABLE_HEADER_BORDER_FILL_ID : TABLE_BODY_BORDER_FILL_ID;
+  const charPrIDRef = cell.charPrIDRef ?? "0";
+  const maxChars = maxCharsForWidth(cell.width, charPrIDRef === "5" ? 16 : 10);
+  const lines = wrapTextLines(cell.text, maxChars);
+  const paras = lines
+    .map(
+      (line) =>
+        `<hp:p id="${nextId()}" paraPrIDRef="${CENTER_PARA_PR_ID}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="${charPrIDRef}"><hp:t>${escapeXml(
+          line
+        )}</hp:t></hp:run></hp:p>`
+    )
+    .join("\n");
+  return `<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${borderFillId}">
+<hp:cellAddr colAddr="${colAddr}" rowAddr="0"/>
+<hp:cellSpan colSpan="1" rowSpan="1"/>
+<hp:cellSz width="${cell.width}" height="${rowHeight}"/>
+<hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="150" bottom="150"/>
+<hp:subList id="0" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="${cell.width}" textHeight="0" hasTextRef="0" hasNumRef="0">
+${paras}
+</hp:subList>
+</hp:tc>`;
+}
+
+function coverTableParagraph(
+  rowsOfCells: CoverCell[][],
+  totalWidth: number,
+  rowHeight: number,
+  horzAlign: "LEFT" | "CENTER"
+): string {
+  const colCount = rowsOfCells[0]?.length ?? 1;
+  const tblId = nextId();
+  const rowsXml = rowsOfCells
+    .map((cells) => `<hp:tr>${cells.map((c, i) => coverTableCellXml(c, i, rowHeight)).join("\n")}</hp:tr>`)
+    .join("\n");
+  return `<hp:p id="${nextId()}" paraPrIDRef="${CENTER_PARA_PR_ID}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">
+<hp:run charPrIDRef="0"><hp:tbl id="${tblId}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${rowsOfCells.length}" colCnt="${colCount}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
+<hp:sz width="${totalWidth}" widthRelTo="ABSOLUTE" height="${rowHeight * rowsOfCells.length}" heightRelTo="ABSOLUTE" protect="0"/>
+<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="${horzAlign}" vertOffset="0" horzOffset="0"/>
+<hp:outMargin left="0" right="0" top="0" bottom="0"/>
+<hp:inMargin left="0" right="0" top="0" bottom="0"/>
+${rowsXml}
+</hp:tbl></hp:run>
+<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
+</hp:p>`;
+}
+
+function titleBoxParagraph(text: string): string {
+  // LH 표준 제목("안 전 보 건 관 리 계 획 서")은 글자 사이에 공백을 넣어 늘려
+  // 쓰는 관례라 60%(DOCX 제목 박스와 같은 비율) 폭으로는 한 글자가 다음 줄로
+  // 밀려 잘려 보인다 — 이 문단은 항상 짧은 고정 제목만 담으므로 넉넉하게
+  // 80% 폭을 준다.
+  const width = Math.round(TABLE_TOTAL_WIDTH * 0.8);
+  return coverTableParagraph([[{ text, width, charPrIDRef: "5" }]], width, 2600, "CENTER");
+}
+
+function coverFieldTableParagraph(rows: { label: string; value: string }[]): string {
+  const labelWidth = Math.round(TABLE_TOTAL_WIDTH * 0.3);
+  const valueWidth = TABLE_TOTAL_WIDTH - labelWidth;
+  return coverTableParagraph(
+    rows.map((r) => [
+      { text: r.label, width: labelWidth, shaded: true },
+      { text: r.value || "(미입력)", width: valueWidth },
+    ]),
+    TABLE_TOTAL_WIDTH,
+    1200,
+    "LEFT"
+  );
+}
+
+// 결재란(작성/검토/승인)은 발주처와 무관하게 공공 제출서식 어디서나 쓰이는
+// 공통 요소라 스타일 구분 없이 재사용한다.
+function buildApprovalTableParagraph(cover: CoverPageData): string {
+  const width = Math.round(TABLE_TOTAL_WIDTH * 0.8);
+  const colWidth = Math.round(width / 4);
+  return coverTableParagraph(
+    [
+      [
+        { text: "구 분", width: colWidth, shaded: true },
+        { text: "작성자", width: colWidth, shaded: true },
+        { text: "검토자", width: colWidth, shaded: true },
+        { text: "승인자", width: colWidth, shaded: true },
+      ],
+      [
+        { text: "직 책", width: colWidth, shaded: true },
+        { text: "", width: colWidth },
+        { text: "", width: colWidth },
+        { text: "", width: colWidth },
+      ],
+      [
+        { text: "성 명", width: colWidth, shaded: true },
+        { text: cover.writerName || "", width: colWidth },
+        { text: "", width: colWidth },
+        { text: "", width: colWidth },
+      ],
+      [
+        { text: "서 명", width: colWidth, shaded: true },
+        { text: "", width: colWidth },
+        { text: "", width: colWidth },
+        { text: "", width: colWidth },
+      ],
+    ],
+    width,
+    900,
+    "CENTER"
+  );
+}
+
+// LH가 실제로 요구하는 표준 표지(제목 박스, 공사명/공사기간/도급금액/계상
+// 안전관리비 표, 제출문, 작성·검토·승인 결재란)를 DOCX(buildLhStandardCover)와
+// 동일한 구성으로 재현한다. 다른 발주처의 실제 표지 샘플이 확보되면 이 함수
+// 옆에 buildXxxCoverParagraphs()를 추가하고 COVER_PARAGRAPH_BUILDERS에 등록한다.
 function buildLhStandardCoverParagraphs(cover: CoverPageData): string[] {
   const paragraphs: string[] = [];
   paragraphs.push(emptyParagraph());
   paragraphs.push(emptyParagraph());
-  paragraphs.push(textParagraph("안 전 보 건 관 리 계 획 서", "5", false));
+  paragraphs.push(titleBoxParagraph("안 전 보 건 관 리 계 획 서"));
   paragraphs.push(emptyParagraph());
-  paragraphs.push(emptyParagraph());
-  paragraphs.push(textParagraph(`공 사(용 역) 명 : ${cover.projectName || "(미입력)"}`, "0", false));
-  paragraphs.push(textParagraph(`공 사 기 간 : ${cover.period || "(미입력)"}`, "0", false));
   paragraphs.push(
-    textParagraph(
-      `도 급 금 액 : ${cover.contractAmount ? `${cover.contractAmount} (부가세 포함)` : "(미입력)"}`,
-      "0",
-      false
-    )
+    coverFieldTableParagraph([
+      { label: "공 사(용 역) 명", value: cover.projectName },
+      { label: "공 사 기 간", value: cover.period },
+      { label: "도 급 금 액", value: cover.contractAmount ? `${cover.contractAmount} (부가세 포함)` : "" },
+      { label: "계상된 안전관리비", value: cover.safetyBudget },
+    ])
   );
-  paragraphs.push(textParagraph(`계상된 안전관리비 : ${cover.safetyBudget || "(미입력)"}`, "0", false));
   paragraphs.push(emptyParagraph());
+  paragraphs.push(textParagraph(cover.submitDate, "0", false, CENTER_PARA_PR_ID));
   paragraphs.push(emptyParagraph());
-  paragraphs.push(textParagraph(cover.submitDate, "0", false));
+  paragraphs.push(textParagraph(`${cover.agency || "발주기관"} 귀하`, "5", false, CENTER_PARA_PR_ID));
   paragraphs.push(emptyParagraph());
-  paragraphs.push(textParagraph(`${cover.agency || "발주기관"} 귀하`, "5", false));
+  paragraphs.push(textParagraph(cover.companyName || "(미입력)", "5", false, CENTER_PARA_PR_ID));
   paragraphs.push(emptyParagraph());
-  paragraphs.push(textParagraph(cover.companyName || "(미입력)", "5", false));
+  paragraphs.push(buildApprovalTableParagraph(cover));
   paragraphs.push(emptyParagraph());
-  paragraphs.push(emptyParagraph());
-  paragraphs.push(...buildApprovalParagraphs(cover));
   return paragraphs;
 }
 
-// 아직 실제 표지 샘플을 확보하지 못한 발주처를 위한 범용 표지.
+// 아직 실제 표지 샘플을 확보하지 못한 발주처를 위한 범용 표지. 제목·정보성
+// 문구는 DOCX(buildGenericCover)와 동일하게 가운데 정렬로 맞춘다.
 function buildGenericCoverParagraphs(cover: CoverPageData): string[] {
   const paragraphs: string[] = [];
   paragraphs.push(emptyParagraph());
-  paragraphs.push(textParagraph("안전보건관리계획서", "5", false));
+  paragraphs.push(titleBoxParagraph("안전보건관리계획서"));
   paragraphs.push(emptyParagraph());
-  paragraphs.push(textParagraph(`공사(용역)명 : ${cover.projectName || "(미입력)"}`, "0", false));
-  paragraphs.push(textParagraph(`공사기간 : ${cover.period || "(미입력)"}`, "0", false));
+  paragraphs.push(
+    textParagraph(`공사(용역)명 : ${cover.projectName || "(미입력)"}`, "0", false, CENTER_PARA_PR_ID)
+  );
+  paragraphs.push(textParagraph(`공사기간 : ${cover.period || "(미입력)"}`, "0", false, CENTER_PARA_PR_ID));
   paragraphs.push(
     textParagraph(
       `도급금액 : ${cover.contractAmount ? `${cover.contractAmount} (부가세 포함)` : "(미입력)"}`,
       "0",
-      false
+      false,
+      CENTER_PARA_PR_ID
     )
   );
-  paragraphs.push(textParagraph(`계상된 안전관리비 : ${cover.safetyBudget || "(미입력)"}`, "0", false));
+  paragraphs.push(
+    textParagraph(`계상된 안전관리비 : ${cover.safetyBudget || "(미입력)"}`, "0", false, CENTER_PARA_PR_ID)
+  );
   paragraphs.push(emptyParagraph());
-  paragraphs.push(textParagraph(cover.submitDate, "0", false));
-  paragraphs.push(textParagraph(`${cover.agency || "발주기관"} 귀하`, "5", false));
-  paragraphs.push(textParagraph(cover.companyName || "(미입력)", "5", false));
+  paragraphs.push(textParagraph(cover.submitDate, "0", false, CENTER_PARA_PR_ID));
+  paragraphs.push(textParagraph(`${cover.agency || "발주기관"} 귀하`, "5", false, CENTER_PARA_PR_ID));
+  paragraphs.push(textParagraph(cover.companyName || "(미입력)", "5", false, CENTER_PARA_PR_ID));
   paragraphs.push(emptyParagraph());
-  paragraphs.push(...buildApprovalParagraphs(cover));
+  paragraphs.push(buildApprovalTableParagraph(cover));
+  paragraphs.push(emptyParagraph());
   return paragraphs;
 }
 

@@ -116,8 +116,13 @@ const styles = StyleSheet.create({
   fieldValue: { flex: 1 },
   table: { marginTop: 12, border: "1pt solid #ccc" },
   tableRow: { flexDirection: "row", borderBottom: "1pt solid #ccc" },
-  tableHeaderCell: { flex: 1, padding: 5, fontWeight: "bold", backgroundColor: "#f3f4f6", fontSize: 9 },
-  tableCell: { flex: 1, padding: 5, fontSize: 9 },
+  // 예전엔 표 바깥 테두리와 행 사이 구분선만 있고 칸(열)과 칸 사이엔 세로
+  // 구분선이 전혀 없어서, 컬럼 경계가 안 보이는 표가 됐다 — 표지·결재란 표
+  // (coverTable/approvalTable, 이미 borderRight 적용돼 있었음)와 똑같이 셀마다
+  // 오른쪽 테두리를 주고, 각 행의 마지막 칸만 렌더링 시 "none"으로 지워 표
+  // 바깥 테두리와 겹치지 않게 한다.
+  tableHeaderCell: { flex: 1, padding: 5, fontWeight: "bold", backgroundColor: "#f3f4f6", fontSize: 9, borderRight: "1pt solid #ccc" },
+  tableCell: { flex: 1, padding: 5, fontSize: 9, borderRight: "1pt solid #ccc" },
   // 유해·위험 기계/차량/물질 관리계획: 항목(장비명·물질명)별 소표.
   hazardGroupName: { fontSize: 11, fontWeight: "bold", marginTop: 14, marginBottom: 4 },
   hazardCategoryHeaderCell: {
@@ -127,9 +132,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#f3f4f6",
     fontSize: 9,
     textAlign: "center",
+    borderRight: "1pt solid #ccc",
   },
   hazardDetailHeaderCell: { flex: 1.6, padding: 5, fontWeight: "bold", backgroundColor: "#f3f4f6", fontSize: 9 },
-  hazardCategoryCell: { flex: 0.4, padding: 5, fontSize: 9, fontWeight: "bold", textAlign: "center" },
+  hazardCategoryCell: {
+    flex: 0.4,
+    padding: 5,
+    fontSize: 9,
+    fontWeight: "bold",
+    textAlign: "center",
+    borderRight: "1pt solid #ccc",
+  },
   hazardDetailCell: { flex: 1.6, padding: 5, fontSize: 9 },
   hazardNote: { fontSize: 8, color: "#6b7280", marginTop: 4, marginBottom: 8 },
   // 표지(cover page) 전용 스타일 — LH 등 공공발주처 표준 표지 양식 재현.
@@ -628,7 +641,13 @@ export async function generateWizardPdf(
                     {t.headers.length > 0 && (
                       <View style={styles.tableRow}>
                         {t.headers.map((h, idx) => (
-                          <Text key={idx} style={styles.tableHeaderCell}>
+                          <Text
+                            key={idx}
+                            style={[
+                              styles.tableHeaderCell,
+                              idx === t.headers.length - 1 ? { borderRight: "none" } : undefined,
+                            ]}
+                          >
                             {h}
                           </Text>
                         ))}
@@ -637,7 +656,10 @@ export async function generateWizardPdf(
                     {t.rows.map((row, rIdx) => (
                       <View key={rIdx} style={styles.tableRow}>
                         {row.map((cell, cIdx) => (
-                          <Text key={cIdx} style={styles.tableCell}>
+                          <Text
+                            key={cIdx}
+                            style={[styles.tableCell, cIdx === row.length - 1 ? { borderRight: "none" } : undefined]}
+                          >
                             {cell}
                           </Text>
                         ))}

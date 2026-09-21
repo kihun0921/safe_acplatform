@@ -33,11 +33,14 @@ function ensureFontsRegistered() {
   fontsRegistered = true;
 }
 
-// 임베드한 NotoSansKR TTF는 한글/기본 라틴 글리프는 갖고 있지만 로마숫자 기호
-// 블록(Ⅰ~Ⅹ, U+2160~)은 포함하지 않아, 그대로 렌더링하면 엉뚱한 글리프로 깨진다
-// (DOCX/HWPX는 워드/한글 프로그램 자체 폰트가 이 글자를 지원해 문제없음). PDF
-// 전용으로만 안전한 ASCII 대체 문자로 바꿔준다.
-const ROMAN_TO_ASCII: Record<string, string> = {
+// 임베드한 NotoSansKR TTF는 한글/기본 라틴 글리프는 갖고 있지만, 위저드 곳곳의
+// 고정 문구가 실제로 쓰는 로마숫자(Ⅰ~Ⅹ)·※·○·℃·→·①~⑩ 등 여러 기호 글리프를
+// 포함하지 않는다(fontkit으로 직접 확인함 — 전부 glyphId 0/.notdef). 이 글자가
+// 문서에 그대로 들어가면 폭이 0인 미지원 글리프가 바로 다음 글자와 겹쳐 보이는
+// 버그가 실제로 있었다(예: "○ 굴착작업 시"가 "危착작업 시"처럼 깨져 보임 —
+// DOCX/HWPX는 워드/한글 프로그램 자체 폰트가 이 글자들을 지원해 문제없다). PDF
+// 전용으로만 안전한 대체 문자로 바꿔준다.
+const PDF_UNSAFE_CHAR_MAP: Record<string, string> = {
   Ⅰ: "I",
   Ⅱ: "II",
   Ⅲ: "III",
@@ -48,9 +51,49 @@ const ROMAN_TO_ASCII: Record<string, string> = {
   Ⅷ: "VIII",
   Ⅸ: "IX",
   Ⅹ: "X",
+  "○": "•",
+  "※": "*",
+  "℃": "°C",
+  "→": "->",
+  "①": "(1)",
+  "②": "(2)",
+  "③": "(3)",
+  "④": "(4)",
+  "⑤": "(5)",
+  "⑥": "(6)",
+  "⑦": "(7)",
+  "⑧": "(8)",
+  "⑨": "(9)",
+  "⑩": "(10)",
+  "「": "[",
+  "」": "]",
+  "【": "[",
+  "】": "]",
+  "㎡": "m²",
+  有: "",
 };
+const PDF_UNSAFE_CHAR_PATTERN = new RegExp(`[${Object.keys(PDF_UNSAFE_CHAR_MAP).join("")}]`, "g");
 function pdfSafeText(s: string): string {
-  return s.replace(/[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]/g, (m) => ROMAN_TO_ASCII[m] ?? m);
+  return s.replace(PDF_UNSAFE_CHAR_PATTERN, (m) => PDF_UNSAFE_CHAR_MAP[m] ?? m);
+}
+
+// 위 치환을 <Text>가 나오는 자리마다 일일이 손으로 감싸면 언젠가 빠뜨리기
+// 쉬우므로(실제로 이 버그가 그렇게 새어나갔다), sections/cover/overview/
+// managementPolicy/orgChart/title을 렌더링 직전에 한 번에 깊이 순회해서 모든
+// 문자열 값을 통째로 치환한다. accidentImages[].buffer 같은 이진 데이터는
+// Buffer 그대로 두고 재귀하지 않는다.
+function sanitizeForPdf<T>(value: T): T {
+  if (typeof value === "string") return pdfSafeText(value) as unknown as T;
+  if (Buffer.isBuffer(value)) return value;
+  if (Array.isArray(value)) return value.map((v) => sanitizeForPdf(v)) as unknown as T;
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = sanitizeForPdf(v);
+    }
+    return out as T;
+  }
+  return value;
 }
 
 const styles = StyleSheet.create({
@@ -248,7 +291,7 @@ const COVER_PAGE_COMPONENTS: Record<CoverStyle, (props: { cover: CoverPageData }
 function LhOverviewPage({ data }: { data: OverviewPageData }) {
   return (
     <Page size="A4" style={styles.overviewPage}>
-      <Text style={styles.overviewChapterTitle}>{pdfSafeText(data.chapterTitle)}</Text>
+      <Text style={styles.overviewChapterTitle}>{data.chapterTitle}</Text>
       <Text style={styles.overviewSubTitle}>1. 사업개요</Text>
       <Text style={styles.overviewBulletRow}>
         <Text style={styles.overviewBulletLabel}>- 사 업 명 : </Text>
@@ -439,7 +482,7 @@ function OrgChartPage({ data }: { data: OrgChartData }) {
         <OrgChartBox x={leftX} y={row4Y} node={data.team1} />
         <OrgChartBox x={rightX} y={row4Y} node={data.team2} />
       </Svg>
-      <Text style={{ fontSize: 8, color: "#9ca3af", marginTop: 12 }}>※ 위 선임 기술인력은 변경될 수 있습니다.</Text>
+      <Text style={{ fontSize: 8, color: "#9ca3af", marginTop: 12 }}>* 위 선임 기술인력은 변경될 수 있습니다.</Text>
     </Page>
   );
 }
@@ -533,6 +576,13 @@ export async function generateWizardPdf(
   orgChart?: OrgChartData
 ): Promise<Buffer> {
   ensureFontsRegistered();
+
+  title = pdfSafeText(title);
+  sections = sanitizeForPdf(sections);
+  cover = cover && sanitizeForPdf(cover);
+  overviewPage = overviewPage && sanitizeForPdf(overviewPage);
+  managementPolicy = managementPolicy && sanitizeForPdf(managementPolicy);
+  orgChart = orgChart && sanitizeForPdf(orgChart);
 
   const CoverPageComponent = COVER_PAGE_COMPONENTS[coverStyle] ?? GenericCoverPage;
   const OverviewPageComponent = overviewPageStyle ? OVERVIEW_PAGE_COMPONENTS[overviewPageStyle] : undefined;

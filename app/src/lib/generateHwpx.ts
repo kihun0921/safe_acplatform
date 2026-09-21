@@ -456,7 +456,7 @@ interface CoverCell {
   charPrIDRef?: string;
 }
 
-function coverTableCellXml(cell: CoverCell, colAddr: number, rowHeight: number): string {
+function coverTableCellXml(cell: CoverCell, colAddr: number, rowAddr: number, rowHeight: number): string {
   const borderFillId = cell.shaded ? TABLE_HEADER_BORDER_FILL_ID : TABLE_BODY_BORDER_FILL_ID;
   const charPrIDRef = cell.charPrIDRef ?? "0";
   const maxChars = maxCharsForWidth(cell.width, charPrIDRef === "5" ? 16 : 10);
@@ -470,7 +470,7 @@ function coverTableCellXml(cell: CoverCell, colAddr: number, rowHeight: number):
     )
     .join("\n");
   return `<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${borderFillId}">
-<hp:cellAddr colAddr="${colAddr}" rowAddr="0"/>
+<hp:cellAddr colAddr="${colAddr}" rowAddr="${rowAddr}"/>
 <hp:cellSpan colSpan="1" rowSpan="1"/>
 <hp:cellSz width="${cell.width}" height="${rowHeight}"/>
 <hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="150" bottom="150"/>
@@ -489,7 +489,10 @@ function coverTableParagraph(
   const colCount = rowsOfCells[0]?.length ?? 1;
   const tblId = nextId();
   const rowsXml = rowsOfCells
-    .map((cells) => `<hp:tr>${cells.map((c, i) => coverTableCellXml(c, i, rowHeight)).join("\n")}</hp:tr>`)
+    .map(
+      (cells, rowAddr) =>
+        `<hp:tr>${cells.map((c, colAddr) => coverTableCellXml(c, colAddr, rowAddr, rowHeight)).join("\n")}</hp:tr>`
+    )
     .join("\n");
   return `<hp:p id="${nextId()}" paraPrIDRef="${CENTER_PARA_PR_ID}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">
 <hp:run charPrIDRef="0"><hp:tbl id="${tblId}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${rowsOfCells.length}" colCnt="${colCount}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
@@ -776,7 +779,12 @@ function buildSection0Xml(
     orgChartInserted = true;
   }
   paragraphs.push(
-    textParagraph(title, "5", Boolean(cover) || overviewPageInserted || managementPolicyInserted || orgChartInserted)
+    textParagraph(
+      title,
+      "5",
+      Boolean(cover) || overviewPageInserted || managementPolicyInserted || orgChartInserted,
+      CENTER_PARA_PR_ID
+    )
   );
   paragraphs.push(emptyParagraph());
 

@@ -79,6 +79,9 @@ function wrapTextLines(text: string, maxChars: number): string[] {
 // 셀, 옅은 회색 배경+회색 실선 — DOCX 내보내기의 헤더 배경(F3F4F6)과 맞춤).
 const TABLE_BODY_BORDER_FILL_ID = "3";
 const TABLE_HEADER_BORDER_FILL_ID = "4";
+// PDF 표지(coverTitleBox: "1.5pt solid #1e3a5f")와 맞춘 표지 제목 박스 전용
+// 굵은 남색 테두리.
+const TITLE_BORDER_FILL_ID = "5";
 
 function patchHeaderXmlForTables(headerXml: string): string {
   const newBorderFills = `<hh:borderFill id="${TABLE_BODY_BORDER_FILL_ID}" threeD="0" shadow="0" centerLine="NONE" breakCellSeparateLine="0">
@@ -99,9 +102,18 @@ function patchHeaderXmlForTables(headerXml: string): string {
 <hh:bottomBorder type="SOLID" width="0.1 mm" color="#999999"/>
 <hh:diagonal type="NONE" width="0.1 mm" color="#000000"/>
 <hc:fillBrush><hc:winBrush faceColor="#F3F4F6" hatchColor="#999999" alpha="0"/></hc:fillBrush>
+</hh:borderFill>
+<hh:borderFill id="${TITLE_BORDER_FILL_ID}" threeD="0" shadow="0" centerLine="NONE" breakCellSeparateLine="0">
+<hh:slash type="NONE" Crooked="0" isCounter="0"/>
+<hh:backSlash type="NONE" Crooked="0" isCounter="0"/>
+<hh:leftBorder type="SOLID" width="0.5 mm" color="#1E3A5F"/>
+<hh:rightBorder type="SOLID" width="0.5 mm" color="#1E3A5F"/>
+<hh:topBorder type="SOLID" width="0.5 mm" color="#1E3A5F"/>
+<hh:bottomBorder type="SOLID" width="0.5 mm" color="#1E3A5F"/>
+<hh:diagonal type="NONE" width="0.1 mm" color="#000000"/>
 </hh:borderFill>`;
   return headerXml
-    .replace(/<hh:borderFills itemCnt="2">/, '<hh:borderFills itemCnt="4">')
+    .replace(/<hh:borderFills itemCnt="2">/, '<hh:borderFills itemCnt="5">')
     .replace("</hh:borderFills>", `${newBorderFills}\n</hh:borderFills>`);
 }
 
@@ -461,10 +473,11 @@ interface CoverCell {
   width: number;
   shaded?: boolean;
   charPrIDRef?: string;
+  borderFillId?: string;
 }
 
 function coverTableCellXml(cell: CoverCell, colAddr: number, rowAddr: number, rowHeight: number): string {
-  const borderFillId = cell.shaded ? TABLE_HEADER_BORDER_FILL_ID : TABLE_BODY_BORDER_FILL_ID;
+  const borderFillId = cell.borderFillId ?? (cell.shaded ? TABLE_HEADER_BORDER_FILL_ID : TABLE_BODY_BORDER_FILL_ID);
   const charPrIDRef = cell.charPrIDRef ?? "0";
   const maxChars = maxCharsForWidth(cell.width, charPrIDRef === "5" ? 16 : 10);
   const lines = wrapTextLines(cell.text, maxChars);
@@ -519,7 +532,12 @@ function titleBoxParagraph(text: string): string {
   // 밀려 잘려 보인다 — 이 문단은 항상 짧은 고정 제목만 담으므로 넉넉하게
   // 80% 폭을 준다.
   const width = Math.round(TABLE_TOTAL_WIDTH * 0.8);
-  return coverTableParagraph([[{ text, width, charPrIDRef: "5" }]], width, 2600, "CENTER");
+  return coverTableParagraph(
+    [[{ text, width, charPrIDRef: "5", borderFillId: TITLE_BORDER_FILL_ID }]],
+    width,
+    2600,
+    "CENTER"
+  );
 }
 
 function coverFieldTableParagraph(rows: { label: string; value: string }[]): string {

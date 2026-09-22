@@ -129,39 +129,40 @@ const styles = StyleSheet.create({
   fieldLabel: { fontWeight: "bold", width: 140 },
   fieldValue: { flex: 1 },
   table: { marginTop: 12, border: "1pt solid #ccc" },
-  // alignItems: "center"가 없으면 짧은 칸(예: "관리계획" 좁은 컬럼의 "안전점검"
-  // 같은 라벨)이 옆 칸의 긴 서술형 텍스트 때문에 행이 늘어나도 위쪽에 붙은 채
-  // 있어서 세로로 가운데 정렬돼 보이지 않는다 — DOCX(VerticalAlign.CENTER)·
-  // HWPX(vertAlign="CENTER")와 맞춘다.
-  tableRow: { flexDirection: "row", borderBottom: "1pt solid #ccc", alignItems: "center" },
+  // 행 안에서 칸이 늘어나도(옆 칸의 긴 서술형 텍스트 때문에) 세로 구분선이
+  // 끊어지지 않으려면, 셀 "칸"(테두리·배경, 항상 행 전체 높이로 늘어남)과
+  // 그 안의 "글자"(justifyContent: center로만 세로 가운데 배치)를 분리해야
+  // 한다 — Text 하나에 border+정렬을 같이 주면 짧은 칸이 실제 글자 높이만큼만
+  // 줄어들면서 그 칸의 세로 구분선도 같이 짧아져 표가 끊어져 보이는 문제가
+  // 있었다. tableRow는 기본값(stretch)을 그대로 둬 칸 높이가 항상 행 전체와
+  // 같게 하고, 칸(View)에서 justifyContent: center로 안의 글자만 가운데
+  // 놓는다 — DOCX(VerticalAlign.CENTER)·HWPX(vertAlign="CENTER")와 동일한
+  // 결과다.
+  tableRow: { flexDirection: "row", borderBottom: "1pt solid #ccc" },
   // 예전엔 표 바깥 테두리와 행 사이 구분선만 있고 칸(열)과 칸 사이엔 세로
   // 구분선이 전혀 없어서, 컬럼 경계가 안 보이는 표가 됐다 — 표지·결재란 표
   // (coverTable/approvalTable, 이미 borderRight 적용돼 있었음)와 똑같이 셀마다
   // 오른쪽 테두리를 주고, 각 행의 마지막 칸만 렌더링 시 "none"으로 지워 표
   // 바깥 테두리와 겹치지 않게 한다.
-  tableHeaderCell: { flex: 1, padding: 5, fontWeight: "bold", backgroundColor: "#f3f4f6", fontSize: 9, borderRight: "1pt solid #ccc" },
-  tableCell: { flex: 1, padding: 5, fontSize: 9, borderRight: "1pt solid #ccc" },
+  tableHeaderCellBox: { flex: 1, backgroundColor: "#f3f4f6", borderRight: "1pt solid #ccc", justifyContent: "center" },
+  tableHeaderCellText: { padding: 5, fontWeight: "bold", fontSize: 9 },
+  tableCellBox: { flex: 1, borderRight: "1pt solid #ccc", justifyContent: "center" },
+  tableCellText: { padding: 5, fontSize: 9 },
   // 유해·위험 기계/차량/물질 관리계획: 항목(장비명·물질명)별 소표.
   hazardGroupName: { fontSize: 11, fontWeight: "bold", marginTop: 14, marginBottom: 4 },
-  hazardCategoryHeaderCell: {
+  hazardCategoryHeaderBox: {
     flex: 0.4,
-    padding: 5,
-    fontWeight: "bold",
     backgroundColor: "#f3f4f6",
-    fontSize: 9,
-    textAlign: "center",
     borderRight: "1pt solid #ccc",
+    justifyContent: "center",
   },
-  hazardDetailHeaderCell: { flex: 1.6, padding: 5, fontWeight: "bold", backgroundColor: "#f3f4f6", fontSize: 9 },
-  hazardCategoryCell: {
-    flex: 0.4,
-    padding: 5,
-    fontSize: 9,
-    fontWeight: "bold",
-    textAlign: "center",
-    borderRight: "1pt solid #ccc",
-  },
-  hazardDetailCell: { flex: 1.6, padding: 5, fontSize: 9 },
+  hazardCategoryHeaderText: { padding: 5, fontWeight: "bold", fontSize: 9, textAlign: "center" },
+  hazardDetailHeaderBox: { flex: 1.6, backgroundColor: "#f3f4f6", justifyContent: "center" },
+  hazardDetailHeaderText: { padding: 5, fontWeight: "bold", fontSize: 9 },
+  hazardCategoryBox: { flex: 0.4, borderRight: "1pt solid #ccc", justifyContent: "center" },
+  hazardCategoryText: { padding: 5, fontSize: 9, fontWeight: "bold", textAlign: "center" },
+  hazardDetailBox: { flex: 1.6, justifyContent: "center" },
+  hazardDetailText: { padding: 5, fontSize: 9 },
   hazardNote: { fontSize: 8, color: "#6b7280", marginTop: 4, marginBottom: 8 },
   // 표지(cover page) 전용 스타일 — LH 등 공공발주처 표준 표지 양식 재현.
   coverPage: { padding: 60, fontFamily: "NotoSansKR", fontSize: 11, justifyContent: "center" },
@@ -548,13 +549,21 @@ function HazardDetailGroupsBlock({ groups }: { groups: HazardDetailGroup[] }) {
           <Text style={styles.hazardGroupName}>{group.name}</Text>
           <View style={styles.table}>
             <View style={styles.tableRow}>
-              <Text style={styles.hazardCategoryHeaderCell}>관리계획</Text>
-              <Text style={styles.hazardDetailHeaderCell}>세부실행 계획</Text>
+              <View style={styles.hazardCategoryHeaderBox}>
+                <Text style={styles.hazardCategoryHeaderText}>관리계획</Text>
+              </View>
+              <View style={styles.hazardDetailHeaderBox}>
+                <Text style={styles.hazardDetailHeaderText}>세부실행 계획</Text>
+              </View>
             </View>
             {group.entries.map((entry, eIdx) => (
               <View key={eIdx} style={styles.tableRow}>
-                <Text style={styles.hazardCategoryCell}>{entry.category}</Text>
-                <Text style={styles.hazardDetailCell}>{entry.detail}</Text>
+                <View style={styles.hazardCategoryBox}>
+                  <Text style={styles.hazardCategoryText}>{entry.category}</Text>
+                </View>
+                <View style={styles.hazardDetailBox}>
+                  <Text style={styles.hazardDetailText}>{entry.detail}</Text>
+                </View>
               </View>
             ))}
           </View>
@@ -659,38 +668,46 @@ export async function generateWizardPdf(
                       {t.headers.length > 0 && (
                         <View style={styles.tableRow}>
                           {t.headers.map((h, idx) => (
-                            <Text
+                            <View
                               key={idx}
                               style={[
-                                styles.tableHeaderCell,
-                                {
-                                  flex: columnFlex(headerLikeRow[idx] ?? ""),
-                                  textAlign: isNarrowColumn(headerLikeRow[idx] ?? "") ? "center" : "left",
-                                },
+                                styles.tableHeaderCellBox,
+                                { flex: columnFlex(headerLikeRow[idx] ?? "") },
                                 idx === t.headers.length - 1 ? { borderRight: "none" } : undefined,
                               ]}
                             >
-                              {h}
-                            </Text>
+                              <Text
+                                style={[
+                                  styles.tableHeaderCellText,
+                                  { textAlign: isNarrowColumn(headerLikeRow[idx] ?? "") ? "center" : "left" },
+                                ]}
+                              >
+                                {h}
+                              </Text>
+                            </View>
                           ))}
                         </View>
                       )}
                       {t.rows.map((row, rIdx) => (
                         <View key={rIdx} style={styles.tableRow}>
                           {row.map((cell, cIdx) => (
-                            <Text
+                            <View
                               key={cIdx}
                               style={[
-                                styles.tableCell,
-                                {
-                                  flex: columnFlex(headerLikeRow[cIdx] ?? ""),
-                                  textAlign: isNarrowColumn(headerLikeRow[cIdx] ?? "") ? "center" : "left",
-                                },
+                                styles.tableCellBox,
+                                { flex: columnFlex(headerLikeRow[cIdx] ?? "") },
                                 cIdx === row.length - 1 ? { borderRight: "none" } : undefined,
                               ]}
                             >
-                              {cell}
-                            </Text>
+                              <Text
+                                style={[
+                                  styles.tableCellText,
+                                  { textAlign: isNarrowColumn(headerLikeRow[cIdx] ?? "") ? "center" : "left" },
+                                ]}
+                              >
+                                {cell}
+                              </Text>
+                            </View>
                           ))}
                         </View>
                       ))}

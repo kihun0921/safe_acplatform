@@ -129,7 +129,11 @@ const styles = StyleSheet.create({
   fieldLabel: { fontWeight: "bold", width: 140 },
   fieldValue: { flex: 1 },
   table: { marginTop: 12, border: "1pt solid #ccc" },
-  tableRow: { flexDirection: "row", borderBottom: "1pt solid #ccc" },
+  // alignItems: "center"가 없으면 짧은 칸(예: "관리계획" 좁은 컬럼의 "안전점검"
+  // 같은 라벨)이 옆 칸의 긴 서술형 텍스트 때문에 행이 늘어나도 위쪽에 붙은 채
+  // 있어서 세로로 가운데 정렬돼 보이지 않는다 — DOCX(VerticalAlign.CENTER)·
+  // HWPX(vertAlign="CENTER")와 맞춘다.
+  tableRow: { flexDirection: "row", borderBottom: "1pt solid #ccc", alignItems: "center" },
   // 예전엔 표 바깥 테두리와 행 사이 구분선만 있고 칸(열)과 칸 사이엔 세로
   // 구분선이 전혀 없어서, 컬럼 경계가 안 보이는 표가 됐다 — 표지·결재란 표
   // (coverTable/approvalTable, 이미 borderRight 적용돼 있었음)와 똑같이 셀마다

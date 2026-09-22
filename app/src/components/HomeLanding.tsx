@@ -334,10 +334,40 @@ export default function HomeLanding({
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [heroQuery, setHeroQuery] = useState("");
 
-  const filtered = useMemo(() => {
-    const list = activeTab ? announcements.filter((a) => a.trade_type === activeTab) : announcements;
-    return list.slice(0, 3);
-  }, [announcements, activeTab]);
+  // 예전엔 최신 3건만 고정으로 보여주고 끝이라 그 뒤에 등록된 공고들은 홈
+  // 화면에서 절대 볼 수 없었다 — "다음 N건" 버튼으로 계속 넘겨보다가 끝에
+  // 닿으면 처음으로 되돌아가는 방식으로 바꿨다(한 번에 보여줄 개수도 3→4로).
+  const PAGE_SIZE = 4;
+  const [page, setPage] = useState(0);
+
+  const filteredAll = useMemo(
+    () => (activeTab ? announcements.filter((a) => a.trade_type === activeTab) : announcements),
+    [announcements, activeTab]
+  );
+  const pageCount = Math.max(1, Math.ceil(filteredAll.length / PAGE_SIZE));
+  const filtered = useMemo(
+    () => filteredAll.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE),
+    [filteredAll, page]
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [activeTab]);
+
+  const showNextPage = () => setPage((p) => (p + 1) % pageCount);
+
+  // 버튼을 눌러야만 다음 묶음이 보이던 걸, 몇 초마다 저절로 다음 묶음으로
+  // 넘어가게 바꿨다 — 카드 위에 마우스가 있는 동안은(자세히 읽는 중일 수
+  // 있으니) 넘어가지 않도록 hoverRef로 잠깐 멈춘다.
+  const isHoveredRef = useRef(false);
+  useEffect(() => {
+    if (pageCount <= 1) return;
+    const id = setInterval(() => {
+      if (isHoveredRef.current) return;
+      setPage((p) => (p + 1) % pageCount);
+    }, 6000);
+    return () => clearInterval(id);
+  }, [pageCount]);
 
   useEffect(() => {
     const root = topRef.current;
@@ -503,7 +533,11 @@ export default function HomeLanding({
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+            onMouseEnter={() => (isHoveredRef.current = true)}
+            onMouseLeave={() => (isHoveredRef.current = false)}
+          >
             {filtered.map((a) => {
               return (
                 <div
@@ -571,6 +605,20 @@ export default function HomeLanding({
               </div>
             )}
           </div>
+          {pageCount > 1 && (
+            <div className="mt-8 flex flex-col items-center gap-2">
+              <button
+                onClick={showNextPage}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary border border-primary/30 hover:bg-primary-soft px-5 py-2.5 rounded-full transition-colors"
+              >
+                다음 {PAGE_SIZE}건 보기
+                <span className="material-symbols-outlined text-base">refresh</span>
+              </button>
+              <span className="text-xs text-text-muted font-label">
+                {page + 1} / {pageCount}
+              </span>
+            </div>
+          )}
           <div className="mt-6 text-center text-xs text-text-muted font-label">
             * 위 공고 리스트는 조달청 나라장터 낙찰정보 실시간 연계 기준이며, 낙찰(개찰)이 확정된 순서로 표시됩니다.
           </div>

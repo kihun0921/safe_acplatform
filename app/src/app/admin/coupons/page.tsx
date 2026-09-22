@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AdminHeader from "@/components/AdminHeader";
 import IssueCouponForm from "@/components/IssueCouponForm";
+import CouponDeleteButton from "@/components/CouponDeleteButton";
 
 export default async function AdminCouponsPage() {
   const supabase = await createClient();
@@ -34,6 +35,7 @@ export default async function AdminCouponsPage() {
                 <th className="text-left px-4 py-3">발급일</th>
                 <th className="text-left px-4 py-3">사용회원</th>
                 <th className="text-left px-4 py-3">적용문서</th>
+                <th className="text-left px-4 py-3">관리</th>
               </tr>
             </thead>
             <tbody>
@@ -59,11 +61,14 @@ export default async function AdminCouponsPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-500">{c.members?.name ?? "-"}</td>
                   <td className="px-4 py-3 text-slate-500">{c.documents?.title ?? "-"}</td>
+                  <td className="px-4 py-3">
+                    <CouponDeleteButton id={c.id} code={c.code} used={c.status === "used"} />
+                  </td>
                 </tr>
               ))}
               {(coupons ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-16 text-slate-400 text-sm">
+                  <td colSpan={7} className="text-center py-16 text-slate-400 text-sm">
                     발급된 쿠폰이 없습니다.
                   </td>
                 </tr>

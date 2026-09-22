@@ -7,7 +7,7 @@ import CoverStyleSelect from "./CoverStyleSelect";
 import OverviewLabelFields from "./OverviewLabelFields";
 import type { AgencyTemplateSection } from "@/lib/agencyTemplates";
 
-type AgencyTemplate = {
+export type AgencyTemplate = {
   id: string;
   agency: string;
   name: string;

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import AdminHeader from "@/components/AdminHeader";
-import AgencyTemplateEditor from "@/components/AgencyTemplateEditor";
+import AgencyTemplateTabs from "@/components/AgencyTemplateTabs";
 import CreateAgencyTemplateForm from "@/components/CreateAgencyTemplateForm";
 
 export default async function AdminAgencyTemplatesPage() {
@@ -20,12 +20,7 @@ export default async function AdminAgencyTemplatesPage() {
 
         <CreateAgencyTemplateForm />
 
-        {(templates ?? []).map((t) => (
-          <AgencyTemplateEditor key={t.id} template={t} />
-        ))}
-        {(templates ?? []).length === 0 && (
-          <div className="text-center py-16 text-slate-400 text-sm">등록된 표준서식이 없습니다.</div>
-        )}
+        <AgencyTemplateTabs templates={templates ?? []} />
       </main>
     </div>
   );

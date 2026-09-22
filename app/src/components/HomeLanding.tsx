@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 const LANDING_HTML_TOP = `
 <!-- 1. TopNavBar (Shared Component Anchor) -->
@@ -18,11 +19,11 @@ const LANDING_HTML_TOP = `
       <a class="text-primary font-bold border-b-2 border-primary pb-1 font-label text-sm transition-colors" href="#search-section">공고 검색</a>
       <a class="text-text-secondary font-medium hover:text-text transition-colors font-label text-sm" href="#features-section">서비스 소개</a>
       <a class="text-text-secondary font-medium hover:text-text transition-colors font-label text-sm" href="#how-it-works">이용 가이드</a>
-      <a class="text-text-secondary font-medium hover:text-text transition-colors font-label text-sm" href="#preview-widget">내 문서함</a>
+      <a class="text-text-secondary font-medium hover:text-text transition-colors font-label text-sm" href="#preview-widget" id="navMyDocsDesktop">내 문서함</a>
       <a class="text-text-secondary font-medium hover:text-text transition-colors font-label text-sm" href="#cta-section">도입 문의</a>
     </nav>
     <!-- Desktop Trailing Actions -->
-    <div class="hidden md:flex items-center space-x-4">
+    <div class="hidden md:flex items-center space-x-4" id="desktopAuthActions">
       <a class="text-sm font-label font-medium text-text-secondary hover:text-primary px-3 py-2 transition-colors" href="/login">로그인</a>
       <a class="text-sm font-label font-semibold text-white bg-orange-700 hover:bg-orange-800 px-4 py-2 rounded-lg shadow-sm transition-all hover:shadow active:opacity-90" href="#cta-section">무료로 시작하기</a>
     </div>
@@ -36,8 +37,8 @@ const LANDING_HTML_TOP = `
     <a class="block py-2 text-primary font-bold border-l-4 border-primary pl-2 text-sm" href="#search-section">공고 검색</a>
     <a class="block py-2 text-text-secondary hover:text-primary font-medium text-sm pl-3" href="#features-section">서비스 소개</a>
     <a class="block py-2 text-text-secondary hover:text-primary font-medium text-sm pl-3" href="#how-it-works">이용 가이드</a>
-    <a class="block py-2 text-text-secondary hover:text-primary font-medium text-sm pl-3" href="#preview-widget">내 문서함</a>
-    <div class="pt-3 border-t border-border flex flex-col gap-2">
+    <a class="block py-2 text-text-secondary hover:text-primary font-medium text-sm pl-3" href="#preview-widget" id="navMyDocsMobile">내 문서함</a>
+    <div class="pt-3 border-t border-border flex flex-col gap-2" id="mobileAuthActions">
       <a class="w-full text-center py-2 text-sm font-medium text-text border border-border rounded-lg" href="/login">로그인</a>
       <a class="w-full text-center py-2 text-sm font-semibold text-white bg-orange-700 rounded-lg shadow-sm" href="#cta-section">무료로 시작하기</a>
     </div>
@@ -320,10 +321,12 @@ export default function HomeLanding({
   announcements,
   totalCount,
   tabCounts,
+  member,
 }: {
   announcements: LandingAnnouncement[];
   totalCount: number;
   tabCounts: { label: string; count: number }[];
+  member: { displayName: string; company: string } | null;
 }) {
   const topRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -345,10 +348,54 @@ export default function HomeLanding({
     const onMobileToggle = () => mobileMenu?.classList.toggle("hidden");
     mobileBtn?.addEventListener("click", onMobileToggle);
 
+    // 이 헤더는 원래 Stitch 데모 목업 그대로라 로그인 상태를 전혀 확인하지
+    // 않고 "로그인/무료로 시작하기" 버튼을 항상 고정으로 보여줬다 — 위저드
+    // 등 다른 화면의 MemberHeader는 실제로 로그인 여부를 확인하는데 홈
+    // 화면만 빠져 있어서, 로그인한 회원이 로고를 눌러 홈으로 돌아오면
+    // 마치 로그아웃된 것처럼 보이는 버그가 있었다. 로그인 상태면 로그인/
+    // 가입 버튼을 "내 문서함 + 로그아웃"으로 바꿔치기한다.
+    const desktopAuth = root.querySelector<HTMLDivElement>("#desktopAuthActions");
+    const mobileAuth = root.querySelector<HTMLDivElement>("#mobileAuthActions");
+    const navMyDocsDesktop = root.querySelector<HTMLAnchorElement>("#navMyDocsDesktop");
+    const navMyDocsMobile = root.querySelector<HTMLAnchorElement>("#navMyDocsMobile");
+    let onLogoutClick: ((e: Event) => void) | undefined;
+
+    if (member) {
+      navMyDocsDesktop?.setAttribute("href", "/documents");
+      navMyDocsMobile?.setAttribute("href", "/documents");
+      const label = member.company ? `${member.company} ${member.displayName}` : member.displayName;
+      const escaped = label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      if (desktopAuth) {
+        desktopAuth.innerHTML = `
+          <a class="text-sm font-label font-medium text-text-secondary hover:text-primary px-3 py-2 transition-colors" href="/documents">내 문서함</a>
+          <span class="text-xs font-semibold text-slate-800 px-2">${escaped}</span>
+          <button type="button" data-logout class="text-sm font-label font-medium text-text-secondary hover:text-primary px-3 py-2 transition-colors">로그아웃</button>
+        `;
+      }
+      if (mobileAuth) {
+        mobileAuth.innerHTML = `
+          <a class="w-full text-center py-2 text-sm font-medium text-text border border-border rounded-lg" href="/documents">내 문서함</a>
+          <button type="button" data-logout class="w-full text-center py-2 text-sm font-semibold text-white bg-orange-700 rounded-lg shadow-sm">로그아웃</button>
+        `;
+      }
+      onLogoutClick = (e: Event) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest("[data-logout]")) return;
+        e.preventDefault();
+        const supabase = createClient();
+        void supabase.auth.signOut().then(() => {
+          router.push("/");
+          router.refresh();
+        });
+      };
+      root.addEventListener("click", onLogoutClick);
+    }
+
     return () => {
       mobileBtn?.removeEventListener("click", onMobileToggle);
+      if (onLogoutClick) root.removeEventListener("click", onLogoutClick);
     };
-  }, []);
+  }, [member, router]);
 
   const goToAnnouncements = (e?: React.FormEvent) => {
     e?.preventDefault();

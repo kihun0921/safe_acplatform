@@ -6,6 +6,18 @@ const TABS = ["건축", "토목", "전기", "설비"] as const;
 export default async function Home() {
   const supabase = await createClient();
 
+  // 홈 화면 헤더는 로그인 상태를 몰라서 항상 "로그인/무료로 시작하기"만
+  // 보여줬다(로그인한 회원이 로고를 눌러 돌아오면 로그아웃된 것처럼 보이는
+  // 버그) — MemberHeader와 동일하게 실제 로그인 여부를 확인해 전달한다.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let member: { displayName: string; company: string } | null = null;
+  if (user) {
+    const { data: memberRow } = await supabase.from("members").select("name, company").eq("id", user.id).single();
+    if (memberRow) member = { displayName: memberRow.name, company: memberRow.company };
+  }
+
   // 안전보건관리계획서는 실제 시공사(낙찰자)가 확정된 뒤에만 작성할 수 있다 —
   // 개찰(낙찰) 전 공고는 누가 시공할지 자체가 정해지지 않아 계획서 작성 대상이
   // 아니다. 그래서 "실시간 대상 공고"는 입찰 마감을 앞둔 공고가 아니라 낙찰이
@@ -34,6 +46,7 @@ export default async function Home() {
       announcements={announcements ?? []}
       totalCount={totalCount ?? 0}
       tabCounts={TABS.map((t, i) => ({ label: t, count: tabCounts[i].count ?? 0 }))}
+      member={member}
     />
   );
 }

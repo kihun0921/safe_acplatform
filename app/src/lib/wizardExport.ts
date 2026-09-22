@@ -80,11 +80,17 @@ function extractHazardDetailGroups(
   if (!detailFields) return [];
   const modalPrefix = $section.attr("data-hazard-modal-prefix") ?? "";
   const groups: HazardDetailGroup[] = [];
+  let index = 0;
   $section.find("tr[data-hazard-id]").each((_, tr) => {
+    index += 1;
     const $tr = $(tr as Parameters<cheerio.CheerioAPI>[0]);
     const id = $tr.attr("data-hazard-id") ?? "";
     const nameEl = $tr.find('[data-hazard-field="name"]').get(0);
-    const name = (nameEl ? fieldValue($, nameEl) : "").trim() || "(미입력)";
+    const rawName = (nameEl ? fieldValue($, nameEl) : "").trim() || "(미입력)";
+    // 항목이 몇 개든(장비·차량·물질) 어느 것에 대한 소표인지 한눈에 보이도록
+    // "1) 페인트, 신나" 처럼 순번을 붙인다. 대제목("Ⅱ. ..." 등) 번호는 이
+    // 항목 번호와 별개로 다루기로 함(요청에 따라 이번엔 손대지 않음).
+    const name = `${index}) ${rawName}`;
     const $modal = $(`[data-modal="${modalPrefix}-${id}"]`);
     const entries = detailFields.map(({ key, label }) => {
       const el = $modal.find(`[data-hazard-field="detail-${key}"]`).get(0);

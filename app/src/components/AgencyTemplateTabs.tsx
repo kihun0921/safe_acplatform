@@ -17,16 +17,16 @@ export default function AgencyTemplateTabs({ templates }: { templates: AgencyTem
 
   return (
     <div>
-      <div className="flex flex-wrap gap-1 border-b border-slate-200 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6">
         {templates.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setActiveId(t.id)}
-            className={`px-4 py-2.5 text-sm font-semibold rounded-t-lg border-b-2 -mb-px transition-colors ${
+            className={`px-4 py-2.5 text-sm font-bold rounded-lg transition-colors ${
               t.id === active?.id
-                ? "border-[#1e3a5f] text-[#1e3a5f] bg-white"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                ? "bg-[#1e3a5f] text-white shadow-sm"
+                : "bg-white text-slate-500 border border-slate-200 hover:border-slate-300 hover:text-slate-800"
             }`}
           >
             {t.agency}

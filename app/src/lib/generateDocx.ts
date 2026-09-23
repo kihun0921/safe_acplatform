@@ -314,8 +314,69 @@ function buildGenericCover(cover: CoverPageData): (Paragraph | Table)[] {
   ];
 }
 
+// 실제 K-water 붙임2 서식(안전보건관리계획서 작성양식) 1~2p를 그대로 재현한다:
+// 1p는 표지(공사명 부제 + 제목 박스 + 제출일자 + 회사명), 2p는 별도 페이지의
+// 제출문(수신문 + 제출일자 + 업체명·대표이사 + 발주처 귀하)이다. LH·범용
+// 표지처럼 표/결재란으로 정보를 나열하지 않고, 실제 샘플처럼 문장형 제출문을
+// 그대로 쓰는 것이 K-water 서식의 특징이라 전용 렌더러로 분리했다.
+function buildKwaterStandardCover(cover: CoverPageData): (Paragraph | Table)[] {
+  const project = cover.projectName || "OOOOO";
+  return [
+    // 1페이지: 표지
+    new Paragraph({ spacing: { after: 300 }, children: [] }),
+    new Paragraph({
+      spacing: { after: 200 },
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: `${project} 공사(용역)`, bold: true, size: 24, font: FONT })],
+    }),
+    buildTitleBox("안전보건관리계획서"),
+    new Paragraph({ spacing: { before: 1200, after: 200 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: cover.submitDate, size: 22, font: FONT })] }),
+    new Paragraph({
+      spacing: { before: 1600 },
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: cover.companyName || "회사명(로고)", bold: true, size: 24, font: FONT })],
+    }),
+    new Paragraph({ children: [new PageBreak()] }),
+    // 2페이지: 제출문
+    new Paragraph({
+      spacing: { after: 700 },
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: "제 출 문", bold: true, size: 32, font: FONT })],
+    }),
+    new Paragraph({
+      spacing: { after: 700 },
+      children: [
+        new TextRun({
+          text: `귀사의 ${project} 수행을 위해 아래와 같이 안전보건관리계획서를 제출합니다.`,
+          size: 22,
+          font: FONT,
+        }),
+      ],
+    }),
+    new Paragraph({ spacing: { before: 800, after: 500 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: cover.submitDate, size: 22, font: FONT })] }),
+    new Paragraph({
+      spacing: { after: 300 },
+      children: [new TextRun({ text: `업 체 명 : ${cover.companyName || "(미입력)"}`, size: 22, font: FONT })],
+    }),
+    new Paragraph({
+      spacing: { after: 900 },
+      children: [
+        new TextRun({ text: `대표이사 : ${cover.writerName || ""}`, size: 22, font: FONT }),
+        new TextRun({ text: "                    (서명 또는 인)", size: 22, font: FONT }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 500 },
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: `${cover.agency || "발주기관"} 귀하`, bold: true, size: 26, font: FONT })],
+    }),
+    new Paragraph({ children: [new PageBreak()] }),
+  ];
+}
+
 const COVER_RENDERERS: Record<CoverStyle, (cover: CoverPageData) => (Paragraph | Table)[]> = {
   lh_standard: buildLhStandardCover,
+  kwater_standard: buildKwaterStandardCover,
   generic: buildGenericCover,
 };
 

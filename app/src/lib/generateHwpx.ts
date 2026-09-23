@@ -659,8 +659,40 @@ function buildGenericCoverParagraphs(cover: CoverPageData): string[] {
   return paragraphs;
 }
 
+// 실제 K-water 붙임2 서식 1~2p를 그대로 재현한다: 1p 표지(공사명 부제+제목
+// 박스+제출일자+회사명), 2p 별도 페이지의 제출문(수신문+제출일자+업체명·
+// 대표이사+발주처 귀하). DOCX(buildKwaterStandardCover)/PDF(KwaterStandardCoverPage)와
+// 동일한 구성이다.
+function buildKwaterStandardCoverParagraphs(cover: CoverPageData): string[] {
+  const project = cover.projectName || "OOOOO";
+  const paragraphs: string[] = [];
+  paragraphs.push(...emptyParagraphs(2));
+  paragraphs.push(textParagraph(`${project} 공사(용역)`, "5", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(2));
+  paragraphs.push(titleBoxParagraph("안전보건관리계획서"));
+  paragraphs.push(...emptyParagraphs(6));
+  paragraphs.push(textParagraph(cover.submitDate, "0", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(6));
+  paragraphs.push(textParagraph(cover.companyName || "회사명(로고)", "5", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(3));
+  // 2페이지: 제출문
+  paragraphs.push(textParagraph("제 출 문", "5", true, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(3));
+  paragraphs.push(textParagraph(`귀사의 ${project} 수행을 위해 아래와 같이 안전보건관리계획서를 제출합니다.`, "0", false));
+  paragraphs.push(...emptyParagraphs(3));
+  paragraphs.push(textParagraph(cover.submitDate, "0", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(2));
+  paragraphs.push(textParagraph(`업 체 명 : ${cover.companyName || "(미입력)"}`, "0", false));
+  paragraphs.push(textParagraph(`대표이사 : ${cover.writerName || ""}                    (서명 또는 인)`, "0", false));
+  paragraphs.push(...emptyParagraphs(4));
+  paragraphs.push(textParagraph(`${cover.agency || "발주기관"} 귀하`, "5", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(2));
+  return paragraphs;
+}
+
 const COVER_PARAGRAPH_BUILDERS: Record<CoverStyle, (cover: CoverPageData) => string[]> = {
   lh_standard: buildLhStandardCoverParagraphs,
+  kwater_standard: buildKwaterStandardCoverParagraphs,
   generic: buildGenericCoverParagraphs,
 };
 

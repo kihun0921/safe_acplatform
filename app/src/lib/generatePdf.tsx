@@ -323,8 +323,41 @@ function GenericCoverPage({ cover }: { cover: CoverPageData }) {
   );
 }
 
+// 실제 K-water 붙임2 서식 1~2p를 그대로 재현한다: 1p 표지(공사명 부제+제목
+// 박스+제출일자+회사명), 2p 별도 페이지의 제출문(수신문+제출일자+업체명·
+// 대표이사+발주처 귀하). LH·범용 표지처럼 정보를 표/결재란으로 나열하지 않고
+// 실제 샘플처럼 문장형 제출문을 그대로 쓰는 것이 K-water 서식의 특징이다.
+function KwaterStandardCoverPage({ cover }: { cover: CoverPageData }) {
+  const project = cover.projectName || "OOOOO";
+  return (
+    <Fragment>
+      <Page size="A4" style={styles.coverPage}>
+        <Text style={[styles.coverAgency, { marginBottom: 8 }]}>{project} 공사(용역)</Text>
+        <TitleBox text="안전보건관리계획서" />
+        <Text style={[styles.coverDate, { marginTop: 60 }]}>{cover.submitDate}</Text>
+        <Text style={[styles.coverCompany, { marginTop: 60 }]}>{cover.companyName || "회사명(로고)"}</Text>
+      </Page>
+      <Page size="A4" style={styles.coverPage}>
+        <Text style={{ fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 40, letterSpacing: 8 }}>
+          제 출 문
+        </Text>
+        <Text style={{ fontSize: 11, lineHeight: 1.6, marginBottom: 40 }}>
+          귀사의 {project} 수행을 위해 아래와 같이 안전보건관리계획서를 제출합니다.
+        </Text>
+        <Text style={[styles.coverDate, { marginBottom: 32 }]}>{cover.submitDate}</Text>
+        <Text style={{ fontSize: 11, marginBottom: 16 }}>업 체 명 : {cover.companyName || "(미입력)"}</Text>
+        <Text style={{ fontSize: 11, marginBottom: 56 }}>
+          대표이사 : {cover.writerName || ""}                    (서명 또는 인)
+        </Text>
+        <Text style={styles.coverAgency}>{cover.agency || "발주기관"} 귀하</Text>
+      </Page>
+    </Fragment>
+  );
+}
+
 const COVER_PAGE_COMPONENTS: Record<CoverStyle, (props: { cover: CoverPageData }) => ReactElement> = {
   lh_standard: LhStandardCoverPage,
+  kwater_standard: KwaterStandardCoverPage,
   generic: GenericCoverPage,
 };
 

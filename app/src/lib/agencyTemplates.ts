@@ -167,8 +167,9 @@ export type SectionOrderGroup = { roman: string; title: string; members: string[
 export const COVER_STYLES: { value: string; label: string }[] = [
   { value: "generic", label: "범용 표지 (기본)" },
   { value: "lh_standard", label: "한국토지주택공사(LH) 표준 표지" },
+  { value: "kwater_standard", label: "한국수자원공사(K-water) 표준 표지" },
 ];
-export type CoverStyle = "generic" | "lh_standard";
+export type CoverStyle = "generic" | "lh_standard" | "kwater_standard";
 
 // 공통 6대 목차 — 각 항목의 실제 DOM id(sec-*)와 관리자 화면에 보여줄 한글 라벨.
 export const COMMON_SECTIONS: { key: string; label: string }[] = [

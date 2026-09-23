@@ -291,7 +291,11 @@ const TEMPLATES = [
     // 그대로 재사용하고, K-water 고유 항목(보호구 지급계획, 신호·연락체계,
     // 기계·장비 안전검사표, 장비 안전관리대책, 합동 안전·보건점검)만 아래
     // sections에 새로 추가했다.
-    cover_style: "generic",
+    // 실제 K-water 붙임2 서식 1~2p(표지+제출문)를 그대로 재현한 전용 표지
+    // 스타일. generateDocx.ts/generatePdf.tsx/generateHwpx.ts에 각각
+    // buildKwaterStandardCover/KwaterStandardCoverPage/
+    // buildKwaterStandardCoverParagraphs로 구현되어 있다.
+    cover_style: "kwater_standard",
     overview_label: "과업 개요",
     show_management_policy: true,
     show_org_chart: true,

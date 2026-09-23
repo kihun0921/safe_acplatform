@@ -331,7 +331,7 @@ const TEMPLATES = [
         title: "안전보건 운영관리",
         members: ["signal_contact_kwater", "machinery_inspection_kwater", "equipment_safety_measures_kwater", "emergency_plan"],
       },
-      { roman: "Ⅴ", title: "재해발생 수준", members: ["accident_level", "attachments"] },
+      { roman: "Ⅴ", title: "재해발생 수준", members: ["accident_level", "subcontractor_evaluation_kwater", "attachments"] },
     ],
     // "emergency": 기존 base 템플릿의 Stitch 데모 카드가 emergency_plan(실제 LH
     // 샘플 기반 고정 서식)과 내용이 겹쳐서 끈다.
@@ -449,6 +449,41 @@ const TEMPLATES = [
             type: "textarea",
             placeholder: "산재보험 가입을 증명할 수 있는 서류(스캔본) 첨부 여부를 입력하세요",
             default: "산재보험 가입증명원(스캔본)을 첨부한다.",
+          },
+        ],
+      },
+      {
+        // 붙임3 "수급업체 안전보건수준평가 세부기준"(실제 K-water 붙임2 서식
+        // 24p) — 총 100점(A.안전보건관리체제 20/B.실행수준 40/C.운영관리 20/
+        // D.재해발생 수준 20)을 12개 세부항목으로 나눈 K-water 고유 배점표다.
+        // LH의 "적격업체 선정 평가기준"(show_subcontractor_evaluation)과
+        // 이름은 비슷하지만 배점 구성이 서로 달라 그대로 재사용할 수 없어
+        // K-water 전용 고정 문구 섹션으로 새로 추가한다.
+        id: "subcontractor_evaluation_kwater",
+        label: "수급업체 안전보건수준평가 세부기준",
+        fields: [
+          {
+            key: "evaluation_criteria",
+            label: "평가항목 및 배점기준 (총 100점)",
+            type: "textarea",
+            placeholder: "발주처가 배점표를 변경 요청하는 경우에만 수정하세요",
+            default:
+              "A. 안전보건관리체제 (소계 20점)\n" +
+              "  1. 일반원칙 — 수급인(관계수급인)의 안전보건방침 적정 여부 (5점)\n" +
+              "  2. 계획수립 — 산업재해예방 활동에 대한 수급인의 이행계획 적정여부 (10점)\n" +
+              "  3. 역할 및 책임 — 이행계획 추진을 위한 구성원의 역할 분담(본사, 현장) (5점)\n\n" +
+              "B. 실행수준 (소계 40점)\n" +
+              "  4. 위험성평가 — 도급작업의 위험성평가 결과에 대한 이해수준 및 자체 유해·위험요인 평가 수준 (5점)\n" +
+              "  5. 안전점검 — 안전점검 및 모니터링(보호구 착용 확인 포함) (10점)\n" +
+              "  6. 이행확인 — 안전조치 이행여부 확인(도급인의 지도조언에 대한 이행 포함) (10점)\n" +
+              "  7. 교육 및 기록 — 안전보건교육 계획 및 기록관리 (5점)\n" +
+              "  8. 안전작업허가 — 유해·위험작업에 대한 안전작업허가 이행 수준 (10점)\n\n" +
+              "C. 운영관리 (소계 20점)\n" +
+              "  9. 신호 및 연락체계 — 도급·수급업체 신호 및 연락체계 (5점)\n" +
+              "  10. 위험물질 및 설비 — 유해·위험 물질 및 취급 기계·기구 및 설비의 안전성 확인 (10점)\n" +
+              "  11. 비상대책 — 비상시 대피 및 피해 최소화 대책(고용부, 소방서, 병원 포함) (5점)\n\n" +
+              "D. 재해발생 수준 (소계 20점)\n" +
+              "  12. 산업재해 현황 — 최근 3년간 산업재해 발생현황 (20점)",
           },
         ],
       },

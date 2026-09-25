@@ -592,6 +592,43 @@ function buildApprovalTableParagraph(cover: CoverPageData): string {
   );
 }
 
+// LH 실제 표지 뒤에 붙는 "제출문"은 제출일자를 submitDate 전체("2026. 9. 25.")가
+// 아니라 "년/월"까지만("2026년 09월") 쓴다 — 실제 LH 샘플(화성동탄(2))의 제출문
+// 캡처를 그대로 따른 것. submitDate는 extractCoverPageData()에서 항상
+// "YYYY. M. D." 형식으로만 만들어지므로 정규식으로 안전하게 뽑아낸다.
+function formatSubmitYearMonth(submitDate: string): string {
+  const m = submitDate.match(/^(\d{4})\.\s*(\d{1,2})\./);
+  if (!m) return submitDate;
+  return `${m[1]}년 ${m[2].padStart(2, "0")}월`;
+}
+
+// 실제 LH 표지 샘플(화성동탄(2))의 표지 다음 장에 그대로 나오는 "제출문"
+// 페이지를 DOCX(buildLhSubmissionLetter)/PDF(LhSubmissionLetterPage)와 동일한
+// 구성으로 재현한다. 첫 문단에 pageBreak=true를 줘서 앞의 표지 내용과 별도
+// 페이지로 시작한다.
+function buildLhSubmissionLetterParagraphs(cover: CoverPageData): string[] {
+  const paragraphs: string[] = [];
+  paragraphs.push(textParagraph("제 출 문", "5", true, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(3));
+  paragraphs.push(
+    textParagraph(
+      `귀사 발주공사인 "${cover.projectName || "(미입력)"}" 수행을 위해 아래와 같이 안전보건관리계획서를 제출합니다.`,
+      "0",
+      false,
+      CENTER_PARA_PR_ID
+    )
+  );
+  paragraphs.push(...emptyParagraphs(3));
+  paragraphs.push(textParagraph(formatSubmitYearMonth(cover.submitDate), "0", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(4));
+  paragraphs.push(textParagraph(`업 체 명 : ${cover.companyName || "(미입력)"}`, "0", false));
+  paragraphs.push(textParagraph(`대표이사 : ${cover.writerName || ""}`, "0", false));
+  paragraphs.push(...emptyParagraphs(4));
+  paragraphs.push(textParagraph(`${cover.agency || "발주기관"} 사장 귀하`, "5", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(2));
+  return paragraphs;
+}
+
 // LH가 실제로 요구하는 표준 표지(제목 박스, 공사명/공사기간/도급금액/계상
 // 안전관리비 표, 제출문, 작성·검토·승인 결재란)를 DOCX(buildLhStandardCover)와
 // 동일한 구성으로 재현한다. 다른 발주처의 실제 표지 샘플이 확보되면 이 함수
@@ -622,6 +659,7 @@ function buildLhStandardCoverParagraphs(cover: CoverPageData): string[] {
   paragraphs.push(...emptyParagraphs(4));
   paragraphs.push(buildApprovalTableParagraph(cover));
   paragraphs.push(...emptyParagraphs(2));
+  paragraphs.push(...buildLhSubmissionLetterParagraphs(cover));
   return paragraphs;
 }
 

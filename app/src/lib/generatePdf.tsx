@@ -267,37 +267,72 @@ function ApprovalTable({ cover }: { cover: CoverPageData }) {
   );
 }
 
+// LH 실제 표지 뒤에 붙는 "제출문"은 제출일자를 submitDate 전체("2026. 9. 25.")가
+// 아니라 "년/월"까지만("2026년 09월") 쓴다 — 실제 LH 샘플(화성동탄(2))의 제출문
+// 캡처를 그대로 따른 것. submitDate는 extractCoverPageData()에서 항상
+// "YYYY. M. D." 형식으로만 만들어지므로 정규식으로 안전하게 뽑아낸다.
+function formatSubmitYearMonth(submitDate: string): string {
+  const m = submitDate.match(/^(\d{4})\.\s*(\d{1,2})\./);
+  if (!m) return submitDate;
+  return `${m[1]}년 ${m[2].padStart(2, "0")}월`;
+}
+
+// 실제 LH 표지 샘플(화성동탄(2))의 표지 다음 장에 그대로 나오는 "제출문"
+// 페이지. 정보 표를 나열하는 위 표지와 달리 문장형 수신문으로 "귀사 발주공사인
+// "OOO" 수행을 위해..."라고 쓰고 발주처를 "OO 사장 귀하"로 부른다(K-water의
+// "OO 귀하"와 다른 LH만의 문구 — KwaterStandardCoverPage와 별도 컴포넌트).
+function LhSubmissionLetterPage({ cover }: { cover: CoverPageData }) {
+  return (
+    <Page size="A4" style={styles.coverPage}>
+      <Text style={{ fontSize: 22, fontWeight: "bold", textAlign: "center", marginBottom: 60, letterSpacing: 8 }}>
+        제 출 문
+      </Text>
+      <Text style={{ fontSize: 11, lineHeight: 1.8, textAlign: "center", marginBottom: 60 }}>
+        귀사 발주공사인 &quot;{cover.projectName || "(미입력)"}&quot; 수행을 위해 아래와 같이 안전보건관리계획서를
+        제출합니다.
+      </Text>
+      <Text style={[styles.coverDate, { marginBottom: 60 }]}>{formatSubmitYearMonth(cover.submitDate)}</Text>
+      <Text style={{ fontSize: 11, marginLeft: 90, marginBottom: 16 }}>업 체 명 : {cover.companyName || "(미입력)"}</Text>
+      <Text style={{ fontSize: 11, marginLeft: 90, marginBottom: 60 }}>대표이사 : {cover.writerName || ""}</Text>
+      <Text style={{ fontSize: 12, fontWeight: "bold", textAlign: "right" }}>{cover.agency || "발주기관"} 사장 귀하</Text>
+    </Page>
+  );
+}
+
 // LH가 실제로 요구하는 표준 표지. 다른 발주처의 실제 표지 샘플이 확보되면
 // 이 컴포넌트 옆에 XxxCoverPage를 추가하고 COVER_PAGE_COMPONENTS에 등록한다.
 function LhStandardCoverPage({ cover }: { cover: CoverPageData }) {
   return (
-    <Page size="A4" style={styles.coverPage}>
-      <TitleBox text="안 전 보 건 관 리 계 획 서" />
-      <View style={styles.coverTable}>
-        <View style={styles.coverTableRow}>
-          <Text style={styles.coverLabelCell}>공 사(용 역) 명</Text>
-          <Text style={styles.coverValueCell}>{cover.projectName || "(미입력)"}</Text>
+    <Fragment>
+      <Page size="A4" style={styles.coverPage}>
+        <TitleBox text="안 전 보 건 관 리 계 획 서" />
+        <View style={styles.coverTable}>
+          <View style={styles.coverTableRow}>
+            <Text style={styles.coverLabelCell}>공 사(용 역) 명</Text>
+            <Text style={styles.coverValueCell}>{cover.projectName || "(미입력)"}</Text>
+          </View>
+          <View style={styles.coverTableRow}>
+            <Text style={styles.coverLabelCell}>공 사 기 간</Text>
+            <Text style={styles.coverValueCell}>{cover.period || "(미입력)"}</Text>
+          </View>
+          <View style={styles.coverTableRow}>
+            <Text style={styles.coverLabelCell}>도 급 금 액</Text>
+            <Text style={styles.coverValueCell}>
+              {cover.contractAmount ? `${cover.contractAmount} (부가세 포함)` : "(미입력)"}
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row" }}>
+            <Text style={styles.coverLabelCell}>계상된 안전관리비</Text>
+            <Text style={styles.coverValueCell}>{cover.safetyBudget || "(미입력)"}</Text>
+          </View>
         </View>
-        <View style={styles.coverTableRow}>
-          <Text style={styles.coverLabelCell}>공 사 기 간</Text>
-          <Text style={styles.coverValueCell}>{cover.period || "(미입력)"}</Text>
-        </View>
-        <View style={styles.coverTableRow}>
-          <Text style={styles.coverLabelCell}>도 급 금 액</Text>
-          <Text style={styles.coverValueCell}>
-            {cover.contractAmount ? `${cover.contractAmount} (부가세 포함)` : "(미입력)"}
-          </Text>
-        </View>
-        <View style={{ flexDirection: "row" }}>
-          <Text style={styles.coverLabelCell}>계상된 안전관리비</Text>
-          <Text style={styles.coverValueCell}>{cover.safetyBudget || "(미입력)"}</Text>
-        </View>
-      </View>
-      <Text style={styles.coverDate}>{cover.submitDate}</Text>
-      <Text style={styles.coverAgency}>{cover.agency || "발주기관"} 귀하</Text>
-      <Text style={styles.coverCompany}>{cover.companyName || "(미입력)"}</Text>
-      <ApprovalTable cover={cover} />
-    </Page>
+        <Text style={styles.coverDate}>{cover.submitDate}</Text>
+        <Text style={styles.coverAgency}>{cover.agency || "발주기관"} 귀하</Text>
+        <Text style={styles.coverCompany}>{cover.companyName || "(미입력)"}</Text>
+        <ApprovalTable cover={cover} />
+      </Page>
+      <LhSubmissionLetterPage cover={cover} />
+    </Fragment>
   );
 }
 

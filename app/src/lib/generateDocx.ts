@@ -30,6 +30,16 @@ import { readImageDimensions } from "./imageDimensions";
 
 const FONT = "맑은 고딕";
 
+// LH 실제 표지 뒤에 붙는 "제출문"은 제출일자를 submitDate 전체("2026. 9. 25.")가
+// 아니라 "년/월"까지만("2026년 09월") 쓴다 — 실제 LH 샘플(화성동탄(2))의 제출문
+// 캡처를 그대로 따른 것. submitDate는 extractCoverPageData()에서 항상
+// "YYYY. M. D." 형식으로만 만들어지므로 정규식으로 안전하게 뽑아낸다.
+function formatSubmitYearMonth(submitDate: string): string {
+  const m = submitDate.match(/^(\d{4})\.\s*(\d{1,2})\./);
+  if (!m) return submitDate;
+  return `${m[1]}년 ${m[2].padStart(2, "0")}월`;
+}
+
 const CELL_BORDER = { style: BorderStyle.SINGLE, size: 4, color: "999999" } as const;
 const CELL_BORDERS = { top: CELL_BORDER, bottom: CELL_BORDER, left: CELL_BORDER, right: CELL_BORDER };
 const CELL_MARGINS = { top: 60, bottom: 60, left: 100, right: 100 };
@@ -272,6 +282,53 @@ function buildLhStandardCover(cover: CoverPageData): (Paragraph | Table)[] {
       children: [new TextRun({ text: cover.companyName || "(미입력)", bold: true, size: 24, font: FONT })],
     }),
     buildApprovalTable(cover),
+    new Paragraph({ children: [new PageBreak()] }),
+    ...buildLhSubmissionLetter(cover),
+  ];
+}
+
+// 실제 LH 표지 샘플(화성동탄(2))의 표지 다음 장에 그대로 나오는 "제출문" 페이지.
+// 정보 표(공사명/기간/금액 등)를 나열하는 위 표지와 달리, 문장형 수신문으로
+// "귀사 발주공사인 "OOO" 수행을 위해..."라고 쓰고 발주처를 "OO 사장 귀하"로
+// 부른다(K-water의 "OO 귀하"와 다른 LH만의 문구 — kwater_standard와 별도 함수).
+function buildLhSubmissionLetter(cover: CoverPageData): Paragraph[] {
+  return [
+    new Paragraph({ spacing: { after: 900 }, children: [] }),
+    new Paragraph({
+      spacing: { after: 900 },
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: "제 출 문", bold: true, size: 32, font: FONT })],
+    }),
+    new Paragraph({
+      spacing: { after: 900, line: 360 },
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: `귀사 발주공사인 "${cover.projectName || "(미입력)"}" 수행을 위해 아래와 같이 안전보건관리계획서를 제출합니다.`,
+          size: 22,
+          font: FONT,
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 500, after: 900 },
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: formatSubmitYearMonth(cover.submitDate), size: 22, font: FONT })],
+    }),
+    new Paragraph({
+      indent: { left: 1800 },
+      spacing: { after: 300 },
+      children: [new TextRun({ text: `업 체 명 : ${cover.companyName || "(미입력)"}`, size: 22, font: FONT })],
+    }),
+    new Paragraph({
+      indent: { left: 1800 },
+      spacing: { after: 900 },
+      children: [new TextRun({ text: `대표이사 : ${cover.writerName || ""}`, size: 22, font: FONT })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [new TextRun({ text: `${cover.agency || "발주기관"} 사장 귀하`, bold: true, size: 24, font: FONT })],
+    }),
     new Paragraph({ children: [new PageBreak()] }),
   ];
 }

@@ -25,7 +25,7 @@ import type {
   EmergencyTeamData,
   HazardDetailGroup,
 } from "./wizardExport";
-import type { CoverStyle } from "./agencyTemplates";
+import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
 
 const FONT = "맑은 고딕";
@@ -49,6 +49,17 @@ function numberedSectionHeading(number: number, text: string): Paragraph {
     heading: HeadingLevel.HEADING_1,
     spacing: { after: 300 },
     children: [new TextRun({ text: `${number}. ${text}`, bold: true, size: 26, font: FONT })],
+  });
+}
+
+// 장(章) 대제목("Ⅱ. 실행계획")을 그 장의 첫 절 바로 위에 한 번 보여준다. LH
+// 정형 사업개요 페이지의 chapterTitle과 동일한 크기(size 32)로 맞춰, "Ⅰ.안전
+// 보건관리 체계"(정형 페이지가 이미 보여줌)와 시각적으로 같은 급의 제목처럼
+// 보이게 한다.
+function chapterHeading(roman: string, title: string): Paragraph {
+  return new Paragraph({
+    spacing: { after: 300 },
+    children: [new TextRun({ text: `${roman}. ${title}`, bold: true, size: 32, font: FONT })],
   });
 }
 
@@ -787,9 +798,16 @@ export async function generateWizardDocx(
   // section_order 기준 장(章) 내 순번(agencyTemplates.computeSectionOrderNumbers).
   // 없으면(공통 6대 목차만 쓰는 일반 문서) 문서 전체를 훑는 연속 번호로 대체한다.
   managementPolicyNumber?: number,
-  orgChartNumber?: number
+  orgChartNumber?: number,
+  sectionOrder: SectionOrderGroup[] = []
 ): Promise<Buffer> {
   const children: (Paragraph | Table)[] = [];
+  const chapters = computeSectionOrderChapters(sectionOrder);
+  // 장(章)이 바뀔 때마다 "Ⅱ. 실행계획" 같은 대제목을 한 번씩 보여준다. Ⅰ장은
+  // 정형 사업개요 페이지가 이미 자기 chapterTitle로 보여주므로(overviewPage가
+  // 있을 때만), lastChapterRoman을 미리 그 장의 로마숫자로 초기화해 같은 대제목이
+  // 안전보건 경영방침/조직구성 앞에 또 나오지 않게 한다.
+  let lastChapterRoman: string | undefined = overviewPage ? chapters["overview"]?.roman : undefined;
 
   if (cover) {
     const render = COVER_RENDERERS[coverStyle] ?? buildGenericCover;
@@ -803,6 +821,11 @@ export async function generateWizardDocx(
 
   let nextHeadingNumber = overviewPage ? 2 : 1;
   if (managementPolicy) {
+    const chapter = chapters["management-policy"];
+    if (chapter && chapter.roman !== lastChapterRoman) {
+      children.push(chapterHeading(chapter.roman, chapter.title));
+      lastChapterRoman = chapter.roman;
+    }
     const number = managementPolicyNumber ?? nextHeadingNumber;
     if (managementPolicy.mode === "image" && managementPolicyImage) {
       children.push(...buildManagementPolicyImagePage(managementPolicyImage, number));
@@ -813,6 +836,11 @@ export async function generateWizardDocx(
   }
 
   if (orgChart) {
+    const chapter = chapters["org_chart"];
+    if (chapter && chapter.roman !== lastChapterRoman) {
+      children.push(chapterHeading(chapter.roman, chapter.title));
+      lastChapterRoman = chapter.roman;
+    }
     children.push(...buildOrgChartPage(orgChart, orgChartNumber ?? nextHeadingNumber));
     nextHeadingNumber += 1;
   }
@@ -823,6 +851,11 @@ export async function generateWizardDocx(
   sections.forEach((section, sectionIndex) => {
     if (sectionIndex > 0) {
       children.push(new Paragraph({ children: [new PageBreak()] }));
+    }
+
+    if (section.chapterRoman && section.chapterRoman !== lastChapterRoman) {
+      children.push(chapterHeading(section.chapterRoman, section.chapterTitle ?? ""));
+      lastChapterRoman = section.chapterRoman;
     }
 
     const headingNumber = section.headingNumber ?? nextHeadingNumber;

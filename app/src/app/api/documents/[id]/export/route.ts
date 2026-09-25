@@ -184,7 +184,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           managementPolicyImage,
           orgChart,
           managementPolicyNumber,
-          orgChartNumber
+          orgChartNumber,
+          sectionOrder
         ),
         45000
       );
@@ -209,7 +210,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           managementPolicyImage,
           orgChart,
           managementPolicyNumber,
-          orgChartNumber
+          orgChartNumber,
+          sectionOrder
         ),
         45000
       );
@@ -233,7 +235,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         managementPolicyImage,
         orgChart,
         managementPolicyNumber,
-        orgChartNumber
+        orgChartNumber,
+        sectionOrder
       ),
       45000
     );

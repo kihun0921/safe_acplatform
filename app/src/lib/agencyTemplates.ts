@@ -173,6 +173,21 @@ export function computeSectionOrderNumbers(groups: SectionOrderGroup[] | null | 
   return result;
 }
 
+// { member id → 그 절이 속한 장(章)의 로마숫자+제목 } 맵. 다운로드 문서에서
+// "Ⅱ. 실행계획"처럼 장이 바뀔 때마다 대제목을 보여주기 위해, 각 절이 어느
+// 장 소속인지 조회하는 용도로 쓴다.
+export function computeSectionOrderChapters(
+  groups: SectionOrderGroup[] | null | undefined
+): Record<string, { roman: string; title: string }> {
+  const result: Record<string, { roman: string; title: string }> = {};
+  for (const group of groups ?? []) {
+    for (const id of group.members) {
+      result[id] = { roman: group.roman, title: group.title };
+    }
+  }
+  return result;
+}
+
 // 다운로드 문서(DOCX/PDF/HWPX) 맨 앞에 붙는 표지 레이아웃 종류. 표지 데이터
 // (공사명/공사기간/도급금액/작성자 등)는 발주처와 무관하게 항상 동일하고,
 // 발주처마다 다른 건 그 데이터를 배치하는 레이아웃뿐이라 발주처별로 실제

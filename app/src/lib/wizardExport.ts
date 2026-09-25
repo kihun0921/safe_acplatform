@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { computeSectionOrderNumbers, type SectionOrderGroup } from "./agencyTemplates";
+import { computeSectionOrderChapters, computeSectionOrderNumbers, type SectionOrderGroup } from "./agencyTemplates";
 
 // 최종 계획서(HWP/DOCX/PDF) 생성을 위해, WizardScreen이 화면에서 하는 것과 똑같은
 // 방식으로 doc.content.fields(자동저장된 값)를 위저드 HTML 위에 적용한 뒤, 각
@@ -45,6 +45,11 @@ export interface WizardSection {
   // 쓰는 경우)는 각 목차 자체가 곧 하나의 장이라 항상 undefined로 남고, 생성기가
   // 문서 전체를 순서대로 훑는 연속 번호로 대체한다.
   headingNumber?: number;
+  // 이 절이 속한 장(章)의 로마숫자+제목("Ⅱ", "실행계획") — 생성기가 장이 바뀔
+  // 때마다 "Ⅱ. 실행계획" 대제목을 본문에 보여주기 위해 쓴다. headingNumber와
+  // 마찬가지로 section_order가 없으면 undefined로 남는다.
+  chapterRoman?: string;
+  chapterTitle?: string;
 }
 
 export interface HazardDetailGroup {
@@ -428,6 +433,7 @@ export function extractWizardSections(
   const $ = cheerio.load(html);
   applySavedFields($, savedFields);
   const chapterNumbers = computeSectionOrderNumbers(sectionOrder);
+  const chapters = computeSectionOrderChapters(sectionOrder);
 
   const sections: WizardSection[] = [];
   // sec-cover는 위저드 화면에서만 보여주는 안내용 섹션(표지는 다운로드 시
@@ -515,8 +521,20 @@ export function extractWizardSections(
       ? extractHazardDetailGroups($, $section, id)
       : undefined;
 
-    const headingNumber = chapterNumbers[bareSectionId(id)];
-    sections.push({ id, heading, fields, tables, emergencyTeam, hazardDetailGroups, headingNumber });
+    const bareId = bareSectionId(id);
+    const headingNumber = chapterNumbers[bareId];
+    const chapter = chapters[bareId];
+    sections.push({
+      id,
+      heading,
+      fields,
+      tables,
+      emergencyTeam,
+      hazardDetailGroups,
+      headingNumber,
+      chapterRoman: chapter?.roman,
+      chapterTitle: chapter?.title,
+    });
   });
 
   return sections;

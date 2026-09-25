@@ -12,7 +12,7 @@ import type {
   EmergencyTeamData,
   HazardDetailGroup,
 } from "./wizardExport";
-import type { CoverStyle } from "./agencyTemplates";
+import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
 
 // Noto Sans KR (SIL Open Font License — free to embed/redistribute), downloaded once
@@ -445,13 +445,28 @@ const OVERVIEW_PAGE_COMPONENTS: Record<string, (props: { data: OverviewPageData 
 // "안전보건 경영방침 및 목표": 회사가 자체 이미지를 첨부했으면 그 이미지를 페이지
 // 폭에 맞춰 원본 비율대로 삽입하고, 아니면 실제 LH 표준 문구 서식(음영 박스
 // 2곳만 회사 입력값, 나머지는 고정 문구 + 회사명 자동 치환)을 그대로 재현한다.
-function ManagementPolicyImagePage({ imageBuffer, number }: { imageBuffer: Buffer; number: number }) {
+type ChapterHeadingInfo = { roman: string; title: string };
+
+function ManagementPolicyImagePage({
+  imageBuffer,
+  number,
+  chapter,
+}: {
+  imageBuffer: Buffer;
+  number: number;
+  chapter?: ChapterHeadingInfo;
+}) {
   const dims = readImageDimensions(imageBuffer);
   const isPng = imageBuffer.length >= 8 && imageBuffer.readUInt32BE(0) === 0x89504e47;
   const isJpg = imageBuffer.length >= 2 && imageBuffer[0] === 0xff && imageBuffer[1] === 0xd8;
   if (!dims || (!isPng && !isJpg)) {
     return (
       <Page size="A4" style={styles.policyPage}>
+        {chapter && (
+          <Text style={styles.overviewChapterTitle}>
+            {chapter.roman}. {chapter.title}
+          </Text>
+        )}
         <Text style={styles.heading}>{number}. 안전보건 경영방침 및 목표</Text>
         <Text>
           첨부된 안전보건경영방침 이미지 형식을 지원하지 않아 표시할 수 없습니다. PNG 또는 JPEG로 다시 업로드해
@@ -467,6 +482,11 @@ function ManagementPolicyImagePage({ imageBuffer, number }: { imageBuffer: Buffe
   const scale = Math.min(1, maxWidth / dims.width, maxHeight / dims.height);
   return (
     <Page size="A4" style={styles.policyImagePage}>
+      {chapter && (
+        <Text style={[styles.overviewChapterTitle, { alignSelf: "stretch" }]}>
+          {chapter.roman}. {chapter.title}
+        </Text>
+      )}
       <Text style={[styles.heading, { alignSelf: "stretch" }]}>{number}. 안전보건 경영방침 및 목표</Text>
       {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is a PDF-embed primitive (no alt prop), not an HTML <img> */}
       <Image src={dataUri} style={{ width: dims.width * scale, height: dims.height * scale }} />
@@ -504,9 +524,22 @@ function LabeledImagePage({ imageBuffer, label }: { imageBuffer: Buffer; label: 
   );
 }
 
-function ManagementPolicyStandardPage({ data, number }: { data: ManagementPolicyData; number: number }) {
+function ManagementPolicyStandardPage({
+  data,
+  number,
+  chapter,
+}: {
+  data: ManagementPolicyData;
+  number: number;
+  chapter?: ChapterHeadingInfo;
+}) {
   return (
     <Page size="A4" style={styles.policyPage}>
+      {chapter && (
+        <Text style={styles.overviewChapterTitle}>
+          {chapter.roman}. {chapter.title}
+        </Text>
+      )}
       <Text style={[styles.heading, { marginBottom: 20 }]}>{number}. 안전보건 경영방침 및 목표</Text>
       <Text style={styles.policySubTitle}>가. 안전보건 경영방침</Text>
       <View style={styles.policyShadedBox}>
@@ -565,7 +598,7 @@ function OrgChartBox({ x, y, node, width = ORG_BOX_W }: { x: number; y: number; 
 // 1·2팀장만 나란히 갈라진다(예전에는 현장소장·안전관리자가 나란히 있고
 // 관리감독자로 합쳐지는 Y자 모양이라 화면과 다운로드 문서의 조직도가 서로
 // 달랐다).
-function OrgChartPage({ data, number }: { data: OrgChartData; number: number }) {
+function OrgChartPage({ data, number, chapter }: { data: OrgChartData; number: number; chapter?: ChapterHeadingInfo }) {
   const row1Y = 20;
   const row2Y = 96;
   const row3Y = 172;
@@ -580,6 +613,11 @@ function OrgChartPage({ data, number }: { data: OrgChartData; number: number }) 
 
   return (
     <Page size="A4" style={styles.policyPage}>
+      {chapter && (
+        <Text style={styles.overviewChapterTitle}>
+          {chapter.roman}. {chapter.title}
+        </Text>
+      )}
       <Text style={[styles.heading, { marginBottom: 20 }]}>{number}. 안전보건관리 조직구성</Text>
       <Text style={[styles.policySubTitle, { marginBottom: 16 }]}>나. 현장 사업소 조직도(임무 및 비상연락망 포함)</Text>
       <Svg width="100%" height={320} viewBox="0 0 500 320">
@@ -700,7 +738,8 @@ export async function generateWizardPdf(
   // section_order 기준 장(章) 내 순번(agencyTemplates.computeSectionOrderNumbers).
   // 없으면(공통 6대 목차만 쓰는 일반 문서) 문서 전체를 훑는 연속 번호로 대체한다.
   managementPolicyNumberOverride?: number,
-  orgChartNumberOverride?: number
+  orgChartNumberOverride?: number,
+  sectionOrder: SectionOrderGroup[] = []
 ): Promise<Buffer> {
   ensureFontsRegistered();
 
@@ -712,18 +751,42 @@ export async function generateWizardPdf(
 
   const CoverPageComponent = COVER_PAGE_COMPONENTS[coverStyle] ?? GenericCoverPage;
   const OverviewPageComponent = overviewPageStyle ? OVERVIEW_PAGE_COMPONENTS[overviewPageStyle] : undefined;
+  // section.chapterRoman은 sanitizeForPdf(sections)를 거치며 로마숫자 글리프가
+  // 폰트에 없어 "Ⅰ"→"I"로 치환되므로(PDF_UNSAFE_CHAR_MAP), 여기서도 같은 치환을
+  // 거친 값으로 비교해야 한다 — 안 그러면 "Ⅰ" !== "I"로 취급돼 Ⅰ장 안에서도
+  // 매 절마다 대제목이 다시 나오는 오류가 있었다.
+  const chapters = sanitizeForPdf(computeSectionOrderChapters(sectionOrder));
+  // 장(章)이 바뀔 때마다 "Ⅱ. 실행계획" 같은 대제목을 한 번씩 보여준다. Ⅰ장은
+  // 정형 사업개요 페이지가 이미 자기 chapterTitle로 보여주므로(overviewPage가
+  // 있을 때만), lastChapterRoman을 미리 그 장의 로마숫자로 초기화해 같은 대제목이
+  // 안전보건 경영방침/조직구성 앞에 또 나오지 않게 한다.
+  let lastChapterRoman: string | undefined = overviewPage ? chapters["overview"]?.roman : undefined;
+  const nextChapterHeading = (id: string): { roman: string; title: string } | undefined => {
+    const chapter = chapters[id];
+    if (!chapter || chapter.roman === lastChapterRoman) return undefined;
+    lastChapterRoman = chapter.roman;
+    return chapter;
+  };
+
   // 소제목 번호는 section_order 기준 장(章) 내 순번(managementPolicyNumberOverride/
   // orgChartNumberOverride/section.headingNumber)을 우선 쓰고, 없으면(공통 6대
   // 목차만 쓰는 일반 문서) 문서 전체를 훑는 연속 번호로 대체한다.
   let nextHeadingNumber = overviewPage ? 2 : 1;
+  const managementPolicyChapter = nextChapterHeading("management-policy");
   const managementPolicyNumber = managementPolicyNumberOverride ?? nextHeadingNumber;
   if (managementPolicy) nextHeadingNumber = managementPolicyNumber + 1;
+  const orgChartChapter = nextChapterHeading("org_chart");
   const orgChartNumber = orgChartNumberOverride ?? nextHeadingNumber;
   if (orgChart) nextHeadingNumber = orgChartNumber + 1;
   const numberedSections = sections.map((section) => {
     const number = section.headingNumber ?? nextHeadingNumber;
     nextHeadingNumber = number + 1;
-    return { section, number };
+    const chapter =
+      section.chapterRoman && section.chapterRoman !== lastChapterRoman
+        ? { roman: section.chapterRoman, title: section.chapterTitle ?? "" }
+        : undefined;
+    if (chapter) lastChapterRoman = chapter.roman;
+    return { section, number, chapter };
   });
 
   const doc = (
@@ -731,15 +794,20 @@ export async function generateWizardPdf(
       {cover && <CoverPageComponent cover={cover} />}
       {overviewPage && OverviewPageComponent && <OverviewPageComponent data={overviewPage} />}
       {managementPolicy && managementPolicy.mode === "image" && managementPolicyImage && (
-        <ManagementPolicyImagePage imageBuffer={managementPolicyImage} number={managementPolicyNumber} />
+        <ManagementPolicyImagePage imageBuffer={managementPolicyImage} number={managementPolicyNumber} chapter={managementPolicyChapter} />
       )}
       {managementPolicy && !(managementPolicy.mode === "image" && managementPolicyImage) && (
-        <ManagementPolicyStandardPage data={managementPolicy} number={managementPolicyNumber} />
+        <ManagementPolicyStandardPage data={managementPolicy} number={managementPolicyNumber} chapter={managementPolicyChapter} />
       )}
-      {orgChart && <OrgChartPage data={orgChart} number={orgChartNumber} />}
-      {numberedSections.map(({ section, number }) => (
+      {orgChart && <OrgChartPage data={orgChart} number={orgChartNumber} chapter={orgChartChapter} />}
+      {numberedSections.map(({ section, number, chapter }) => (
         <Fragment key={section.id}>
           <Page size="A4" style={styles.page}>
+            {chapter && (
+              <Text style={styles.overviewChapterTitle}>
+                {chapter.roman}. {chapter.title}
+              </Text>
+            )}
             <Text style={styles.heading}>
               {number}. {section.heading}
             </Text>

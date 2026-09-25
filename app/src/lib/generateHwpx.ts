@@ -9,7 +9,7 @@ import type {
   OrgChartData,
   HazardDetailGroup,
 } from "./wizardExport";
-import type { CoverStyle } from "./agencyTemplates";
+import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
 
 // HWPX(.hwpx)는 한글과컴퓨터의 개방형 문서 표준(OWPML, KS X 6101)으로, ZIP 컨테이너 안에
@@ -832,8 +832,10 @@ function buildSection0Xml(
   // section_order 기준 장(章) 내 순번(agencyTemplates.computeSectionOrderNumbers).
   // 없으면(공통 6대 목차만 쓰는 일반 문서) 문서 전체를 훑는 연속 번호로 대체한다.
   managementPolicyNumberOverride?: number,
-  orgChartNumberOverride?: number
+  orgChartNumberOverride?: number,
+  sectionOrder: SectionOrderGroup[] = []
 ): string {
+  const chapters = computeSectionOrderChapters(sectionOrder);
   const baseSection0 = fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "section0.xml"), "utf8");
   // 템플릿의 첫 <hp:p>(secPr가 들어있는, 페이지 크기/여백을 정의하는 문단)는 그대로 두고,
   // 그 뒤에 우리 본문 문단들을 추가한다.
@@ -859,6 +861,12 @@ function buildSection0Xml(
       overviewPageInserted = true;
     }
   }
+  // 장(章)이 바뀔 때마다 "Ⅱ. 실행계획" 같은 대제목을 한 번씩 보여준다. Ⅰ장은
+  // 정형 사업개요 페이지가 이미 자기 chapterTitle로 보여주므로(overviewPage가
+  // 있을 때만), lastChapterRoman을 미리 그 장의 로마숫자로 초기화해 같은 대제목이
+  // 안전보건 경영방침/조직구성 앞에 또 나오지 않게 한다.
+  let lastChapterRoman: string | undefined = overviewPageInserted ? chapters["overview"]?.roman : undefined;
+
   // 소제목 번호는 section_order 기준 장(章) 내 순번(managementPolicyNumberOverride/
   // orgChartNumberOverride/section.headingNumber)을 우선 쓰고, 없으면(공통 6대
   // 목차만 쓰는 일반 문서) 문서 전체를 훑는 연속 번호로 대체한다.
@@ -867,7 +875,12 @@ function buildSection0Xml(
   if (managementPolicy) {
     const number = managementPolicyNumberOverride ?? nextHeadingNumber;
     const policyParagraphs = buildManagementPolicyParagraphs(managementPolicy, managementPolicyImage, registeredImages, number);
-    if (policyParagraphs.length) {
+    const chapter = chapters["management-policy"];
+    const needsChapterHeading = Boolean(chapter && chapter.roman !== lastChapterRoman);
+    if (needsChapterHeading && chapter) {
+      paragraphs.push(textParagraph(`${chapter.roman}. ${chapter.title}`, "5", Boolean(cover || overviewPageInserted)));
+      lastChapterRoman = chapter.roman;
+    } else if (policyParagraphs.length) {
       policyParagraphs[0] = policyParagraphs[0].replace(
         'pageBreak="0"',
         `pageBreak="${cover || overviewPageInserted ? 1 : 0}"`
@@ -881,7 +894,14 @@ function buildSection0Xml(
   if (orgChart) {
     const number = orgChartNumberOverride ?? nextHeadingNumber;
     const orgParagraphs = buildOrgChartParagraphs(orgChart, number);
-    if (orgParagraphs.length) {
+    const chapter = chapters["org_chart"];
+    const needsChapterHeading = Boolean(chapter && chapter.roman !== lastChapterRoman);
+    if (needsChapterHeading && chapter) {
+      paragraphs.push(
+        textParagraph(`${chapter.roman}. ${chapter.title}`, "5", Boolean(cover || overviewPageInserted || managementPolicyInserted))
+      );
+      lastChapterRoman = chapter.roman;
+    } else if (orgParagraphs.length) {
       orgParagraphs[0] = orgParagraphs[0].replace(
         'pageBreak="0"',
         `pageBreak="${cover || overviewPageInserted || managementPolicyInserted ? 1 : 0}"`
@@ -899,12 +919,18 @@ function buildSection0Xml(
   const needsPageBreakBeforeFirstSection = Boolean(cover) || overviewPageInserted || managementPolicyInserted || orgChartInserted;
 
   sections.forEach((section, i) => {
+    let pageBreak = i === 0 ? needsPageBreakBeforeFirstSection : i > 0;
+    if (section.chapterRoman && section.chapterRoman !== lastChapterRoman) {
+      paragraphs.push(textParagraph(`${section.chapterRoman}. ${section.chapterTitle ?? ""}`, "5", pageBreak));
+      lastChapterRoman = section.chapterRoman;
+      // 장 대제목이 이미 페이지나눔을 가져갔으니, 바로 뒤따르는 절 제목은 같은
+      // 페이지에 이어 쓴다.
+      pageBreak = false;
+    }
     // charPrIDRef "5"는 "1.사업개요" 정형 페이지 소제목과 이미 같은 크기라 폰트
     // 크기는 그대로 두고, 번호만 붙인다.
     const headingNumber = section.headingNumber ?? nextHeadingNumber;
-    paragraphs.push(
-      textParagraph(`${headingNumber}. ${section.heading}`, "5", i === 0 ? needsPageBreakBeforeFirstSection : i > 0)
-    );
+    paragraphs.push(textParagraph(`${headingNumber}. ${section.heading}`, "5", pageBreak));
     nextHeadingNumber = headingNumber + 1;
     paragraphs.push(emptyParagraph());
     if (section.emergencyTeam) {
@@ -958,7 +984,8 @@ export async function generateWizardHwpx(
   managementPolicyImage?: Buffer | null,
   orgChart?: OrgChartData,
   managementPolicyNumberOverride?: number,
-  orgChartNumberOverride?: number
+  orgChartNumberOverride?: number,
+  sectionOrder: SectionOrderGroup[] = []
 ): Promise<Buffer> {
   const zip = new JSZip();
 
@@ -986,7 +1013,8 @@ export async function generateWizardHwpx(
     managementPolicyImage,
     orgChart,
     managementPolicyNumberOverride,
-    orgChartNumberOverride
+    orgChartNumberOverride,
+    sectionOrder
   );
   zip.file("Contents/section0.xml", section0Xml);
 

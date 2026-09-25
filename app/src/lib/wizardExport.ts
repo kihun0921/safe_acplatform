@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import type { AnyNode } from "domhandler";
 import { computeSectionOrderChapters, computeSectionOrderNumbers, type SectionOrderGroup } from "./agencyTemplates";
 
 // 최종 계획서(HWP/DOCX/PDF) 생성을 위해, WizardScreen이 화면에서 하는 것과 똑같은
@@ -50,6 +51,20 @@ export interface WizardSection {
   // 마찬가지로 section_order가 없으면 undefined로 남는다.
   chapterRoman?: string;
   chapterTitle?: string;
+  // "작업투입 인력 인적사항"(sec-workforce)의 3개 소서식(안전취약근로자 식별/
+  // 화재감시자 등 지정/2인1조 편성표)을 항목별로 구조화한 배열. 원래는 "가.목적"
+  // textarea 3개가 전부 똑같은 라벨(label)로, 표 5개(기준표 2개+관리대장 3개)가
+  // 어느 소서식 것인지 구분 없이 한꺼번에 나열돼 어떤 내용이 어디 소속인지 알 수
+  // 없었다 — 이 필드가 있으면 fields/tables 대신 이 필드로 렌더링해 소서식별
+  // 번호("1.", "2.", "3.")·목적/대상 문구·표를 순서대로 보여준다.
+  workforcePlanGroups?: WorkforcePlanGroup[];
+}
+
+export interface WorkforcePlanGroup {
+  title: string;
+  intro: string;
+  criteriaTable?: { headers: string[]; rows: string[][] };
+  table: { headers: string[]; rows: string[][] };
 }
 
 export interface HazardDetailGroup {
@@ -414,6 +429,65 @@ function extractEmergencyTeamData($: cheerio.CheerioAPI): EmergencyTeamData {
   };
 }
 
+// 표 하나(<table>)에서 헤더·행 값을 뽑는다. extractWizardSections()의 섹션 전체
+// 표 스캔과 extractWorkforcePlanGroups()의 소서식별 표 스캔이 똑같은 규칙(관리
+// 열 제외, 셀 안 입력요소면 그 값, colspan 병합 셀은 빈 칸으로 채워 컬럼 수
+// 맞추기)을 공유해야 해서 함수로 뺐다.
+function extractTableData($: cheerio.CheerioAPI, tableEl: AnyNode): { headers: string[]; rows: string[][] } | null {
+  const $table = $(tableEl);
+  const headers: string[] = [];
+  $table.find("thead th").each((_, th) => {
+    const text = $(th).text().replace(/\s+/g, " ").trim();
+    if (text !== "관리") headers.push(text);
+  });
+  const rows: string[][] = [];
+  $table.find("tbody tr").each((_, tr) => {
+    const row: string[] = [];
+    $(tr)
+      .find("td")
+      .each((_, td) => {
+        const $td = $(td);
+        if (
+          $td.find("[data-risk-delete], [data-emergency-contact-delete], [data-workforce-delete], [data-hazard-delete]").length
+        )
+          return;
+        const control = $td.find("input, textarea, select").first();
+        const text = control.length ? fieldValue($, control.get(0)) : $td.text().replace(/\s+/g, " ").trim();
+        row.push(text);
+        const colspan = Math.max(1, parseInt($td.attr("colspan") ?? "1", 10) || 1);
+        for (let i = 1; i < colspan; i += 1) row.push("");
+      });
+    if (row.length) rows.push(row);
+  });
+  return rows.length > 0 ? { headers, rows } : null;
+}
+
+// "작업투입 인력 인적사항"(sec-workforce)의 3개 소서식 div(class="space-y-3",
+// wizardHtml.ts buildWorkforceSectionHtml이 순서대로 렌더링)을 각각 제목("N. ..."
+// 에서 번호를 뗀 나머지)·목적/대상 안내문(dipReadonlyBlock의 readonly textarea)·
+// 기준표(있으면)·관리대장/명단/편성표로 구조화한다. 소서식 3(2인1조 편성표)은
+// 기준표가 없어 표가 1개뿐이다.
+function extractWorkforcePlanGroups($: cheerio.CheerioAPI, $section: ReturnType<cheerio.CheerioAPI>): WorkforcePlanGroup[] {
+  const groups: WorkforcePlanGroup[] = [];
+  $section.find("div.space-y-3").each((_, groupEl) => {
+    const $group = $(groupEl);
+    const rawTitle = $group.find("> p.font-bold").first().text().trim();
+    const title = rawTitle.replace(/^\d+\.\s*/, "");
+    const intro = $group.find("textarea[readonly]").first().text().trim();
+    const tableEls = $group.find("table").toArray();
+    let criteriaTable: { headers: string[]; rows: string[][] } | undefined;
+    let table: { headers: string[]; rows: string[][] } | undefined;
+    if (tableEls.length >= 2) {
+      criteriaTable = extractTableData($, tableEls[0]) ?? undefined;
+      table = extractTableData($, tableEls[1]) ?? undefined;
+    } else if (tableEls.length === 1) {
+      table = extractTableData($, tableEls[0]) ?? undefined;
+    }
+    if (title && table) groups.push({ title, intro, criteriaTable, table });
+  });
+  return groups;
+}
+
 // "sec-tpl-education_plan" → "education_plan", "sec-overview" → "overview" —
 // section_order의 members가 쓰는 원래 id로 되돌린다(발주처 전용 항목은
 // buildTemplateSectionsHtml이 "sec-tpl-" 접두어를 붙이고, 공통/고정서식 항목은
@@ -450,6 +524,11 @@ export function extractWizardSections(
     const heading = $section.find("h2").first().text().trim();
 
     const fields: WizardFieldRow[] = [];
+    // sec-workforce는 목적/대상 안내문(readonly textarea)까지 포함해 위
+    // extractWorkforcePlanGroups()가 소서식별로 전부 구조화해서 뽑으므로,
+    // 여기서는 아예 훑지 않는다 — 안 그러면 3개 소서식의 "가.목적/대상" textarea가
+    // 전부 똑같은 라벨(예: "가. 목적")로 구분 없이 중복 출력된다.
+    if (id !== "sec-workforce")
     $section.find("input, textarea, select").each((_, el) => {
       const $el = $(el);
       const type = $el.attr("type");
@@ -469,57 +548,33 @@ export function extractWizardSections(
       // 어떤 장비·물질에 대한 내용인지 알 수 없는 텍스트가 항목 수만큼 중복
       // 출력된다(실제로 발생했던 버그).
       if ($el.attr("data-hazard-field") !== undefined || $el.attr("data-hazard-check") !== undefined) return;
+      // 작업투입 인력 인적사항의 관리대장·명단·편성표 행 입력(성명/소속/구분 등)도
+      // 마찬가지로 아래 extractWorkforcePlanGroups()가 표로 구조화해서 뽑으므로,
+      // 여기서 "관리: 값" 식 일반 필드로 중복 출력하지 않는다(실제로 발생했던 버그 —
+      // 표 5개 분량의 셀 값이 전부 라벨 없는 필드로 새어나갔다).
+      if ($el.attr("data-workforce-field") !== undefined) return;
       const label = findLabel($, el);
       const value = fieldValue($, el);
       if (label) fields.push({ label, value });
     });
 
     // 섹션 안의 표를 전부(첫 번째만이 아니라) 배열로 담는다 — "중대산업재해 등
-    // 비상 상황시 조치계획"처럼 표가 여러 개인 섹션이 있다.
+    // 비상 상황시 조치계획"처럼 표가 여러 개인 섹션이 있다. "작업투입 인력
+    // 인적사항"(sec-workforce)은 이 표들을 소서식별로 구조화한 workforcePlanGroups로
+    // 대신 내보내므로 여기서는 비워 둔다(안 그러면 같은 표 5개가 두 번 나온다).
     const tables: { headers: string[]; rows: string[][] }[] = [];
-    $section.find("table").each((_, tableEl) => {
-      const $table = $(tableEl);
-      // "관리"(행 삭제 버튼) 열은 편집용 UI일 뿐 문서 내용이 아니므로 출력물에서
-      // 헤더/셀 모두 제외한다(포함하면 아이콘 폰트 리거처 이름이 텍스트로 새어나감).
-      const headers: string[] = [];
-      $table
-        .find("thead th")
-        .each((_, th) => {
-          const text = $(th).text().replace(/\s+/g, " ").trim();
-          if (text !== "관리") headers.push(text);
-        });
-      const rows: string[][] = [];
-      $table.find("tbody tr").each((_, tr) => {
-        const row: string[] = [];
-        $(tr)
-          .find("td")
-          .each((_, td) => {
-            const $td = $(td);
-            if (
-              $td.find("[data-risk-delete], [data-emergency-contact-delete], [data-workforce-delete], [data-hazard-delete]")
-                .length
-            )
-              return;
-            // 위험성평가 표처럼 셀 안에 실제 입력요소(input/textarea/select)가 있으면
-            // 그 값을 읽고, 아니면(정적 텍스트 셀) 기존처럼 텍스트를 읽는다.
-            const control = $td.find("input, textarea, select").first();
-            const text = control.length ? fieldValue($, control.get(0)) : $td.text().replace(/\s+/g, " ").trim();
-            row.push(text);
-            // colspan="2" 같은 병합 셀(예: 적격업체 평가기준의 "합계" 행)은 물리적으로
-            // <td> 하나뿐이라, 그대로 두면 그 뒤 실제 셀들이 전부 한 칸씩 앞으로
-            // 밀려 헤더와 어긋난다 — 병합폭만큼 빈 칸을 채워 논리 컬럼 수를 맞춘다.
-            const colspan = Math.max(1, parseInt($td.attr("colspan") ?? "1", 10) || 1);
-            for (let i = 1; i < colspan; i += 1) row.push("");
-          });
-        if (row.length) rows.push(row);
+    if (id !== "sec-workforce") {
+      $section.find("table").each((_, tableEl) => {
+        const t = extractTableData($, tableEl);
+        if (t) tables.push(t);
       });
-      if (rows.length > 0) tables.push({ headers, rows });
-    });
+    }
 
     const emergencyTeam = id === "sec-emergency_plan" ? extractEmergencyTeamData($) : undefined;
     const hazardDetailGroups = HAZARD_DETAIL_FIELDS_BY_SECTION[id]
       ? extractHazardDetailGroups($, $section, id)
       : undefined;
+    const workforcePlanGroups = id === "sec-workforce" ? extractWorkforcePlanGroups($, $section) : undefined;
 
     const bareId = bareSectionId(id);
     const headingNumber = chapterNumbers[bareId];
@@ -527,6 +582,7 @@ export function extractWizardSections(
     sections.push({
       id,
       heading,
+      workforcePlanGroups,
       fields,
       tables,
       emergencyTeam,

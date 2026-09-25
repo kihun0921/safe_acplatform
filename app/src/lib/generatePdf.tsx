@@ -11,6 +11,7 @@ import type {
   OrgChartNode,
   EmergencyTeamData,
   HazardDetailGroup,
+  WorkforcePlanGroup,
 } from "./wizardExport";
 import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
@@ -684,6 +685,81 @@ function HazardDetailGroupsBlock({ groups }: { groups: HazardDetailGroup[] }) {
   );
 }
 
+// section.tables 렌더링(아래 numberedSections.map 안)과 WorkforcePlanGroupsBlock이
+// 똑같은 표 스타일(좁은 컬럼 가운데 정렬, 넓은 서술형 컬럼 왼쪽 정렬)을 공유해야
+// 해서 컴포넌트로 뺐다.
+function GenericTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
+  if (rows.length === 0) return null;
+  const headerLikeRow = headers.length ? headers : rows[0] ?? [];
+  return (
+    <View style={styles.table}>
+      {headers.length > 0 && (
+        <View style={styles.tableRow}>
+          {headers.map((h, idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.tableHeaderCellBox,
+                { flex: columnFlex(headerLikeRow[idx] ?? "") },
+                idx === headers.length - 1 ? { borderRight: "none" } : undefined,
+              ]}
+            >
+              <Text
+                style={[styles.tableHeaderCellText, { textAlign: isNarrowColumn(headerLikeRow[idx] ?? "") ? "center" : "left" }]}
+              >
+                {h}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+      {rows.map((row, rIdx) => (
+        <View key={rIdx} style={styles.tableRow}>
+          {row.map((cell, cIdx) => (
+            <View
+              key={cIdx}
+              style={[
+                styles.tableCellBox,
+                { flex: columnFlex(headerLikeRow[cIdx] ?? "") },
+                cIdx === row.length - 1 ? { borderRight: "none" } : undefined,
+              ]}
+            >
+              <Text style={[styles.tableCellText, { textAlign: isNarrowColumn(headerLikeRow[cIdx] ?? "") ? "center" : "left" }]}>
+                {cell}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// "작업투입 인력 인적사항"의 3개 소서식(안전취약근로자 식별/화재감시자 등 지정/
+// 2인1조 편성표)을 각각 번호("1.","2.","3.")·목적(대상) 안내문·기준표(있으면)·
+// 관리대장(명단/편성표)을 순서대로 보여준다. 이 절 전체의 바깥 소제목과는 별개로,
+// 소서식 자체의 번호는 항상 1부터 다시 매긴다(이 절 안에서만 의미 있는 하위 번호).
+function WorkforcePlanGroupsBlock({ groups }: { groups: WorkforcePlanGroup[] }) {
+  return (
+    <>
+      {groups.map((group, i) => (
+        <View key={i} wrap={false} style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 11, fontWeight: "bold", marginBottom: 8 }}>
+            {i + 1}. {group.title}
+          </Text>
+          {group.intro && <Text style={{ fontSize: 9, marginBottom: 8, lineHeight: 1.5 }}>{group.intro}</Text>}
+          {group.criteriaTable && (
+            <View style={{ marginBottom: 8 }}>
+              <GenericTable headers={group.criteriaTable.headers} rows={group.criteriaTable.rows} />
+            </View>
+          )}
+          <GenericTable headers={group.table.headers} rows={group.table.rows} />
+        </View>
+      ))}
+    </>
+  );
+}
+
 function EmergencyTeamDiagram({ data }: { data: EmergencyTeamData }) {
   const row1Y = 10;
   const row2Y = 86;
@@ -808,9 +884,11 @@ export async function generateWizardPdf(
                 {chapter.roman}. {chapter.title}
               </Text>
             )}
-            <Text style={styles.heading}>
-              {number}. {section.heading}
-            </Text>
+            {!section.workforcePlanGroups?.length && (
+              <Text style={styles.heading}>
+                {number}. {section.heading}
+              </Text>
+            )}
             {section.emergencyTeam && <EmergencyTeamDiagram data={section.emergencyTeam} />}
             {section.fields.map((f, idx) => (
               <View key={idx} style={styles.fieldRow}>
@@ -818,65 +896,14 @@ export async function generateWizardPdf(
                 <Text style={styles.fieldValue}>{f.value || "(미입력)"}</Text>
               </View>
             ))}
-            {section.tables.map(
-              (t, tIdx) => {
-                const headerLikeRow = t.headers.length ? t.headers : t.rows[0] ?? [];
-                return (
-                  t.rows.length > 0 && (
-                    <View key={tIdx} style={styles.table}>
-                      {t.headers.length > 0 && (
-                        <View style={styles.tableRow}>
-                          {t.headers.map((h, idx) => (
-                            <View
-                              key={idx}
-                              style={[
-                                styles.tableHeaderCellBox,
-                                { flex: columnFlex(headerLikeRow[idx] ?? "") },
-                                idx === t.headers.length - 1 ? { borderRight: "none" } : undefined,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.tableHeaderCellText,
-                                  { textAlign: isNarrowColumn(headerLikeRow[idx] ?? "") ? "center" : "left" },
-                                ]}
-                              >
-                                {h}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                      {t.rows.map((row, rIdx) => (
-                        <View key={rIdx} style={styles.tableRow}>
-                          {row.map((cell, cIdx) => (
-                            <View
-                              key={cIdx}
-                              style={[
-                                styles.tableCellBox,
-                                { flex: columnFlex(headerLikeRow[cIdx] ?? "") },
-                                cIdx === row.length - 1 ? { borderRight: "none" } : undefined,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.tableCellText,
-                                  { textAlign: isNarrowColumn(headerLikeRow[cIdx] ?? "") ? "center" : "left" },
-                                ]}
-                              >
-                                {cell}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      ))}
-                    </View>
-                  )
-                );
-              }
-            )}
+            {section.tables.map((t, tIdx) => (
+              <GenericTable key={tIdx} headers={t.headers} rows={t.rows} />
+            ))}
             {section.hazardDetailGroups?.length ? (
               <HazardDetailGroupsBlock groups={section.hazardDetailGroups} />
+            ) : null}
+            {section.workforcePlanGroups?.length ? (
+              <WorkforcePlanGroupsBlock groups={section.workforcePlanGroups} />
             ) : null}
           </Page>
           {section.accidentImages?.map((img, idx) => (

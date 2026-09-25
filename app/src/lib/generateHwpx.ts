@@ -8,6 +8,7 @@ import type {
   ManagementPolicyData,
   OrgChartData,
   HazardDetailGroup,
+  WorkforcePlanGroup,
 } from "./wizardExport";
 import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
@@ -430,6 +431,28 @@ function buildHazardDetailGroupsParagraphs(groups: HazardDetailGroup[]): string[
     if (group.note) {
       paragraphs.push(textParagraph(`비고(관계법령): ${group.note}`, "0", false));
     }
+    paragraphs.push(emptyParagraph());
+  });
+  return paragraphs;
+}
+
+// "작업투입 인력 인적사항"의 3개 소서식(안전취약근로자 식별/화재감시자 등 지정/
+// 2인1조 편성표)을 각각 번호("1.","2.","3.")·목적(대상) 안내문·기준표(있으면)·
+// 관리대장(명단/편성표)을 순서대로 보여준다. 이 절 전체의 바깥 소제목과는 별개로,
+// 소서식 자체의 번호는 항상 1부터 다시 매긴다(이 절 안에서만 의미 있는 하위 번호).
+function buildWorkforcePlanGroupsParagraphs(groups: WorkforcePlanGroup[]): string[] {
+  const paragraphs: string[] = [];
+  groups.forEach((group, i) => {
+    paragraphs.push(textParagraph(`${i + 1}. ${group.title}`, "6", false));
+    if (group.intro) {
+      paragraphs.push(textParagraph(group.intro, "0", false));
+    }
+    paragraphs.push(emptyParagraph());
+    if (group.criteriaTable) {
+      paragraphs.push(tableParagraph(group.criteriaTable.headers, group.criteriaTable.rows, false));
+      paragraphs.push(emptyParagraph());
+    }
+    paragraphs.push(tableParagraph(group.table.headers, group.table.rows, false));
     paragraphs.push(emptyParagraph());
   });
   return paragraphs;
@@ -930,6 +953,21 @@ function buildSection0Xml(
     // charPrIDRef "5"는 "1.사업개요" 정형 페이지 소제목과 이미 같은 크기라 폰트
     // 크기는 그대로 두고, 번호만 붙인다.
     const headingNumber = section.headingNumber ?? nextHeadingNumber;
+    // "작업투입 인력 인적사항"은 이 절 하나가 소서식 3개(안전취약근로자 식별/
+    // 화재감시자 등 지정/2인1조 편성표)를 묶은 것이라, 이 절 자체의 번호 소제목을
+    // 또 찍으면 바로 뒤에 "1. 안전취약근로자..."가 이어져 번호가 1,1,2,3처럼
+    // 겹쳐 보인다 — workforcePlanGroups가 있으면 이 절의 소제목은 생략하고
+    // (章 대제목만으로 어느 절인지 알 수 있음) 소서식 번호(1,2,3)만 보여준다.
+    // 페이지나눔은 생략된 소제목 대신 그 다음에 오는 첫 소서식 제목이 이어받는다.
+    if (section.workforcePlanGroups?.length) {
+      const groupParagraphs = buildWorkforcePlanGroupsParagraphs(section.workforcePlanGroups);
+      if (groupParagraphs.length && pageBreak) {
+        groupParagraphs[0] = groupParagraphs[0].replace('pageBreak="0"', 'pageBreak="1"');
+      }
+      paragraphs.push(...groupParagraphs);
+      nextHeadingNumber = headingNumber + 1;
+      return;
+    }
     paragraphs.push(textParagraph(`${headingNumber}. ${section.heading}`, "5", pageBreak));
     nextHeadingNumber = headingNumber + 1;
     paragraphs.push(emptyParagraph());

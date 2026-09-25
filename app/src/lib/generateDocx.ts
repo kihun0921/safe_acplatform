@@ -24,6 +24,7 @@ import type {
   OrgChartNode,
   EmergencyTeamData,
   HazardDetailGroup,
+  WorkforcePlanGroup,
 } from "./wizardExport";
 import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
@@ -177,6 +178,94 @@ function buildHazardDetailGroupsBlocks(groups: HazardDetailGroup[]): (Paragraph 
     } else {
       blocks.push(new Paragraph({ spacing: { after: 120 }, children: [] }));
     }
+  });
+  return blocks;
+}
+
+// section.tables 렌더링(위 sections.forEach 안)과 buildWorkforcePlanGroupsBlocks가
+// 똑같은 표 스타일(좁은 컬럼 가운데 정렬, 넓은 서술형 컬럼 왼쪽 정렬)을 공유해야
+// 해서 함수로 뺐다.
+function buildGenericTable(headers: string[], rows: string[][]): Table {
+  const columnCount = headers.length || rows[0]?.length || 1;
+  const widths = computeColumnWidths(headers.length ? headers : rows[0] ?? [], columnCount);
+  const tableRows: TableRow[] = [];
+
+  if (headers.length > 0) {
+    tableRows.push(
+      new TableRow({
+        tableHeader: true,
+        children: headers.map(
+          (h, i) =>
+            new TableCell({
+              width: { size: widths[i] ?? widths[widths.length - 1], type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.CENTER,
+              shading: { fill: "F3F4F6" },
+              borders: CELL_BORDERS,
+              margins: CELL_MARGINS,
+              children: [
+                new Paragraph({
+                  alignment: isNarrowColumn(h) ? AlignmentType.CENTER : AlignmentType.LEFT,
+                  children: [new TextRun({ text: h, bold: true, size: 18, font: FONT })],
+                }),
+              ],
+            })
+        ),
+      })
+    );
+  }
+
+  for (const row of rows) {
+    tableRows.push(
+      new TableRow({
+        children: row.map(
+          (cell, i) =>
+            new TableCell({
+              width: { size: widths[i] ?? widths[widths.length - 1], type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.CENTER,
+              borders: CELL_BORDERS,
+              margins: CELL_MARGINS,
+              children: [
+                new Paragraph({
+                  alignment: isNarrowColumn(headers[i] ?? "") ? AlignmentType.CENTER : AlignmentType.LEFT,
+                  children: [new TextRun({ text: cell, size: 18, font: FONT })],
+                }),
+              ],
+            })
+        ),
+      })
+    );
+  }
+
+  return new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE }, layout: TableLayoutType.FIXED });
+}
+
+// "작업투입 인력 인적사항"의 3개 소서식(안전취약근로자 식별/화재감시자 등 지정/
+// 2인1조 편성표)을 각각 번호("1.","2.","3.")·목적(대상) 안내문·기준표(있으면)·
+// 관리대장(명단/편성표)을 순서대로 보여준다. 이 절 전체의 바깥 소제목(예: "1.
+// 작업투입 인력 인적사항")과는 별개로, 소서식 자체의 번호는 항상 1부터 다시
+// 매긴다(section_order와 무관하게 이 절 안에서만 의미 있는 하위 번호).
+function buildWorkforcePlanGroupsBlocks(groups: WorkforcePlanGroup[]): (Paragraph | Table)[] {
+  const blocks: (Paragraph | Table)[] = [];
+  groups.forEach((group, i) => {
+    blocks.push(
+      new Paragraph({
+        spacing: { before: i === 0 ? 0 : 300, after: 120 },
+        children: [new TextRun({ text: `${i + 1}. ${group.title}`, bold: true, size: 22, font: FONT })],
+      })
+    );
+    if (group.intro) {
+      blocks.push(
+        new Paragraph({
+          spacing: { after: 160 },
+          children: [new TextRun({ text: group.intro, size: 18, font: FONT })],
+        })
+      );
+    }
+    if (group.criteriaTable) {
+      blocks.push(buildGenericTable(group.criteriaTable.headers, group.criteriaTable.rows));
+      blocks.push(new Paragraph({ spacing: { before: 120, after: 120 }, children: [] }));
+    }
+    blocks.push(buildGenericTable(group.table.headers, group.table.rows));
   });
   return blocks;
 }
@@ -859,7 +948,14 @@ export async function generateWizardDocx(
     }
 
     const headingNumber = section.headingNumber ?? nextHeadingNumber;
-    children.push(numberedSectionHeading(headingNumber, section.heading));
+    // "작업투입 인력 인적사항"은 이 절 하나가 소서식 3개(안전취약근로자 식별/
+    // 화재감시자 등 지정/2인1조 편성표)를 묶은 것이라, 이 절 자체의 번호 소제목을
+    // 또 찍으면 바로 뒤에 "1. 안전취약근로자..."가 이어져 번호가 1,1,2,3처럼
+    // 겹쳐 보인다 — workforcePlanGroups가 있으면 이 절의 소제목은 생략하고
+    // (章 대제목만으로 어느 절인지 알 수 있음) 소서식 번호(1,2,3)만 보여준다.
+    if (!section.workforcePlanGroups?.length) {
+      children.push(numberedSectionHeading(headingNumber, section.heading));
+    }
     nextHeadingNumber = headingNumber + 1;
 
     if (section.emergencyTeam) {
@@ -901,65 +997,16 @@ export async function generateWizardDocx(
 
     for (const t of section.tables) {
       if (t.rows.length === 0) continue;
-      const { headers, rows } = t;
-      const columnCount = headers.length || rows[0]?.length || 1;
-      const widths = computeColumnWidths(headers.length ? headers : rows[0] ?? [], columnCount);
-      const tableRows: TableRow[] = [];
-
-      if (headers.length > 0) {
-        tableRows.push(
-          new TableRow({
-            tableHeader: true,
-            children: headers.map(
-              (h: string, i: number) =>
-                new TableCell({
-                  width: { size: widths[i] ?? widths[widths.length - 1], type: WidthType.PERCENTAGE },
-                  verticalAlign: VerticalAlign.CENTER,
-                  shading: { fill: "F3F4F6" },
-                  borders: CELL_BORDERS,
-                  margins: CELL_MARGINS,
-                  children: [
-                    new Paragraph({
-                      alignment: isNarrowColumn(h) ? AlignmentType.CENTER : AlignmentType.LEFT,
-                      children: [new TextRun({ text: h, bold: true, size: 18, font: FONT })],
-                    }),
-                  ],
-                })
-            ),
-          })
-        );
-      }
-
-      for (const row of rows) {
-        tableRows.push(
-          new TableRow({
-            children: row.map(
-              (cell: string, i: number) =>
-                new TableCell({
-                  width: { size: widths[i] ?? widths[widths.length - 1], type: WidthType.PERCENTAGE },
-                  verticalAlign: VerticalAlign.CENTER,
-                  borders: CELL_BORDERS,
-                  margins: CELL_MARGINS,
-                  children: [
-                    new Paragraph({
-                      alignment: isNarrowColumn(headers[i] ?? "") ? AlignmentType.CENTER : AlignmentType.LEFT,
-                      children: [new TextRun({ text: cell, size: 18, font: FONT })],
-                    }),
-                  ],
-                })
-            ),
-          })
-        );
-      }
-
-      children.push(
-        new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE }, layout: TableLayoutType.FIXED })
-      );
+      children.push(buildGenericTable(t.headers, t.rows));
       children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
     }
 
     if (section.hazardDetailGroups?.length) {
       children.push(...buildHazardDetailGroupsBlocks(section.hazardDetailGroups));
+    }
+
+    if (section.workforcePlanGroups?.length) {
+      children.push(...buildWorkforcePlanGroupsBlocks(section.workforcePlanGroups));
     }
   });
 

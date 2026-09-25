@@ -419,12 +419,24 @@ export function applySectionOrder(
     let groupNavHtml = "";
     // 장(章)이 바뀔 때마다 1로 되돌아가는 아라비아 숫자 — 아직 켜지지 않은
     // 플래그라 실제로는 나오지 않는 절(멤버 목록엔 있지만 매치가 안 되는 경우)은
-    // 건너뛰고 실제로 보이는 절만 세어야 번호가 중간에 비지 않는다.
+    // 건너뛰고 실제로 보이는 절만 세어야 번호가 중간에 비지 않는다. 본문 카드
+    // 존재 여부(bodyMatch)를 기준으로 세어서 nav 배지와 본문 배지가 항상 같은
+    // 번호를 가리키게 한다.
     let navOrder = 0;
     for (const id of members) {
       const isExtra = id in extraLabels;
       const sectionId = isExtra ? `sec-tpl-${id}` : `sec-${id}`;
       const label = escapeHtml(isExtra ? extraLabels[id] : commonLabels[id] ?? id);
+
+      const sectionRe = new RegExp(`<section[^>]*id="${sectionId}"[^>]*>`);
+      if (!sectionRe.test(result)) continue;
+
+      navOrder += 1;
+      // 같은 장(章) 안에서는 모든 절 카드가 똑같은 로마숫자 배지("Ⅰ")만 달고
+      // 있어 어느 절이 몇 번째인지 구분이 안 된다는 지적(예: "사업개요"와
+      // "안전보건 경영방침 및 목표"가 둘 다 "Ⅰ")을 받아, 로마숫자 뒤에 장 내
+      // 순번을 붙인 "Ⅰ-1", "Ⅰ-2" 형태로 바꿨다.
+      const badgeLabel = `${roman}-${navOrder}`;
 
       const navMatch = result.match(new RegExp(`<a[^>]*href="#${sectionId}"[^>]*>`));
       if (navMatch && navMatch.index !== undefined) {
@@ -432,14 +444,15 @@ export function applySectionOrder(
         const closeIdx = result.indexOf("</a>", start);
         if (closeIdx !== -1) {
           const end = closeIdx + "</a>".length;
-          navOrder += 1;
           groupNavHtml += buildGroupedNavItemHtml(sectionId, label, navOrder) + "\n";
           result = result.slice(0, start) + (navPlaced ? "" : NAV_TOKEN) + result.slice(end);
           navPlaced = true;
         }
       }
 
-      const bodyMatch = result.match(new RegExp(`<section[^>]*id="${sectionId}"[^>]*>`));
+      // nav 치환으로 result가 바뀌었을 수 있으므로, 본문 위치는 여기서 다시 찾는다
+      // (위 existsInBody 체크 때의 인덱스를 그대로 쓰면 nav 치환만큼 어긋난다).
+      const bodyMatch = result.match(sectionRe);
       if (bodyMatch && bodyMatch.index !== undefined) {
         const start = bodyMatch.index;
         const closeIdx = result.indexOf("</section>", start);
@@ -449,10 +462,10 @@ export function applySectionOrder(
           if (isExtra) {
             block = block.replace(
               EXTRA_BODY_ICON,
-              `<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">${roman}</span>`
+              `<span class="w-6 h-6 rounded-md bg-primary text-white text-xs font-bold flex items-center justify-center">${badgeLabel}</span>`
             );
           } else {
-            block = block.replace(COMMON_BODY_BADGE_RE, `$1${roman}$2`);
+            block = block.replace(COMMON_BODY_BADGE_RE, `$1${badgeLabel}$2`);
           }
           bodyContents.push(block);
           result = result.slice(0, start) + (bodyPlaced ? "" : BODY_TOKEN) + result.slice(end);

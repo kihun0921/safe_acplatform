@@ -445,13 +445,14 @@ const OVERVIEW_PAGE_COMPONENTS: Record<string, (props: { data: OverviewPageData 
 // "안전보건 경영방침 및 목표": 회사가 자체 이미지를 첨부했으면 그 이미지를 페이지
 // 폭에 맞춰 원본 비율대로 삽입하고, 아니면 실제 LH 표준 문구 서식(음영 박스
 // 2곳만 회사 입력값, 나머지는 고정 문구 + 회사명 자동 치환)을 그대로 재현한다.
-function ManagementPolicyImagePage({ imageBuffer }: { imageBuffer: Buffer }) {
+function ManagementPolicyImagePage({ imageBuffer, number }: { imageBuffer: Buffer; number: number }) {
   const dims = readImageDimensions(imageBuffer);
   const isPng = imageBuffer.length >= 8 && imageBuffer.readUInt32BE(0) === 0x89504e47;
   const isJpg = imageBuffer.length >= 2 && imageBuffer[0] === 0xff && imageBuffer[1] === 0xd8;
   if (!dims || (!isPng && !isJpg)) {
     return (
       <Page size="A4" style={styles.policyPage}>
+        <Text style={styles.heading}>{number}. 안전보건 경영방침 및 목표</Text>
         <Text>
           첨부된 안전보건경영방침 이미지 형식을 지원하지 않아 표시할 수 없습니다. PNG 또는 JPEG로 다시 업로드해
           주세요.
@@ -462,10 +463,11 @@ function ManagementPolicyImagePage({ imageBuffer }: { imageBuffer: Buffer }) {
   const mime = isPng ? "image/png" : "image/jpeg";
   const dataUri = `data:${mime};base64,${imageBuffer.toString("base64")}`;
   const maxWidth = 500;
-  const maxHeight = 700;
+  const maxHeight = 640;
   const scale = Math.min(1, maxWidth / dims.width, maxHeight / dims.height);
   return (
     <Page size="A4" style={styles.policyImagePage}>
+      <Text style={[styles.heading, { alignSelf: "stretch" }]}>{number}. 안전보건 경영방침 및 목표</Text>
       {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is a PDF-embed primitive (no alt prop), not an HTML <img> */}
       <Image src={dataUri} style={{ width: dims.width * scale, height: dims.height * scale }} />
     </Page>
@@ -502,10 +504,10 @@ function LabeledImagePage({ imageBuffer, label }: { imageBuffer: Buffer; label: 
   );
 }
 
-function ManagementPolicyStandardPage({ data }: { data: ManagementPolicyData }) {
+function ManagementPolicyStandardPage({ data, number }: { data: ManagementPolicyData; number: number }) {
   return (
     <Page size="A4" style={styles.policyPage}>
-      <Text style={styles.policyTitle}>안전보건 경영방침 및 목표</Text>
+      <Text style={[styles.heading, { marginBottom: 20 }]}>{number}. 안전보건 경영방침 및 목표</Text>
       <Text style={styles.policySubTitle}>가. 안전보건 경영방침</Text>
       <View style={styles.policyShadedBox}>
         <Text style={styles.policyShadedText}>{data.slogan || "(미입력)"}</Text>
@@ -563,7 +565,7 @@ function OrgChartBox({ x, y, node, width = ORG_BOX_W }: { x: number; y: number; 
 // 1·2팀장만 나란히 갈라진다(예전에는 현장소장·안전관리자가 나란히 있고
 // 관리감독자로 합쳐지는 Y자 모양이라 화면과 다운로드 문서의 조직도가 서로
 // 달랐다).
-function OrgChartPage({ data }: { data: OrgChartData }) {
+function OrgChartPage({ data, number }: { data: OrgChartData; number: number }) {
   const row1Y = 20;
   const row2Y = 96;
   const row3Y = 172;
@@ -578,7 +580,7 @@ function OrgChartPage({ data }: { data: OrgChartData }) {
 
   return (
     <Page size="A4" style={styles.policyPage}>
-      <Text style={styles.policyTitle}>안전보건관리 조직구성</Text>
+      <Text style={[styles.heading, { marginBottom: 20 }]}>{number}. 안전보건관리 조직구성</Text>
       <Text style={[styles.policySubTitle, { marginBottom: 16 }]}>나. 현장 사업소 조직도(임무 및 비상연락망 포함)</Text>
       <Svg width="100%" height={320} viewBox="0 0 500 320">
         <Line x1={centerCx} y1={row1Y + ORG_BOX_H} x2={centerCx} y2={row2Y} stroke="#9ca3af" strokeWidth={1} />
@@ -706,9 +708,11 @@ export async function generateWizardPdf(
 
   const CoverPageComponent = COVER_PAGE_COMPONENTS[coverStyle] ?? GenericCoverPage;
   const OverviewPageComponent = overviewPageStyle ? OVERVIEW_PAGE_COMPONENTS[overviewPageStyle] : undefined;
-  // 정형 페이지(1.사업개요/안전보건 경영방침/조직구성)는 이미 각자의 소제목을
-  // 갖고 있으므로(사업개요는 "1. 사업개요"로 이미 번호가 붙어 있음), 아래
-  // sections의 번호를 그 뒤부터 이어서 매겨야 "1."이 문서 안에서 중복되지 않는다.
+  // 정형 페이지(1.사업개요/2.안전보건 경영방침/3.안전보건관리 조직구성)는 이미
+  // 각자의 번호를 갖고 있으므로, 아래 sections의 번호를 sectionNumberOffset부터
+  // 이어서 매겨야 번호가 문서 안에서 중복되지 않는다.
+  const managementPolicyNumber = overviewPage ? 2 : 1;
+  const orgChartNumber = managementPolicyNumber + (managementPolicy ? 1 : 0);
   const sectionNumberOffset = (overviewPage ? 1 : 0) + (managementPolicy ? 1 : 0) + (orgChart ? 1 : 0);
 
   const doc = (
@@ -716,12 +720,12 @@ export async function generateWizardPdf(
       {cover && <CoverPageComponent cover={cover} />}
       {overviewPage && OverviewPageComponent && <OverviewPageComponent data={overviewPage} />}
       {managementPolicy && managementPolicy.mode === "image" && managementPolicyImage && (
-        <ManagementPolicyImagePage imageBuffer={managementPolicyImage} />
+        <ManagementPolicyImagePage imageBuffer={managementPolicyImage} number={managementPolicyNumber} />
       )}
       {managementPolicy && !(managementPolicy.mode === "image" && managementPolicyImage) && (
-        <ManagementPolicyStandardPage data={managementPolicy} />
+        <ManagementPolicyStandardPage data={managementPolicy} number={managementPolicyNumber} />
       )}
-      {orgChart && <OrgChartPage data={orgChart} />}
+      {orgChart && <OrgChartPage data={orgChart} number={orgChartNumber} />}
       {sections.map((section, sectionIndex) => (
         <Fragment key={section.id}>
           <Page size="A4" style={styles.page}>

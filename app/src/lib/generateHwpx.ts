@@ -767,18 +767,19 @@ const OVERVIEW_PAGE_PARAGRAPH_BUILDERS: Record<string, (data: OverviewPageData) 
 function buildManagementPolicyParagraphs(
   data: ManagementPolicyData,
   imageBuffer: Buffer | null | undefined,
-  registered: RegisteredHwpxImage[]
+  registered: RegisteredHwpxImage[],
+  number: number
 ): string[] {
   if (data.mode === "image" && imageBuffer) {
     return [
-      textParagraph("안전보건 경영방침 및 목표", "5", false),
+      textParagraph(`${number}. 안전보건 경영방침 및 목표`, "5", false),
       emptyParagraph(),
       buildImageParagraphs(imageBuffer, undefined, registered, false),
       emptyParagraph(),
     ];
   }
   const paragraphs: string[] = [
-    textParagraph("안전보건 경영방침 및 목표", "5", false),
+    textParagraph(`${number}. 안전보건 경영방침 및 목표`, "5", false),
     emptyParagraph(),
     textParagraph("가. 안전보건 경영방침", "0", false),
     textParagraph(data.slogan || "(미입력)", "0", false),
@@ -798,9 +799,9 @@ function buildManagementPolicyParagraphs(
 // "안전보건관리 조직구성"을 DOCX(buildOrgChartPage)와 같은 박스+화살표 표
 // 다이어그램으로 그린다(현장소장 → 안전관리자 → 관리감독자가 한 줄씩 이어지고
 // 마지막에 작업 1·2팀장만 나란히 배치 — 위저드 화면과 동일한 위계).
-function buildOrgChartParagraphs(data: OrgChartData): string[] {
+function buildOrgChartParagraphs(data: OrgChartData, number: number): string[] {
   return [
-    textParagraph("안전보건관리 조직구성", "5", false),
+    textParagraph(`${number}. 안전보건관리 조직구성`, "5", false),
     emptyParagraph(),
     textParagraph("나. 현장 사업소 조직도(임무 및 비상연락망 포함)", "0", false),
     emptyParagraph(),
@@ -854,9 +855,17 @@ function buildSection0Xml(
       overviewPageInserted = true;
     }
   }
+  // 정형 페이지(1.사업개요/2.안전보건 경영방침/3.안전보건관리 조직구성)에 이어서
+  // 번호를 매긴다.
+  let nextHeadingNumber = overviewPageInserted ? 2 : 1;
   let managementPolicyInserted = false;
   if (managementPolicy) {
-    const policyParagraphs = buildManagementPolicyParagraphs(managementPolicy, managementPolicyImage, registeredImages);
+    const policyParagraphs = buildManagementPolicyParagraphs(
+      managementPolicy,
+      managementPolicyImage,
+      registeredImages,
+      nextHeadingNumber
+    );
     if (policyParagraphs.length) {
       policyParagraphs[0] = policyParagraphs[0].replace(
         'pageBreak="0"',
@@ -865,10 +874,11 @@ function buildSection0Xml(
     }
     paragraphs.push(...policyParagraphs);
     managementPolicyInserted = true;
+    nextHeadingNumber += 1;
   }
   let orgChartInserted = false;
   if (orgChart) {
-    const orgParagraphs = buildOrgChartParagraphs(orgChart);
+    const orgParagraphs = buildOrgChartParagraphs(orgChart, nextHeadingNumber);
     if (orgParagraphs.length) {
       orgParagraphs[0] = orgParagraphs[0].replace(
         'pageBreak="0"',
@@ -877,6 +887,7 @@ function buildSection0Xml(
     }
     paragraphs.push(...orgParagraphs);
     orgChartInserted = true;
+    nextHeadingNumber += 1;
   }
   // 예전엔 여기서 문서 제목(공사명)을 한 번 더 큰 글씨로 찍었는데, DOCX/PDF와
   // 마찬가지로 표지에 이미 나온 제목이 본문 맨 앞에 맥락 없이 또 나온다는
@@ -885,17 +896,11 @@ function buildSection0Xml(
   // 섹션의 제목 문단으로 그대로 옮긴다.
   const needsPageBreakBeforeFirstSection = Boolean(cover) || overviewPageInserted || managementPolicyInserted || orgChartInserted;
 
-  // 정형 페이지(1.사업개요/안전보건 경영방침/조직구성)는 이미 각자의 소제목을
-  // 갖고 있으므로(사업개요는 "1. 사업개요"로 이미 번호가 붙어 있음), 아래
-  // sections의 번호를 그 뒤부터 이어서 매겨야 "1."이 문서 안에서 중복되지
-  // 않는다.
-  const sectionNumberOffset = (overviewPageInserted ? 1 : 0) + (managementPolicyInserted ? 1 : 0) + (orgChartInserted ? 1 : 0);
-
   sections.forEach((section, i) => {
     // charPrIDRef "5"는 "1.사업개요" 정형 페이지 소제목과 이미 같은 크기라 폰트
     // 크기는 그대로 두고, 번호만 붙인다.
     paragraphs.push(
-      textParagraph(`${sectionNumberOffset + i + 1}. ${section.heading}`, "5", i === 0 ? needsPageBreakBeforeFirstSection : i > 0)
+      textParagraph(`${nextHeadingNumber + i}. ${section.heading}`, "5", i === 0 ? needsPageBreakBeforeFirstSection : i > 0)
     );
     paragraphs.push(emptyParagraph());
     if (section.emergencyTeam) {

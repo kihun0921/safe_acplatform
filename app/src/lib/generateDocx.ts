@@ -40,6 +40,18 @@ function formatSubmitYearMonth(submitDate: string): string {
   return `${m[1]}년 ${m[2].padStart(2, "0")}월`;
 }
 
+// 소제목(1.사업개요/2.안전보건 경영방침 및 목표/3.안전보건관리 조직구성/일반
+// 섹션들)을 전부 왼쪽 정렬·같은 크기(size 26)·같은 굵기로 통일해서 쓰는 공통
+// 헬퍼. 예전엔 안전보건 경영방침·조직구성 제목만 가운데 정렬+밑줄이라 번호를
+// 붙여도 다른 소제목들과 정렬·스타일이 달라 보였다.
+function numberedSectionHeading(number: number, text: string): Paragraph {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_1,
+    spacing: { after: 300 },
+    children: [new TextRun({ text: `${number}. ${text}`, bold: true, size: 26, font: FONT })],
+  });
+}
+
 const CELL_BORDER = { style: BorderStyle.SINGLE, size: 4, color: "999999" } as const;
 const CELL_BORDERS = { top: CELL_BORDER, bottom: CELL_BORDER, left: CELL_BORDER, right: CELL_BORDER };
 const CELL_MARGINS = { top: 60, bottom: 60, left: 100, right: 100 };
@@ -506,12 +518,13 @@ const OVERVIEW_PAGE_RENDERERS: Record<string, (data: OverviewPageData) => Paragr
 // 페이지 가득 그대로 삽입하고(원본 비율 유지, 페이지 폭에 맞춰 축소), 아니면
 // 실제 LH 표준 문구 서식(음영 박스 2곳만 회사가 입력한 값, 나머지는 고정 문구 +
 // 회사명 자동 치환)을 그대로 재현한다.
-function buildManagementPolicyImagePage(imageBuffer: Buffer): (Paragraph | Table)[] {
+function buildManagementPolicyImagePage(imageBuffer: Buffer, number: number): (Paragraph | Table)[] {
   const dims = readImageDimensions(imageBuffer);
   const isPng = imageBuffer.length >= 8 && imageBuffer.readUInt32BE(0) === 0x89504e47;
   const isJpg = imageBuffer.length >= 2 && imageBuffer[0] === 0xff && imageBuffer[1] === 0xd8;
   if (!dims || (!isPng && !isJpg)) {
     return [
+      numberedSectionHeading(number, "안전보건 경영방침 및 목표"),
       new Paragraph({
         spacing: { after: 200 },
         children: [
@@ -533,6 +546,7 @@ function buildManagementPolicyImagePage(imageBuffer: Buffer): (Paragraph | Table
   const height = Math.round(dims.height * scale);
 
   return [
+    numberedSectionHeading(number, "안전보건 경영방침 및 목표"),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       children: [
@@ -593,7 +607,7 @@ function buildLabeledImagePage(imageBuffer: Buffer, label: string): (Paragraph |
   ];
 }
 
-function buildManagementPolicyStandardPage(data: ManagementPolicyData): (Paragraph | Table)[] {
+function buildManagementPolicyStandardPage(data: ManagementPolicyData, number: number): (Paragraph | Table)[] {
   const shadedBox = (text: string): Table =>
     new Table({
       width: { size: 90, type: WidthType.PERCENTAGE },
@@ -618,11 +632,7 @@ function buildManagementPolicyStandardPage(data: ManagementPolicyData): (Paragra
     });
 
   return [
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 400 },
-      children: [new TextRun({ text: "안전보건 경영방침 및 목표", bold: true, underline: {}, size: 28, font: FONT })],
-    }),
+    numberedSectionHeading(number, "안전보건 경영방침 및 목표"),
     new Paragraph({
       spacing: { after: 200 },
       children: [new TextRun({ text: "가. 안전보건 경영방침", bold: true, underline: {}, size: 22, font: FONT })],
@@ -685,13 +695,9 @@ function orgChartArrowRow(): Paragraph {
 // 작업 1·2팀장만 나란히 배치된다(예전에는 현장소장·안전관리자가 나란히 있고
 // 관리감독자로 합쳐지는 다른 모양이라 화면과 다운로드 문서의 조직도가 서로
 // 달랐다).
-function buildOrgChartPage(data: OrgChartData): (Paragraph | Table)[] {
+function buildOrgChartPage(data: OrgChartData, number: number): (Paragraph | Table)[] {
   return [
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
-      children: [new TextRun({ text: "안전보건관리 조직구성", bold: true, size: 28, font: FONT })],
-    }),
+    numberedSectionHeading(number, "안전보건관리 조직구성"),
     new Paragraph({
       spacing: { after: 200 },
       children: [
@@ -791,47 +797,30 @@ export async function generateWizardDocx(
     if (render) children.push(...render(overviewPage));
   }
 
+  let nextHeadingNumber = overviewPage ? 2 : 1;
   if (managementPolicy) {
     if (managementPolicy.mode === "image" && managementPolicyImage) {
-      children.push(...buildManagementPolicyImagePage(managementPolicyImage));
+      children.push(...buildManagementPolicyImagePage(managementPolicyImage, nextHeadingNumber));
     } else {
-      children.push(...buildManagementPolicyStandardPage(managementPolicy));
+      children.push(...buildManagementPolicyStandardPage(managementPolicy, nextHeadingNumber));
     }
+    nextHeadingNumber += 1;
   }
 
   if (orgChart) {
-    children.push(...buildOrgChartPage(orgChart));
+    children.push(...buildOrgChartPage(orgChart, nextHeadingNumber));
+    nextHeadingNumber += 1;
   }
 
-  // 정형 페이지(1.사업개요/안전보건 경영방침/조직구성)는 이미 각자의 소제목을
-  // 갖고 있으므로(사업개요는 "1. 사업개요"로 이미 번호가 붙어 있음), 아래
-  // sections의 번호를 그 뒤부터 이어서 매겨야 "1."이 문서 안에서 중복되지
-  // 않는다.
-  const sectionNumberOffset = (overviewPage ? 1 : 0) + (managementPolicy ? 1 : 0) + (orgChart ? 1 : 0);
-
+  // 정형 페이지(1.사업개요/2.안전보건 경영방침/3.안전보건관리 조직구성)는 이미
+  // 각자의 번호를 갖고 있으므로, 아래 sections의 번호를 nextHeadingNumber부터
+  // 이어서 매겨야 번호가 문서 안에서 중복되지 않는다.
   sections.forEach((section, sectionIndex) => {
     if (sectionIndex > 0) {
       children.push(new Paragraph({ children: [new PageBreak()] }));
     }
 
-    children.push(
-      new Paragraph({
-        heading: HeadingLevel.HEADING_1,
-        spacing: { after: 300 },
-        // 소제목마다 번호를 붙이고(1.사업개요 정형 페이지 제목과 동일한 크기인
-        // size 26으로 맞춘다 — 예전엔 28이라 정형 페이지 소제목보다 한 단계 커
-        // 보였다), 다운로드 문서 전체를 순서대로 훑을 때 몇 번째 항목인지 바로
-        // 알 수 있게 했다.
-        children: [
-          new TextRun({
-            text: `${sectionNumberOffset + sectionIndex + 1}. ${section.heading}`,
-            bold: true,
-            size: 26,
-            font: FONT,
-          }),
-        ],
-      })
-    );
+    children.push(numberedSectionHeading(nextHeadingNumber + sectionIndex, section.heading));
 
     if (section.emergencyTeam) {
       children.push(...buildEmergencyTeamDiagram(section.emergencyTeam));

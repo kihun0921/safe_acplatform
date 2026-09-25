@@ -124,7 +124,9 @@ function columnFlex(header: string): number {
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontFamily: "NotoSansKR", fontSize: 10 },
-  heading: { fontSize: 14, fontWeight: "bold", marginBottom: 14, borderBottom: "2pt solid #1e3a5f", paddingBottom: 6 },
+  // "1.사업개요" 정형 페이지 소제목(overviewSubTitle, fontSize 13)과 같은 크기로
+  // 맞췄다 — 예전엔 14라 정형 페이지 소제목보다 한 단계 커 보였다.
+  heading: { fontSize: 13, fontWeight: "bold", marginBottom: 14, borderBottom: "2pt solid #1e3a5f", paddingBottom: 6 },
   fieldRow: { flexDirection: "row", marginBottom: 6 },
   fieldLabel: { fontWeight: "bold", width: 140 },
   fieldValue: { flex: 1 },
@@ -704,6 +706,10 @@ export async function generateWizardPdf(
 
   const CoverPageComponent = COVER_PAGE_COMPONENTS[coverStyle] ?? GenericCoverPage;
   const OverviewPageComponent = overviewPageStyle ? OVERVIEW_PAGE_COMPONENTS[overviewPageStyle] : undefined;
+  // 정형 페이지(1.사업개요/안전보건 경영방침/조직구성)는 이미 각자의 소제목을
+  // 갖고 있으므로(사업개요는 "1. 사업개요"로 이미 번호가 붙어 있음), 아래
+  // sections의 번호를 그 뒤부터 이어서 매겨야 "1."이 문서 안에서 중복되지 않는다.
+  const sectionNumberOffset = (overviewPage ? 1 : 0) + (managementPolicy ? 1 : 0) + (orgChart ? 1 : 0);
 
   const doc = (
     <Document>
@@ -716,10 +722,12 @@ export async function generateWizardPdf(
         <ManagementPolicyStandardPage data={managementPolicy} />
       )}
       {orgChart && <OrgChartPage data={orgChart} />}
-      {sections.map((section) => (
+      {sections.map((section, sectionIndex) => (
         <Fragment key={section.id}>
           <Page size="A4" style={styles.page}>
-            <Text style={styles.heading}>{section.heading}</Text>
+            <Text style={styles.heading}>
+              {sectionNumberOffset + sectionIndex + 1}. {section.heading}
+            </Text>
             {section.emergencyTeam && <EmergencyTeamDiagram data={section.emergencyTeam} />}
             {section.fields.map((f, idx) => (
               <View key={idx} style={styles.fieldRow}>

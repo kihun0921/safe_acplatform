@@ -803,6 +803,12 @@ export async function generateWizardDocx(
     children.push(...buildOrgChartPage(orgChart));
   }
 
+  // 정형 페이지(1.사업개요/안전보건 경영방침/조직구성)는 이미 각자의 소제목을
+  // 갖고 있으므로(사업개요는 "1. 사업개요"로 이미 번호가 붙어 있음), 아래
+  // sections의 번호를 그 뒤부터 이어서 매겨야 "1."이 문서 안에서 중복되지
+  // 않는다.
+  const sectionNumberOffset = (overviewPage ? 1 : 0) + (managementPolicy ? 1 : 0) + (orgChart ? 1 : 0);
+
   sections.forEach((section, sectionIndex) => {
     if (sectionIndex > 0) {
       children.push(new Paragraph({ children: [new PageBreak()] }));
@@ -812,7 +818,18 @@ export async function generateWizardDocx(
       new Paragraph({
         heading: HeadingLevel.HEADING_1,
         spacing: { after: 300 },
-        children: [new TextRun({ text: section.heading, bold: true, size: 28, font: FONT })],
+        // 소제목마다 번호를 붙이고(1.사업개요 정형 페이지 제목과 동일한 크기인
+        // size 26으로 맞춘다 — 예전엔 28이라 정형 페이지 소제목보다 한 단계 커
+        // 보였다), 다운로드 문서 전체를 순서대로 훑을 때 몇 번째 항목인지 바로
+        // 알 수 있게 했다.
+        children: [
+          new TextRun({
+            text: `${sectionNumberOffset + sectionIndex + 1}. ${section.heading}`,
+            bold: true,
+            size: 26,
+            font: FONT,
+          }),
+        ],
       })
     );
 

@@ -885,8 +885,18 @@ function buildSection0Xml(
   // 섹션의 제목 문단으로 그대로 옮긴다.
   const needsPageBreakBeforeFirstSection = Boolean(cover) || overviewPageInserted || managementPolicyInserted || orgChartInserted;
 
+  // 정형 페이지(1.사업개요/안전보건 경영방침/조직구성)는 이미 각자의 소제목을
+  // 갖고 있으므로(사업개요는 "1. 사업개요"로 이미 번호가 붙어 있음), 아래
+  // sections의 번호를 그 뒤부터 이어서 매겨야 "1."이 문서 안에서 중복되지
+  // 않는다.
+  const sectionNumberOffset = (overviewPageInserted ? 1 : 0) + (managementPolicyInserted ? 1 : 0) + (orgChartInserted ? 1 : 0);
+
   sections.forEach((section, i) => {
-    paragraphs.push(textParagraph(section.heading, "5", i === 0 ? needsPageBreakBeforeFirstSection : i > 0));
+    // charPrIDRef "5"는 "1.사업개요" 정형 페이지 소제목과 이미 같은 크기라 폰트
+    // 크기는 그대로 두고, 번호만 붙인다.
+    paragraphs.push(
+      textParagraph(`${sectionNumberOffset + i + 1}. ${section.heading}`, "5", i === 0 ? needsPageBreakBeforeFirstSection : i > 0)
+    );
     paragraphs.push(emptyParagraph());
     if (section.emergencyTeam) {
       // 조직도와 동일한 박스+화살표 표 다이어그램(대책반장 → 안전관리자 →

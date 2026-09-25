@@ -12,7 +12,7 @@ import { generateWizardDocx } from "@/lib/generateDocx";
 import { generateWizardPdf } from "@/lib/generatePdf";
 import { generateWizardHwpx } from "@/lib/generateHwpx";
 import { isDocumentUnlocked } from "@/lib/documentAccess";
-import type { CoverStyle, SectionOrderGroup } from "@/lib/agencyTemplates";
+import { computeSectionOrderNumbers, type CoverStyle, type SectionOrderGroup } from "@/lib/agencyTemplates";
 
 // "Ⅰ.사업개요"가 속한 실제 장(章) 제목("Ⅰ. 안전보건관리 체계" 등)을 정형 사업개요
 // 페이지 상단에 그대로 쓴다. section_order에 그룹이 정의돼 있으면 그 로마숫자+제목을,
@@ -113,12 +113,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     ...(showManagementPolicy ? ["sec-management-policy"] : []),
     ...(showOrgChart ? ["sec-org_chart"] : []),
   ];
-  const sections = extractWizardSections(html, savedFields, excludeIds);
+  const sectionOrder = (selectedTemplate?.section_order as SectionOrderGroup[] | null | undefined) ?? [];
+  const sections = extractWizardSections(html, savedFields, excludeIds, sectionOrder);
   const cover = extractCoverPageData(html, savedFields, member?.company ?? "", member?.name ?? "");
   const coverStyle = (selectedTemplate?.cover_style as CoverStyle | undefined) ?? "generic";
   const overviewPage = overviewPageStyle
     ? extractOverviewPageData(html, savedFields, resolveOverviewChapterTitle(selectedTemplate))
     : undefined;
+  // "안전보건 경영방침"·"조직구성" 정형 페이지도 sections와 같은 규칙(section_order
+  // 안에서 몇 번째 절인지)으로 번호를 매겨야, 예를 들어 Ⅱ장(실행계획)의 첫 절인
+  // "안전보건교육 계획"이 문서 전체 기준 연속번호가 아니라 그 장 안에서 "1."로
+  // 다시 시작한다. section_order가 없으면(공통 6대 목차만 쓰는 일반 문서)
+  // undefined로 두고 생성기가 기존처럼 연속 번호로 대체한다.
+  const chapterNumbers = computeSectionOrderNumbers(sectionOrder);
+  const managementPolicyNumber = chapterNumbers["management-policy"];
+  const orgChartNumber = chapterNumbers["org_chart"];
 
   // 안전보건 경영방침: 회사가 이미지를 첨부했으면 Storage에서 실제 바이트를 읽어와
   // 세 생성기 모두에 넘긴다(표지/사업개요와 달리 텍스트가 아니라 이진 데이터라
@@ -173,7 +182,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           overviewPageStyle,
           managementPolicy,
           managementPolicyImage,
-          orgChart
+          orgChart,
+          managementPolicyNumber,
+          orgChartNumber
         ),
         45000
       );
@@ -196,7 +207,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           overviewPageStyle,
           managementPolicy,
           managementPolicyImage,
-          orgChart
+          orgChart,
+          managementPolicyNumber,
+          orgChartNumber
         ),
         45000
       );
@@ -218,7 +231,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         overviewPageStyle,
         managementPolicy,
         managementPolicyImage,
-        orgChart
+        orgChart,
+        managementPolicyNumber,
+        orgChartNumber
       ),
       45000
     );

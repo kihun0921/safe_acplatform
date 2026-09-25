@@ -828,7 +828,11 @@ function buildSection0Xml(
   overviewPageStyle?: string | null,
   managementPolicy?: ManagementPolicyData,
   managementPolicyImage?: Buffer | null,
-  orgChart?: OrgChartData
+  orgChart?: OrgChartData,
+  // section_order 기준 장(章) 내 순번(agencyTemplates.computeSectionOrderNumbers).
+  // 없으면(공통 6대 목차만 쓰는 일반 문서) 문서 전체를 훑는 연속 번호로 대체한다.
+  managementPolicyNumberOverride?: number,
+  orgChartNumberOverride?: number
 ): string {
   const baseSection0 = fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "section0.xml"), "utf8");
   // 템플릿의 첫 <hp:p>(secPr가 들어있는, 페이지 크기/여백을 정의하는 문단)는 그대로 두고,
@@ -855,17 +859,14 @@ function buildSection0Xml(
       overviewPageInserted = true;
     }
   }
-  // 정형 페이지(1.사업개요/2.안전보건 경영방침/3.안전보건관리 조직구성)에 이어서
-  // 번호를 매긴다.
+  // 소제목 번호는 section_order 기준 장(章) 내 순번(managementPolicyNumberOverride/
+  // orgChartNumberOverride/section.headingNumber)을 우선 쓰고, 없으면(공통 6대
+  // 목차만 쓰는 일반 문서) 문서 전체를 훑는 연속 번호로 대체한다.
   let nextHeadingNumber = overviewPageInserted ? 2 : 1;
   let managementPolicyInserted = false;
   if (managementPolicy) {
-    const policyParagraphs = buildManagementPolicyParagraphs(
-      managementPolicy,
-      managementPolicyImage,
-      registeredImages,
-      nextHeadingNumber
-    );
+    const number = managementPolicyNumberOverride ?? nextHeadingNumber;
+    const policyParagraphs = buildManagementPolicyParagraphs(managementPolicy, managementPolicyImage, registeredImages, number);
     if (policyParagraphs.length) {
       policyParagraphs[0] = policyParagraphs[0].replace(
         'pageBreak="0"',
@@ -874,11 +875,12 @@ function buildSection0Xml(
     }
     paragraphs.push(...policyParagraphs);
     managementPolicyInserted = true;
-    nextHeadingNumber += 1;
+    nextHeadingNumber = number + 1;
   }
   let orgChartInserted = false;
   if (orgChart) {
-    const orgParagraphs = buildOrgChartParagraphs(orgChart, nextHeadingNumber);
+    const number = orgChartNumberOverride ?? nextHeadingNumber;
+    const orgParagraphs = buildOrgChartParagraphs(orgChart, number);
     if (orgParagraphs.length) {
       orgParagraphs[0] = orgParagraphs[0].replace(
         'pageBreak="0"',
@@ -887,7 +889,7 @@ function buildSection0Xml(
     }
     paragraphs.push(...orgParagraphs);
     orgChartInserted = true;
-    nextHeadingNumber += 1;
+    nextHeadingNumber = number + 1;
   }
   // 예전엔 여기서 문서 제목(공사명)을 한 번 더 큰 글씨로 찍었는데, DOCX/PDF와
   // 마찬가지로 표지에 이미 나온 제목이 본문 맨 앞에 맥락 없이 또 나온다는
@@ -899,9 +901,11 @@ function buildSection0Xml(
   sections.forEach((section, i) => {
     // charPrIDRef "5"는 "1.사업개요" 정형 페이지 소제목과 이미 같은 크기라 폰트
     // 크기는 그대로 두고, 번호만 붙인다.
+    const headingNumber = section.headingNumber ?? nextHeadingNumber;
     paragraphs.push(
-      textParagraph(`${nextHeadingNumber + i}. ${section.heading}`, "5", i === 0 ? needsPageBreakBeforeFirstSection : i > 0)
+      textParagraph(`${headingNumber}. ${section.heading}`, "5", i === 0 ? needsPageBreakBeforeFirstSection : i > 0)
     );
+    nextHeadingNumber = headingNumber + 1;
     paragraphs.push(emptyParagraph());
     if (section.emergencyTeam) {
       // 조직도와 동일한 박스+화살표 표 다이어그램(대책반장 → 안전관리자 →
@@ -952,7 +956,9 @@ export async function generateWizardHwpx(
   overviewPageStyle?: string | null,
   managementPolicy?: ManagementPolicyData,
   managementPolicyImage?: Buffer | null,
-  orgChart?: OrgChartData
+  orgChart?: OrgChartData,
+  managementPolicyNumberOverride?: number,
+  orgChartNumberOverride?: number
 ): Promise<Buffer> {
   const zip = new JSZip();
 
@@ -978,7 +984,9 @@ export async function generateWizardHwpx(
     overviewPageStyle,
     managementPolicy,
     managementPolicyImage,
-    orgChart
+    orgChart,
+    managementPolicyNumberOverride,
+    orgChartNumberOverride
   );
   zip.file("Contents/section0.xml", section0Xml);
 

@@ -158,6 +158,21 @@ export type AgencyTemplateRow = {
 // 묶여 있는 실제 공공서식의 구조를 그대로 반영한다.
 export type SectionOrderGroup = { roman: string; title: string; members: string[] };
 
+// section_order의 각 장(章) 안에서 절이 몇 번째인지(1부터 시작, 장이 바뀌면 다시
+// 1로 초기화)를 구해 { member id → 장 내 순번 } 맵으로 돌려준다. 좌측 목차의
+// buildGroupedNavItemHtml() 번호(로마숫자 대제목 밑에서만 세는 아라비아 숫자)와
+// 정확히 같은 규칙이라, 다운로드 문서(DOCX/PDF/HWPX)의 소제목 번호도 이 맵을
+// 그대로 써서 화면 목차 번호와 일치시킨다.
+export function computeSectionOrderNumbers(groups: SectionOrderGroup[] | null | undefined): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const group of groups ?? []) {
+    group.members.forEach((id, idx) => {
+      result[id] = idx + 1;
+    });
+  }
+  return result;
+}
+
 // 다운로드 문서(DOCX/PDF/HWPX) 맨 앞에 붙는 표지 레이아웃 종류. 표지 데이터
 // (공사명/공사기간/도급금액/작성자 등)는 발주처와 무관하게 항상 동일하고,
 // 발주처마다 다른 건 그 데이터를 배치하는 레이아웃뿐이라 발주처별로 실제

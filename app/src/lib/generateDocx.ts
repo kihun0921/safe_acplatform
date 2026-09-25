@@ -783,7 +783,11 @@ export async function generateWizardDocx(
   overviewPageStyle?: string | null,
   managementPolicy?: ManagementPolicyData,
   managementPolicyImage?: Buffer | null,
-  orgChart?: OrgChartData
+  orgChart?: OrgChartData,
+  // section_order 기준 장(章) 내 순번(agencyTemplates.computeSectionOrderNumbers).
+  // 없으면(공통 6대 목차만 쓰는 일반 문서) 문서 전체를 훑는 연속 번호로 대체한다.
+  managementPolicyNumber?: number,
+  orgChartNumber?: number
 ): Promise<Buffer> {
   const children: (Paragraph | Table)[] = [];
 
@@ -799,28 +803,31 @@ export async function generateWizardDocx(
 
   let nextHeadingNumber = overviewPage ? 2 : 1;
   if (managementPolicy) {
+    const number = managementPolicyNumber ?? nextHeadingNumber;
     if (managementPolicy.mode === "image" && managementPolicyImage) {
-      children.push(...buildManagementPolicyImagePage(managementPolicyImage, nextHeadingNumber));
+      children.push(...buildManagementPolicyImagePage(managementPolicyImage, number));
     } else {
-      children.push(...buildManagementPolicyStandardPage(managementPolicy, nextHeadingNumber));
+      children.push(...buildManagementPolicyStandardPage(managementPolicy, number));
     }
     nextHeadingNumber += 1;
   }
 
   if (orgChart) {
-    children.push(...buildOrgChartPage(orgChart, nextHeadingNumber));
+    children.push(...buildOrgChartPage(orgChart, orgChartNumber ?? nextHeadingNumber));
     nextHeadingNumber += 1;
   }
 
-  // 정형 페이지(1.사업개요/2.안전보건 경영방침/3.안전보건관리 조직구성)는 이미
-  // 각자의 번호를 갖고 있으므로, 아래 sections의 번호를 nextHeadingNumber부터
-  // 이어서 매겨야 번호가 문서 안에서 중복되지 않는다.
+  // 소제목 번호는 각 절의 headingNumber(section_order 기준 장 내 순번, 예: Ⅱ장
+  // "안전보건교육 계획"은 그 장의 첫 절이라 "1."로 다시 시작)를 우선 쓰고, 값이
+  // 없으면(공통 6대 목차만 쓰는 일반 문서) nextHeadingNumber를 이어서 매긴다.
   sections.forEach((section, sectionIndex) => {
     if (sectionIndex > 0) {
       children.push(new Paragraph({ children: [new PageBreak()] }));
     }
 
-    children.push(numberedSectionHeading(nextHeadingNumber + sectionIndex, section.heading));
+    const headingNumber = section.headingNumber ?? nextHeadingNumber;
+    children.push(numberedSectionHeading(headingNumber, section.heading));
+    nextHeadingNumber = headingNumber + 1;
 
     if (section.emergencyTeam) {
       children.push(...buildEmergencyTeamDiagram(section.emergencyTeam));

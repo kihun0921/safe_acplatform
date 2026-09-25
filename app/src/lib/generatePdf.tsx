@@ -696,7 +696,11 @@ export async function generateWizardPdf(
   overviewPageStyle?: string | null,
   managementPolicy?: ManagementPolicyData,
   managementPolicyImage?: Buffer | null,
-  orgChart?: OrgChartData
+  orgChart?: OrgChartData,
+  // section_order 기준 장(章) 내 순번(agencyTemplates.computeSectionOrderNumbers).
+  // 없으면(공통 6대 목차만 쓰는 일반 문서) 문서 전체를 훑는 연속 번호로 대체한다.
+  managementPolicyNumberOverride?: number,
+  orgChartNumberOverride?: number
 ): Promise<Buffer> {
   ensureFontsRegistered();
 
@@ -708,12 +712,19 @@ export async function generateWizardPdf(
 
   const CoverPageComponent = COVER_PAGE_COMPONENTS[coverStyle] ?? GenericCoverPage;
   const OverviewPageComponent = overviewPageStyle ? OVERVIEW_PAGE_COMPONENTS[overviewPageStyle] : undefined;
-  // 정형 페이지(1.사업개요/2.안전보건 경영방침/3.안전보건관리 조직구성)는 이미
-  // 각자의 번호를 갖고 있으므로, 아래 sections의 번호를 sectionNumberOffset부터
-  // 이어서 매겨야 번호가 문서 안에서 중복되지 않는다.
-  const managementPolicyNumber = overviewPage ? 2 : 1;
-  const orgChartNumber = managementPolicyNumber + (managementPolicy ? 1 : 0);
-  const sectionNumberOffset = (overviewPage ? 1 : 0) + (managementPolicy ? 1 : 0) + (orgChart ? 1 : 0);
+  // 소제목 번호는 section_order 기준 장(章) 내 순번(managementPolicyNumberOverride/
+  // orgChartNumberOverride/section.headingNumber)을 우선 쓰고, 없으면(공통 6대
+  // 목차만 쓰는 일반 문서) 문서 전체를 훑는 연속 번호로 대체한다.
+  let nextHeadingNumber = overviewPage ? 2 : 1;
+  const managementPolicyNumber = managementPolicyNumberOverride ?? nextHeadingNumber;
+  if (managementPolicy) nextHeadingNumber = managementPolicyNumber + 1;
+  const orgChartNumber = orgChartNumberOverride ?? nextHeadingNumber;
+  if (orgChart) nextHeadingNumber = orgChartNumber + 1;
+  const numberedSections = sections.map((section) => {
+    const number = section.headingNumber ?? nextHeadingNumber;
+    nextHeadingNumber = number + 1;
+    return { section, number };
+  });
 
   const doc = (
     <Document>
@@ -726,11 +737,11 @@ export async function generateWizardPdf(
         <ManagementPolicyStandardPage data={managementPolicy} number={managementPolicyNumber} />
       )}
       {orgChart && <OrgChartPage data={orgChart} number={orgChartNumber} />}
-      {sections.map((section, sectionIndex) => (
+      {numberedSections.map(({ section, number }) => (
         <Fragment key={section.id}>
           <Page size="A4" style={styles.page}>
             <Text style={styles.heading}>
-              {sectionNumberOffset + sectionIndex + 1}. {section.heading}
+              {number}. {section.heading}
             </Text>
             {section.emergencyTeam && <EmergencyTeamDiagram data={section.emergencyTeam} />}
             {section.fields.map((f, idx) => (

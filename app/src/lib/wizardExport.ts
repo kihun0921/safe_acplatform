@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { computeSectionOrderNumbers, type SectionOrderGroup } from "./agencyTemplates";
 
 // 최종 계획서(HWP/DOCX/PDF) 생성을 위해, WizardScreen이 화면에서 하는 것과 똑같은
 // 방식으로 doc.content.fields(자동저장된 값)를 위저드 HTML 위에 적용한 뒤, 각
@@ -38,6 +39,12 @@ export interface WizardSection {
   // extractWizardSections()가 개요표 항목명·체크박스와 팝업 세부 내용을 항목
   // 단위로 묶어 이 배열에 담는다.
   hazardDetailGroups?: HazardDetailGroup[];
+  // 이 절이 속한 장(章, 로마숫자) 안에서 몇 번째 절인지(1부터, 장이 바뀌면 다시
+  // 1로 초기화) — agencyTemplates.ts의 computeSectionOrderNumbers()가 section_order
+  // 기준으로 계산해서 채워준다. section_order가 없는 발주처(공통 6대 목차만
+  // 쓰는 경우)는 각 목차 자체가 곧 하나의 장이라 항상 undefined로 남고, 생성기가
+  // 문서 전체를 순서대로 훑는 연속 번호로 대체한다.
+  headingNumber?: number;
 }
 
 export interface HazardDetailGroup {
@@ -402,13 +409,25 @@ function extractEmergencyTeamData($: cheerio.CheerioAPI): EmergencyTeamData {
   };
 }
 
+// "sec-tpl-education_plan" → "education_plan", "sec-overview" → "overview" —
+// section_order의 members가 쓰는 원래 id로 되돌린다(발주처 전용 항목은
+// buildTemplateSectionsHtml이 "sec-tpl-" 접두어를 붙이고, 공통/고정서식 항목은
+// "sec-"만 붙인다 — agencyTemplates.ts의 applySectionOrder와 동일한 규칙).
+function bareSectionId(id: string): string {
+  if (id.startsWith("sec-tpl-")) return id.slice("sec-tpl-".length);
+  if (id.startsWith("sec-")) return id.slice("sec-".length);
+  return id;
+}
+
 export function extractWizardSections(
   html: string,
   savedFields: Record<string, string | boolean>,
-  excludeIds: string[] = []
+  excludeIds: string[] = [],
+  sectionOrder: SectionOrderGroup[] = []
 ): WizardSection[] {
   const $ = cheerio.load(html);
   applySavedFields($, savedFields);
+  const chapterNumbers = computeSectionOrderNumbers(sectionOrder);
 
   const sections: WizardSection[] = [];
   // sec-cover는 위저드 화면에서만 보여주는 안내용 섹션(표지는 다운로드 시
@@ -496,7 +515,8 @@ export function extractWizardSections(
       ? extractHazardDetailGroups($, $section, id)
       : undefined;
 
-    sections.push({ id, heading, fields, tables, emergencyTeam, hazardDetailGroups });
+    const headingNumber = chapterNumbers[bareSectionId(id)];
+    sections.push({ id, heading, fields, tables, emergencyTeam, hazardDetailGroups, headingNumber });
   });
 
   return sections;

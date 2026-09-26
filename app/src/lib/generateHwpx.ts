@@ -209,7 +209,7 @@ function buildBoxRowTableXml(nodes: BoxNode[], fullWidth: boolean): string {
 
 function boxRowParagraph(nodes: BoxNode[], fullWidth: boolean): string {
   return `<hp:p id="${nextId()}" paraPrIDRef="${CENTER_PARA_PR_ID}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">
-<hp:run charPrIDRef="0">${buildBoxRowTableXml(nodes, fullWidth)}</hp:run>
+<hp:run charPrIDRef="0">${buildBoxRowTableXml(nodes, fullWidth)}<hp:t/></hp:run>
 <hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
 </hp:p>`;
 }
@@ -327,10 +327,15 @@ function buildImageParagraphs(
   if (label) {
     paragraphs.push(textParagraph(label, "5", pageBreak));
   }
+  // 실제 한글이 만든 hwpx 샘플(그림 4개짜리 실제 공고문)을 열어보면 hp:pic
+  // 바로 뒤에 형제로 빈 hp:t(자기닫힘)가 항상 붙어 있었는데(</hp:pic><hp:t/>
+  // </hp:run>), 이 코드는 hp:run 안에 hp:pic만 두고 hp:t가 아예 없었다 —
+  // hp:pic 자식 순서·media-type 수정과 함께, 한글이 이 run을 온전한 run으로
+  // 인식하지 못해 그림을 조용히 무시하던 원인 중 하나로 추정된다.
   paragraphs.push(`<hp:p id="${nextId()}" paraPrIDRef="${CENTER_PARA_PR_ID}" styleIDRef="0" pageBreak="${
     label ? 0 : pageBreak ? 1 : 0
   }" columnBreak="0" merged="0">
-<hp:run charPrIDRef="0">${picXml}</hp:run>
+<hp:run charPrIDRef="0">${picXml}<hp:t/></hp:run>
 <hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
 </hp:p>`);
   return paragraphs.join("\n");
@@ -444,7 +449,7 @@ ${rowXmls.join("\n")}
 // 표와 달리 표 자체가 하나의 문단을 차지하는 형태로 다룬다).
 function tableParagraph(headers: string[], rows: string[][], pageBreak: boolean): string {
   return `<hp:p id="${nextId()}" paraPrIDRef="0" styleIDRef="0" pageBreak="${pageBreak ? 1 : 0}" columnBreak="0" merged="0">
-<hp:run charPrIDRef="0">${buildTableXml(headers, rows)}</hp:run>
+<hp:run charPrIDRef="0">${buildTableXml(headers, rows)}<hp:t/></hp:run>
 <hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
 </hp:p>`;
 }
@@ -486,7 +491,7 @@ function riskFormTableParagraph(colCnt: number, rowCnt: number, totalHeight: num
 <hp:outMargin left="0" right="0" top="0" bottom="0"/>
 <hp:inMargin left="0" right="0" top="0" bottom="0"/>
 ${rowsXml}
-</hp:tbl></hp:run>
+</hp:tbl><hp:t/></hp:run>
 <hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
 </hp:p>`;
 }
@@ -757,7 +762,7 @@ function coverTableParagraph(
 <hp:outMargin left="0" right="0" top="0" bottom="0"/>
 <hp:inMargin left="0" right="0" top="0" bottom="0"/>
 ${rowsXml}
-</hp:tbl></hp:run>
+</hp:tbl><hp:t/></hp:run>
 <hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
 </hp:p>`;
 }

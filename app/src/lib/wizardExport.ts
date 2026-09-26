@@ -65,7 +65,48 @@ export interface WizardSection {
   // 관리/하도급 협력업체 협의체 운영) 토글 상태와 내용. 토글이 꺼진 항목은
   // 생성기에서 아예 출력하지 않는다(발주처 특기시방서에 없는 조항 제외 기능).
   executionOptions?: ExecutionOptionsData;
+  // "위험성평가 실시규정"의 서식1(교육일지)·서식2(회의록) 상단 정보(장소·일시·
+  // 종류·강사/안건 등). 실제 샘플과 같은 rowspan/colspan 병합표로 그리기 위해
+  // wizardHtml.ts가 표 셀 안에 심어둔 data-risk-form-field 입력을 일반 필드
+  // 목록(findLabel 기반)이 아니라 이 구조화된 형태로 뽑는다 — 표 셀 입력은
+  // 직계 자식 <label>이 없어 findLabel()이 라벨을 찾지 못해 애초에 일반 필드
+  // 목록에서는 빠지므로, 여기서 채우지 않으면 다운로드 문서에 아예 나오지
+  // 않는다.
+  riskAssessmentFormFields?: RiskAssessmentFormFieldsData;
 }
+
+export interface RiskAssessmentFormFieldsData {
+  eduLocation: string;
+  eduDatetime: string;
+  eduType: string;
+  eduInstructor: string;
+  meetingLocation: string;
+  meetingDatetime: string;
+  meetingType: string;
+  meetingAgenda: string;
+}
+
+// 실제 LH 샘플(화성동탄(2), 143~145p) 서식1·2의 고정 문구. wizardHtml.ts(위저드
+// 화면 표)와 generateDocx/Pdf/Hwpx(다운로드 문서 표)가 동일한 문구를 각각
+// rowspan/colspan 병합표 안에 그려야 하므로 여기 한 곳에만 정의해 재사용한다.
+export const RISK_ASSESSMENT_FORM_1_CONTENT_TEXT =
+  "1. 위험성평가를 위한 사업주의 방침과 목표\n" +
+  "2. 위험성평가 추진방법 및 내용\n" +
+  "3. 위험성평가 절차\n" +
+  "  - 1단계: 사전준비(실시규정 작성 등)\n" +
+  "  - 2단계: 유해위험요인 파악\n" +
+  "  - 3단계: 위험성 결정\n" +
+  "  - 4단계: 위험성 개선대책 수립·실행\n" +
+  "4. 기록\n" +
+  "5. 위험성평가 실시시기 및 범위 등";
+
+export const RISK_ASSESSMENT_FORM_2_CONTENT_TEXT =
+  "1. 위험성평가를 위한 위험성평가 실시규정의 검토·작성\n" +
+  "2. 위험성평가 실시에 따른 책임과 역할 부여\n" +
+  "3. 단위 공종별 유해위험요인 파악 및 위험성 결정\n" +
+  "4. 개선대책 강구, 대책 실행방법 및 확인\n" +
+  "5. 기록의 유지\n" +
+  "6. 위험성평가 관련 관심사항 토론 등";
 
 export interface ExecutionOptionsData {
   machineryEnabled: boolean;
@@ -152,7 +193,7 @@ function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string |
   // :not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field])
   // :not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field])
   // :not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve])
-  // :not([data-accident-image-input]), textarea:not([data-risk-field]):not([data-hazard-field]),
+  // :not([data-accident-image-input]):not([data-risk-form-field]), textarea:not([data-risk-field]):not([data-hazard-field]),
   // select:not([data-template-select]):not([data-risk-field]))와 반드시 동일한 요소 집합·순서를
   // 훑어야 한다 — 위험성평가 표 입력요소, 표준서식 선택 드롭다운, 안전보건경영방침/재해발생
   // 수준 증빙자료 이미지 파일 입력, 현장설명서 공정추출용 파일 입력, 유해·위험 기계기구물질
@@ -183,6 +224,10 @@ function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string |
     // executionOptions에 별도 저장되고 wizardHtml.ts가 서버에서 미리 값을
     // 구워 넣으므로(buildExecutionSectionHtml), field-N 인덱스 대상에서 뺀다.
     if ($el.attr("data-execution-toggle") !== undefined || $el.attr("data-execution-field") !== undefined) return false;
+    // 서식1·2 상단 정보 입력도 documents.content.riskAssessmentFormFields에 별도
+    // 저장되고 wizardHtml.ts가 서버에서 미리 값을 구워 넣으므로, field-N 인덱스
+    // 대상에서 뺀다.
+    if ($el.attr("data-risk-form-field") !== undefined) return false;
     if (el.tagName === "select" && $el.attr("data-template-select") !== undefined) return false;
     return true;
   });
@@ -461,6 +506,24 @@ function extractRiskAssessmentOrgChartData($: cheerio.CheerioAPI): EmergencyTeam
   };
 }
 
+// 서식1·2의 상단 정보 입력(교육장소/일시/종류/강사, 회의장소/일시/평가종류/안건)은
+// wizardHtml.ts가 rowspan/colspan 병합표 셀 안에 data-risk-form-field 속성으로
+// 심어둔 <input>이라 findLabel()이 라벨을 못 찾아(직계 자식 <label>이 없음) 일반
+// 필드 목록에 잡히지 않는다 — id로 직접 읽어 구조화한다.
+function extractRiskAssessmentFormFieldsData($: cheerio.CheerioAPI): RiskAssessmentFormFieldsData {
+  const byId = (id: string) => $(`#${id}`).attr("value")?.trim() ?? "";
+  return {
+    eduLocation: byId("wizard-field-rar-edu-location"),
+    eduDatetime: byId("wizard-field-rar-edu-datetime"),
+    eduType: byId("wizard-field-rar-edu-type"),
+    eduInstructor: byId("wizard-field-rar-edu-instructor"),
+    meetingLocation: byId("wizard-field-rar-meeting-location"),
+    meetingDatetime: byId("wizard-field-rar-meeting-datetime"),
+    meetingType: byId("wizard-field-rar-meeting-type"),
+    meetingAgenda: byId("wizard-field-rar-meeting-agenda"),
+  };
+}
+
 function extractEmergencyTeamData($: cheerio.CheerioAPI): EmergencyTeamData {
   const byId = (id: string) => $(`#${id}`).attr("value")?.trim() ?? "";
   const node = (key: string, role: string): OrgChartNode => ({
@@ -634,6 +697,11 @@ export function extractWizardSections(
       // 않는다 — 특히 토글이 꺼진 항목의 내용까지 "포함: 아니오"와 함께 그대로
       // 새어나가면 안 되기 때문이다.
       if ($el.attr("data-execution-field") !== undefined || $el.attr("data-execution-toggle") !== undefined) return;
+      // 서식1·2 상단 정보(교육/회의 장소·일시 등)도 아래 extractRiskAssessmentFormFieldsData()가
+      // id로 직접 읽어 구조화하므로 여기서 중복 출력하지 않는다(표 셀 안 입력이라
+      // findLabel()이 애초에 라벨을 못 찾아 실질적으로는 중복될 일이 없지만, 다른
+      // 제외 속성들과 같은 관례를 맞춰 명시적으로 제외한다).
+      if ($el.attr("data-risk-form-field") !== undefined) return;
       const label = findLabel($, el);
       const value = fieldValue($, el);
       if (label) fields.push({ label, value });
@@ -646,6 +714,11 @@ export function extractWizardSections(
     const tables: { headers: string[]; rows: string[][] }[] = [];
     if (id !== "sec-workforce") {
       $section.find("table").each((_, tableEl) => {
+        // 서식1·2의 상단 정보 표(현장명/장소/일시 등, rowspan·colspan 병합표)는
+        // 아래 extractRiskAssessmentFormFieldsData()가 구조화해서 뽑고 생성기가
+        // 실제 샘플과 같은 병합표로 직접 그리므로, 여기서 또 "헤더+행" 일반 표로
+        // 뽑아 이중으로 출력하지 않는다.
+        if ($(tableEl).attr("data-form-info-table") !== undefined) return;
         const t = extractTableData($, tableEl);
         if (t) tables.push(t);
       });
@@ -654,6 +727,8 @@ export function extractWizardSections(
     const emergencyTeam = id === "sec-emergency_plan" ? extractEmergencyTeamData($) : undefined;
     const riskAssessmentOrgChart =
       id === "sec-risk_assessment_rules" ? extractRiskAssessmentOrgChartData($) : undefined;
+    const riskAssessmentFormFields =
+      id === "sec-risk_assessment_rules" ? extractRiskAssessmentFormFieldsData($) : undefined;
     const hazardDetailGroups = HAZARD_DETAIL_FIELDS_BY_SECTION[id]
       ? extractHazardDetailGroups($, $section, id)
       : undefined;
@@ -672,6 +747,7 @@ export function extractWizardSections(
       tables,
       emergencyTeam,
       riskAssessmentOrgChart,
+      riskAssessmentFormFields,
       hazardDetailGroups,
       headingNumber,
       chapterRoman: chapter?.roman,

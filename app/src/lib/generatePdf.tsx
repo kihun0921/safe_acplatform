@@ -2,17 +2,20 @@ import path from "path";
 import { Fragment } from "react";
 import type { ReactElement } from "react";
 import { renderToBuffer, Document, Page, View, Text, Image, Svg, Rect, Line, StyleSheet, Font } from "@react-pdf/renderer";
-import type {
-  WizardSection,
-  CoverPageData,
-  OverviewPageData,
-  ManagementPolicyData,
-  OrgChartData,
-  OrgChartNode,
-  EmergencyTeamData,
-  HazardDetailGroup,
-  WorkforcePlanGroup,
-  ExecutionOptionsData,
+import {
+  RISK_ASSESSMENT_FORM_1_CONTENT_TEXT,
+  RISK_ASSESSMENT_FORM_2_CONTENT_TEXT,
+  type WizardSection,
+  type CoverPageData,
+  type OverviewPageData,
+  type ManagementPolicyData,
+  type OrgChartData,
+  type OrgChartNode,
+  type EmergencyTeamData,
+  type HazardDetailGroup,
+  type WorkforcePlanGroup,
+  type ExecutionOptionsData,
+  type RiskAssessmentFormFieldsData,
 } from "./wizardExport";
 import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
@@ -203,6 +206,64 @@ const styles = StyleSheet.create({
     borderRight: "1pt solid #999",
   },
   approvalCell: { flex: 1, padding: 8, textAlign: "center", borderRight: "1pt solid #999", minHeight: 26 },
+  // 위험성평가 실시규정 서식1·2 병합표 — react-pdf에 표 셀 병합 기능이 없어
+  // ApprovalTable과 같은 방식(진짜 grid 대신 flex 크기/테두리로 병합처럼 보이게)을
+  // 쓴다. 담당/소장 칸만 세로로 2줄(헤더+빈 서명칸)이라 그 부분만 column View로
+  // 감싸고, 제목·결재 칸은 높이가 자동으로 맞춰지는 단일 박스로 둔다.
+  riskFormTable: { border: "1pt solid #999" },
+  riskFormTitleRow: { flexDirection: "row", borderBottom: "1pt solid #999" },
+  riskFormTitleCell: {
+    flex: 2,
+    backgroundColor: "#f3f4f6",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRight: "1pt solid #999",
+    padding: 8,
+  },
+  riskFormApprovalLabelCell: {
+    flex: 0.6,
+    backgroundColor: "#f3f4f6",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRight: "1pt solid #999",
+    padding: 6,
+  },
+  riskFormSignCol: { flex: 1 },
+  riskFormSignHeader: {
+    backgroundColor: "#f3f4f6",
+    fontWeight: "bold",
+    textAlign: "center",
+    fontSize: 9,
+    padding: 4,
+    borderBottom: "1pt solid #999",
+    borderRight: "1pt solid #999",
+  },
+  riskFormSignBox: { minHeight: 24, borderRight: "1pt solid #999" },
+  riskFormRow: { flexDirection: "row", borderBottom: "1pt solid #999" },
+  riskFormLabelCell: {
+    width: "15%",
+    backgroundColor: "#f3f4f6",
+    fontWeight: "bold",
+    textAlign: "center",
+    fontSize: 9,
+    padding: 6,
+    borderRight: "1pt solid #999",
+    justifyContent: "center",
+  },
+  riskFormValueCell: {
+    width: "35%",
+    fontSize: 9,
+    padding: 6,
+    borderRight: "1pt solid #999",
+    justifyContent: "center",
+  },
+  riskFormValueCellWide: {
+    width: "85%",
+    fontSize: 9,
+    padding: 6,
+    justifyContent: "center",
+    lineHeight: 1.5,
+  },
   genericInfoLine: { textAlign: "center", marginBottom: 10 },
   // "Ⅰ.안전보건관리체계 / 1.사업개요" 정형 페이지 전용 스타일.
   overviewPage: { padding: 50, fontFamily: "NotoSansKR", fontSize: 11 },
@@ -268,6 +329,108 @@ function ApprovalTable({ cover }: { cover: CoverPageData }) {
         <Text style={[styles.approvalCell, { borderRight: "none" }]}></Text>
       </View>
     </View>
+  );
+}
+
+// 위험성평가 실시규정 서식1(교육일지)·서식2(회의록) 상단 정보 병합표 — 실제
+// LH 샘플(143~145p)과 동일하게 담당/결재/소장 서명란 + 현장명·장소·일시 등
+// 라벨/값을 그린다. rows의 각 항목이 label2==="" 이면 값 칸이 나머지 3칸을
+// 다 차지하는 행(안건 등)이다.
+function RiskAssessmentFormTable({
+  title,
+  rows,
+  contentLabel,
+  contentText,
+}: {
+  title: string;
+  rows: [string, string, string, string][];
+  contentLabel: string;
+  contentText: string;
+}) {
+  return (
+    <View style={styles.riskFormTable}>
+      <View style={styles.riskFormTitleRow}>
+        <View style={styles.riskFormTitleCell}>
+          <Text style={{ fontWeight: "bold", fontSize: 12 }}>{title}</Text>
+        </View>
+        <View style={styles.riskFormApprovalLabelCell}>
+          <Text style={{ fontWeight: "bold", fontSize: 9 }}>결재</Text>
+        </View>
+        <View style={styles.riskFormSignCol}>
+          <Text style={styles.riskFormSignHeader}>담당</Text>
+          <View style={styles.riskFormSignBox} />
+        </View>
+        <View style={styles.riskFormSignCol}>
+          <Text style={[styles.riskFormSignHeader, { borderRight: "none" }]}>소장</Text>
+          <View />
+        </View>
+      </View>
+      {rows.map(([label1, value1, label2, value2], i) => (
+        <View key={i} style={styles.riskFormRow}>
+          <Text style={styles.riskFormLabelCell}>{label1}</Text>
+          {label2 === "" ? (
+            <Text style={[styles.riskFormValueCellWide, { borderRight: "none" }]}>{value1 || "(미입력)"}</Text>
+          ) : (
+            <>
+              <Text style={styles.riskFormValueCell}>{value1 || "(미입력)"}</Text>
+              <Text style={styles.riskFormLabelCell}>{label2}</Text>
+              <Text style={[styles.riskFormValueCell, { borderRight: "none" }]}>{value2 || "(미입력)"}</Text>
+            </>
+          )}
+        </View>
+      ))}
+      <View style={[styles.riskFormRow, { borderBottom: "none" }]}>
+        <Text style={styles.riskFormLabelCell}>{contentLabel}</Text>
+        <Text style={[styles.riskFormValueCellWide, { borderRight: "none", lineHeight: 1.6 }]}>{contentText}</Text>
+      </View>
+    </View>
+  );
+}
+
+// 서식1·2의 참여자 명단 표(직책/성명/서명/사진)는 section.tables[0]/[1]로 이미
+// 추출돼 있으므로(wizardExport.ts, data-workforce-table 기반) GenericTable로
+// 그대로 그린다.
+function RiskAssessmentFormsBlock({
+  formFields,
+  projectTitle,
+  eduParticipants,
+  meetingParticipants,
+}: {
+  formFields: RiskAssessmentFormFieldsData;
+  projectTitle: string;
+  eduParticipants?: { headers: string[]; rows: string[][] };
+  meetingParticipants?: { headers: string[]; rows: string[][] };
+}) {
+  return (
+    <>
+      <Text style={{ fontSize: 11, fontWeight: "bold", marginTop: 12, marginBottom: 8 }}>서식 1. 위험성평가 교육일지</Text>
+      <RiskAssessmentFormTable
+        title="위험성평가 교육일지"
+        rows={[
+          ["현장명", projectTitle, "교육장소", formFields.eduLocation],
+          ["교육일시", formFields.eduDatetime, "교육종류", formFields.eduType || "위험성 평가교육"],
+          ["교육대상", "위험성평가 참여자\n(현장소장, 관리감독자, 근로자 등)", "교육강사", formFields.eduInstructor],
+        ]}
+        contentLabel="교육내용"
+        contentText={RISK_ASSESSMENT_FORM_1_CONTENT_TEXT}
+      />
+      <View style={{ marginBottom: 12 }} />
+      {eduParticipants && <GenericTable headers={eduParticipants.headers} rows={eduParticipants.rows} />}
+
+      <Text style={{ fontSize: 11, fontWeight: "bold", marginTop: 16, marginBottom: 8 }}>서식 2. 위험성평가 회의록</Text>
+      <RiskAssessmentFormTable
+        title="위험성평가 회의록"
+        rows={[
+          ["현장명", projectTitle, "회의장소", formFields.meetingLocation],
+          ["회의일시", formFields.meetingDatetime, "평가종류", formFields.meetingType || "최초위험성평가"],
+          ["안건", formFields.meetingAgenda || "위험성평가 실시규정 및 최초위험성평가서 작성 등", "", ""],
+        ]}
+        contentLabel="협의사항"
+        contentText={RISK_ASSESSMENT_FORM_2_CONTENT_TEXT}
+      />
+      <View style={{ marginBottom: 12 }} />
+      {meetingParticipants && <GenericTable headers={meetingParticipants.headers} rows={meetingParticipants.rows} />}
+    </>
   );
 }
 
@@ -939,9 +1102,16 @@ export async function generateWizardPdf(
                 )}
               </Fragment>
             ))}
-            {section.tables.map((t, tIdx) => (
-              <GenericTable key={tIdx} headers={t.headers} rows={t.rows} />
-            ))}
+            {section.riskAssessmentFormFields ? (
+              <RiskAssessmentFormsBlock
+                formFields={section.riskAssessmentFormFields}
+                projectTitle={cover?.projectName || title}
+                eduParticipants={section.tables[0]}
+                meetingParticipants={section.tables[1]}
+              />
+            ) : (
+              section.tables.map((t, tIdx) => <GenericTable key={tIdx} headers={t.headers} rows={t.rows} />)
+            )}
             {section.hazardDetailGroups?.length ? (
               <HazardDetailGroupsBlock groups={section.hazardDetailGroups} />
             ) : null}

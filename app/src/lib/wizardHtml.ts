@@ -20,6 +20,11 @@ import {
   normalizeAgencyName,
   type AgencyTemplateRow,
 } from "@/lib/agencyTemplates";
+import {
+  RISK_ASSESSMENT_FORM_1_CONTENT_TEXT,
+  RISK_ASSESSMENT_FORM_2_CONTENT_TEXT,
+  type RiskAssessmentFormFieldsData,
+} from "@/lib/wizardExport";
 
 // Shared between the wizard screen (src/app/documents/[id]/wizard/page.tsx) and the
 // document export routes (src/app/api/documents/[id]/export/*): both need the exact
@@ -3173,6 +3178,9 @@ interface WorkforceColumn {
   key: string;
   label: string;
   placeholder?: string;
+  // 서명·사진처럼 디지털로 채울 수 없는 칸은 입력 없이 인쇄용 빈 칸만 그린다
+  // (buildWorkforceRowHtml 참고).
+  blank?: boolean;
 }
 
 interface WorkforceCriteriaRow {
@@ -3256,11 +3264,12 @@ function buildWorkforceRowHtml(
 ): string {
   const id = row.id ?? "";
   const cells = columns
-    .map(
-      (col) => `<td class="p-2"><input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-workforce-field="${col.key}" placeholder="${escapeHtmlPolicy(
+    .map((col) => {
+      if (col.blank) return `<td class="p-2 h-10"></td>`;
+      return `<td class="p-2"><input class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-workforce-field="${col.key}" placeholder="${escapeHtmlPolicy(
         col.placeholder ?? col.label
-      )}" type="text" value="${escapeHtmlPolicy(row[col.key] ?? "")}"/></td>`
-    )
+      )}" type="text" value="${escapeHtmlPolicy(row[col.key] ?? "")}"/></td>`;
+    })
     .join("\n");
   // seq(연번)는 클라이언트 JS(renumberWorkforceRows)가 행 추가·삭제 때마다 다시
   // 매기지만, 다운로드 문서(export)는 브라우저 JS 없이 이 HTML을 그대로 파싱하므로
@@ -3601,96 +3610,166 @@ const RISK_ASSESSMENT_RULES_BLOCK_13_TEXT =
   "⑤ 그 밖에 건설현장에서 필요하다고 정한 사항";
 
 // 실제 LH 샘플(화성동탄(2), 143~145p)의 서식 1·2는 안내문 하나가 아니라 실제
-// 기재 가능한 서식(현장명·장소·일시 등 항목 입력 + 참여자 직책·성명 명단
-// 표)이다 — 예전엔 "【서식 1】..." 처럼 서식 개요를 요약한 안내문 텍스트뿐이라
-// 실제로 작성할 수 있는 서식이 아니었다. 아래 두 상수는 실제 서식의 고정
-// 문구(교육내용/협의사항)만 담고, 현장명·장소·일시·강사 등은 raRField
-// 입력으로, 참여자 명단은 작업투입 인력과 동일한 방식(행 추가·삭제 가능한
-// 표, documents.content.riskEducationParticipantRows/riskMeetingParticipantRows)
-// 으로 아래 buildRiskAssessmentFormsHtml()이 실제 서식대로 그린다.
-const RISK_ASSESSMENT_RULES_FORM_1_CONTENT_TEXT =
-  "1. 위험성평가를 위한 사업주의 방침과 목표\n" +
-  "2. 위험성평가 추진방법 및 내용\n" +
-  "3. 위험성평가 절차\n" +
-  "  - 1단계: 사전준비(실시규정 작성 등)\n" +
-  "  - 2단계: 유해위험요인 파악\n" +
-  "  - 3단계: 위험성 결정\n" +
-  "  - 4단계: 위험성 개선대책 수립·실행\n" +
-  "4. 기록\n" +
-  "5. 위험성평가 실시시기 및 범위 등";
-
-const RISK_ASSESSMENT_RULES_FORM_2_CONTENT_TEXT =
-  "1. 위험성평가를 위한 위험성평가 실시규정의 검토·작성\n" +
-  "2. 위험성평가 실시에 따른 책임과 역할 부여\n" +
-  "3. 단위 공종별 유해위험요인 파악 및 위험성 결정\n" +
-  "4. 개선대책 강구, 대책 실행방법 및 확인\n" +
-  "5. 기록의 유지\n" +
-  "6. 위험성평가 관련 관심사항 토론 등";
-
-const RISK_ASSESSMENT_PARTICIPANT_COLUMNS: WorkforceColumn[] = [
-  { key: "role", label: "직책", placeholder: "예: 관리감독자" },
-  { key: "name", label: "성명", placeholder: "성명" },
-];
+// 기재 가능한 서식(담당/결재/소장 서명란 + 현장명·장소·일시 등 항목 입력 +
+// 참여자 직책·성명·서명·사진 명단 표)이다 — 예전엔 라벨+입력을 세로로 나열한
+// 목록이라 실제 서식과 표 모양(테두리, 병합 셀)이 달라 보인다는 지적을 받아,
+// 실제 샘플과 같은 rowspan/colspan 병합 표로 다시 그린다. 고정 문구(교육내용/
+// 협의사항)는 wizardExport.ts에도 필요해(다운로드 문서가 같은 문구로 표를
+// 그림) 거기 한 곳에만 정의해 두고 여기서 가져다 쓴다.
 
 // 실제 서식 1·2의 참여자 명단 표에는 "서명"·"사진" 칸도 있지만, 이는 현장에서
 // 직접 서명하거나 사진을 붙이는 칸이라 디지털 입력 대상이 아니다 — 다른
 // 입력칸(직책·성명)만 실제 입력받고, 서명·사진 칸은 인쇄 후 수기로 채우도록
-// 빈 칸으로 안내 문구만 넣어 둔다.
-function buildRiskAssessmentSignaturePhotoNoteHtml(): string {
-  return `<p class="text-[11px] text-neutral-400">※ "서명"·"사진" 칸은 인쇄 후 현장에서 직접 서명·부착합니다.</p>`;
+// blank:true인 빈 칸으로만 둔다.
+const RISK_ASSESSMENT_PARTICIPANT_COLUMNS: WorkforceColumn[] = [
+  { key: "role", label: "직책", placeholder: "예: 관리감독자" },
+  { key: "name", label: "성명", placeholder: "성명" },
+  { key: "signature", label: "서명", blank: true },
+  { key: "photo", label: "사진", blank: true },
+];
+
+function multilineHtml(text: string): string {
+  return escapeHtmlPolicy(text).replace(/\n/g, "<br/>");
+}
+
+// 담당/결재/소장 서명란 — 실제 서식의 "제목(rowspan2,colspan2) | 결재(rowspan2) |
+// 담당/소장(각 1열, 아래 칸은 서명용 빈 칸)" 구조를 그대로 재현한다. 서식1·2가
+// 이 구조를 그대로 공유하므로 제목만 매개변수로 받는다.
+function riskAssessmentFormTitleRowsHtml(title: string): string {
+  return `<tr>
+<td class="border border-neutral-300 bg-neutral-50 font-bold text-center align-middle" rowspan="2" colspan="2">${escapeHtmlPolicy(
+    title
+  )}</td>
+<td class="border border-neutral-300 bg-neutral-50 font-bold text-center align-middle w-12" rowspan="2">결재</td>
+<td class="border border-neutral-300 bg-neutral-50 font-bold text-center w-16">담당</td>
+<td class="border border-neutral-300 bg-neutral-50 font-bold text-center w-16">소장</td>
+</tr>
+<tr>
+<td class="border border-neutral-300 h-9"></td>
+<td class="border border-neutral-300 h-9"></td>
+</tr>`;
+}
+
+function riskAssessmentFormLabelCellHtml(label: string): string {
+  return `<td class="border border-neutral-300 bg-neutral-50 font-bold px-2 py-1.5 align-middle w-[15%]">${escapeHtmlPolicy(
+    label
+  )}</td>`;
+}
+
+function riskAssessmentFormValueCellHtml(html: string, opts: { colspan?: number } = {}): string {
+  const colspanAttr = opts.colspan ? ` colspan="${opts.colspan}"` : "";
+  return `<td class="border border-neutral-300 px-2 py-1.5 align-middle"${colspanAttr}>${html}</td>`;
+}
+
+function riskAssessmentFormInputHtml(id: string, value: string, placeholder = ""): string {
+  return `<input id="${id}" data-risk-form-field="" class="w-full text-xs bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-primary/40 rounded px-1 py-0.5" type="text" value="${escapeHtmlPolicy(
+    value
+  )}" placeholder="${escapeHtmlPolicy(placeholder)}"/>`;
+}
+
+// 서식 1. 위험성평가 교육일지 — 실제 샘플(144p)과 동일한 병합 표.
+function buildRiskEducationLogTableHtml(projectTitle: string, values: RiskAssessmentFormFieldsData): string {
+  return `<table class="w-full text-xs border border-neutral-300 rounded-lg overflow-hidden table-fixed" data-form-info-table="risk_edu">
+<tbody>
+${riskAssessmentFormTitleRowsHtml("위험성평가 교육일지")}
+<tr>
+${riskAssessmentFormLabelCellHtml("현장명")}
+${riskAssessmentFormValueCellHtml(escapeHtmlPolicy(projectTitle))}
+${riskAssessmentFormLabelCellHtml("교육장소")}
+${riskAssessmentFormValueCellHtml(riskAssessmentFormInputHtml("wizard-field-rar-edu-location", values.eduLocation))}
+</tr>
+<tr>
+${riskAssessmentFormLabelCellHtml("교육일시")}
+${riskAssessmentFormValueCellHtml(riskAssessmentFormInputHtml("wizard-field-rar-edu-datetime", values.eduDatetime))}
+${riskAssessmentFormLabelCellHtml("교육종류")}
+${riskAssessmentFormValueCellHtml(riskAssessmentFormInputHtml("wizard-field-rar-edu-type", values.eduType || "위험성 평가교육"))}
+</tr>
+<tr>
+${riskAssessmentFormLabelCellHtml("교육대상")}
+${riskAssessmentFormValueCellHtml('<span class="text-[11px] leading-snug">위험성평가 참여자<br/>(현장소장, 관리감독자, 근로자 등)</span>')}
+${riskAssessmentFormLabelCellHtml("교육강사")}
+${riskAssessmentFormValueCellHtml(riskAssessmentFormInputHtml("wizard-field-rar-edu-instructor", values.eduInstructor))}
+</tr>
+<tr>
+${riskAssessmentFormLabelCellHtml("교육내용")}
+${riskAssessmentFormValueCellHtml(
+    `<span class="text-[11px] leading-relaxed">${multilineHtml(RISK_ASSESSMENT_FORM_1_CONTENT_TEXT)}</span>`,
+    { colspan: 3 }
+  )}
+</tr>
+</tbody>
+</table>`;
+}
+
+// 서식 2. 위험성평가 회의록 — 실제 샘플(145p)과 동일한 병합 표.
+function buildRiskMeetingMinutesTableHtml(projectTitle: string, values: RiskAssessmentFormFieldsData): string {
+  return `<table class="w-full text-xs border border-neutral-300 rounded-lg overflow-hidden table-fixed" data-form-info-table="risk_meeting">
+<tbody>
+${riskAssessmentFormTitleRowsHtml("위험성평가 회의록")}
+<tr>
+${riskAssessmentFormLabelCellHtml("현장명")}
+${riskAssessmentFormValueCellHtml(escapeHtmlPolicy(projectTitle))}
+${riskAssessmentFormLabelCellHtml("회의장소")}
+${riskAssessmentFormValueCellHtml(riskAssessmentFormInputHtml("wizard-field-rar-meeting-location", values.meetingLocation))}
+</tr>
+<tr>
+${riskAssessmentFormLabelCellHtml("회의일시")}
+${riskAssessmentFormValueCellHtml(riskAssessmentFormInputHtml("wizard-field-rar-meeting-datetime", values.meetingDatetime))}
+${riskAssessmentFormLabelCellHtml("평가종류")}
+${riskAssessmentFormValueCellHtml(riskAssessmentFormInputHtml("wizard-field-rar-meeting-type", values.meetingType || "최초위험성평가"))}
+</tr>
+<tr>
+${riskAssessmentFormLabelCellHtml("안건")}
+${riskAssessmentFormValueCellHtml(
+    riskAssessmentFormInputHtml(
+      "wizard-field-rar-meeting-agenda",
+      values.meetingAgenda || "위험성평가 실시규정 및 최초위험성평가서 작성 등"
+    ),
+    { colspan: 3 }
+  )}
+</tr>
+<tr>
+${riskAssessmentFormLabelCellHtml("협의사항")}
+${riskAssessmentFormValueCellHtml(
+    `<span class="text-[11px] leading-relaxed">${multilineHtml(RISK_ASSESSMENT_FORM_2_CONTENT_TEXT)}</span>`,
+    { colspan: 3 }
+  )}
+</tr>
+</tbody>
+</table>`;
 }
 
 function buildRiskAssessmentFormsHtml(
+  projectTitle: string,
+  formFields: RiskAssessmentFormFieldsData,
   eduRows: Record<string, string>[] | undefined,
   meetingRows: Record<string, string>[] | undefined
 ): string {
-  const eduFieldsHtml = [
-    raRField("wizard-field-rar-edu-location", "교육장소", ""),
-    raRField("wizard-field-rar-edu-datetime", "교육일시", ""),
-    raRField("wizard-field-rar-edu-type", "교육종류", "위험성평가 교육"),
-    raRField("wizard-field-rar-edu-instructor", "교육강사", ""),
-  ].join("\n");
-
-  const meetingFieldsHtml = [
-    raRField("wizard-field-rar-meeting-datetime", "회의일시", ""),
-    raRField("wizard-field-rar-meeting-location", "회의장소", ""),
-    raRField("wizard-field-rar-meeting-type", "평가종류", "최초위험성평가"),
-    raRField("wizard-field-rar-meeting-agenda", "안건", "위험성평가 실시규정 및 최초위험성평가서 작성 등"),
-  ].join("\n");
-
   return `<div class="space-y-3">
 <p class="font-bold text-neutral-800">서식 1. 위험성평가 교육일지</p>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-${eduFieldsHtml}
-</div>
-${raRReadonlyBlock("교육내용", RISK_ASSESSMENT_RULES_FORM_1_CONTENT_TEXT)}
+${buildRiskEducationLogTableHtml(projectTitle, formFields)}
 ${buildWorkforceDynamicTableHtml(
     "risk_edu_participants",
-    "교육 참여자 명단",
+    "참여자 명단",
     "참여자 추가",
     RISK_ASSESSMENT_PARTICIPANT_COLUMNS,
     eduRows,
     { role: "현장소장", name: "" }
   )}
-${buildRiskAssessmentSignaturePhotoNoteHtml()}
-<p class="text-[11px] text-neutral-400">※ 실제 교육 실시 시 현장에서 작성하여 첨부하는 서식입니다.</p>
+<p class="text-[11px] text-neutral-400">※ "서명"·"사진" 칸은 인쇄 후 현장에서 직접 서명·부착합니다. 실제 교육 실시 시 현장에서 작성하여 첨부하는 서식입니다.</p>
 </div>
 <div class="space-y-3">
 <p class="font-bold text-neutral-800">서식 2. 위험성평가 회의록</p>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-${meetingFieldsHtml}
-</div>
-${raRReadonlyBlock("협의사항", RISK_ASSESSMENT_RULES_FORM_2_CONTENT_TEXT)}
+${buildRiskMeetingMinutesTableHtml(projectTitle, formFields)}
 ${buildWorkforceDynamicTableHtml(
     "risk_meeting_participants",
-    "회의 참여자 명단",
+    "참여자 명단",
     "참여자 추가",
     RISK_ASSESSMENT_PARTICIPANT_COLUMNS,
     meetingRows,
     { role: "현장소장", name: "" }
   )}
-${buildRiskAssessmentSignaturePhotoNoteHtml()}
-<p class="text-[11px] text-neutral-400">※ 실제 회의 실시 시 현장에서 작성하여 첨부하는 서식입니다.</p>
+<p class="text-[11px] text-neutral-400">※ "서명"·"사진" 칸은 인쇄 후 현장에서 직접 서명·부착합니다. 실제 회의 실시 시 현장에서 작성하여 첨부하는 서식입니다.</p>
 </div>`;
 }
 
@@ -3711,8 +3790,26 @@ function buildRiskAssessmentRulesSectionHtml(params: {
   reviewerDefaultName: string;
   riskEducationParticipantRows?: Record<string, string>[];
   riskMeetingParticipantRows?: Record<string, string>[];
+  riskAssessmentFormFields?: Partial<RiskAssessmentFormFieldsData>;
 }): string {
-  const { projectTitle, reviewerDefaultName, riskEducationParticipantRows, riskMeetingParticipantRows } = params;
+  const {
+    projectTitle,
+    reviewerDefaultName,
+    riskEducationParticipantRows,
+    riskMeetingParticipantRows,
+    riskAssessmentFormFields,
+  } = params;
+  const formFields: RiskAssessmentFormFieldsData = {
+    eduLocation: "",
+    eduDatetime: "",
+    eduType: "",
+    eduInstructor: "",
+    meetingLocation: "",
+    meetingDatetime: "",
+    meetingType: "",
+    meetingAgenda: "",
+    ...riskAssessmentFormFields,
+  };
 
   const editableFieldsHtml = [
     raRField("wizard-field-rar-site-name", "현장명", projectTitle),
@@ -3751,7 +3848,7 @@ function buildRiskAssessmentRulesSectionHtml(params: {
     raRReadonlyBlock("8. 위험성평가의 실시 (종류·시기/절차/방법/교육/유의사항)", RISK_ASSESSMENT_RULES_BLOCK_11_TEXT),
     raRReadonlyBlock("9. 점검 및 개선활동", RISK_ASSESSMENT_RULES_BLOCK_12_TEXT),
     raRReadonlyBlock("10. 기록 및 보존", RISK_ASSESSMENT_RULES_BLOCK_13_TEXT),
-    buildRiskAssessmentFormsHtml(riskEducationParticipantRows, riskMeetingParticipantRows),
+    buildRiskAssessmentFormsHtml(projectTitle, formFields, riskEducationParticipantRows, riskMeetingParticipantRows),
   ].join("\n");
 
   return `<!-- ════════ SECTION: 위험성평가 실시규정 ════════ -->
@@ -3944,12 +4041,16 @@ ${templateOptions
     | Record<string, string>[]
     | undefined;
   const riskMeetingParticipantRows = doc.content?.riskMeetingParticipantRows as Record<string, string>[] | undefined;
+  const riskAssessmentFormFields = doc.content?.riskAssessmentFormFields as
+    | Partial<RiskAssessmentFormFieldsData>
+    | undefined;
   const riskAssessmentRulesSectionHtml = agencyTemplate?.show_risk_assessment_rules
     ? buildRiskAssessmentRulesSectionHtml({
         projectTitle: (doc.title ?? "").replace(/\s*계획서$/, "").trim() || "안전보건관리계획서",
         reviewerDefaultName: member?.name?.trim() || "",
         riskEducationParticipantRows,
         riskMeetingParticipantRows,
+        riskAssessmentFormFields,
       })
     : "";
   // "유해·위험 기계·기구·물질의 방호조치 및 관리계획" — 기계·기구/차량계건설기계·

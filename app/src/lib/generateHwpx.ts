@@ -1,16 +1,19 @@
 import path from "path";
 import fs from "fs";
 import JSZip from "jszip";
-import type {
-  WizardSection,
-  CoverPageData,
-  OverviewPageData,
-  ManagementPolicyData,
-  OrgChartData,
-  EmergencyTeamData,
-  HazardDetailGroup,
-  WorkforcePlanGroup,
-  ExecutionOptionsData,
+import {
+  RISK_ASSESSMENT_FORM_1_CONTENT_TEXT,
+  RISK_ASSESSMENT_FORM_2_CONTENT_TEXT,
+  type WizardSection,
+  type CoverPageData,
+  type OverviewPageData,
+  type ManagementPolicyData,
+  type OrgChartData,
+  type EmergencyTeamData,
+  type HazardDetailGroup,
+  type WorkforcePlanGroup,
+  type ExecutionOptionsData,
+  type RiskAssessmentFormFieldsData,
 } from "./wizardExport";
 import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
@@ -434,6 +437,159 @@ function tableParagraph(headers: string[], rows: string[][], pageBreak: boolean)
 <hp:run charPrIDRef="0">${buildTableXml(headers, rows)}</hp:run>
 <hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
 </hp:p>`;
+}
+
+// 위험성평가 실시규정 서식1(교육일지)·서식2(회의록) — 실제 LH 샘플(143~145p)의
+// 담당/결재/소장 서명란(2행 병합 표) + 현장명·장소·일시 등 라벨/값(4열 표)을
+// 그대로 재현한다. OWPML은 docx.js와 달리 cellAddr·cellSpan만으로 병합을
+// 표현하고(병합된 자리에 placeholder cell을 또 넣을 필요가 없음), 표 하나 안의
+// colCnt는 모든 행이 공유하는 고정 grid라 두 블록(5열 서명란/4열 라벨값표)의
+// 열 구성이 서로 달라 표 2개로 나눠 이어 붙인다.
+function riskFormCellXml(
+  text: string,
+  colAddr: number,
+  rowAddr: number,
+  width: number,
+  height: number,
+  opts: { colSpan?: number; rowSpan?: number; shaded?: boolean; narrow?: boolean } = {}
+): string {
+  const { colSpan = 1, rowSpan = 1, shaded = false, narrow = true } = opts;
+  const borderFillId = shaded ? TABLE_HEADER_BORDER_FILL_ID : TABLE_BODY_BORDER_FILL_ID;
+  const paraPrIDRef = narrow ? CENTER_PARA_PR_ID : LEFT_PARA_PR_ID;
+  return `<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${borderFillId}">
+<hp:cellAddr colAddr="${colAddr}" rowAddr="${rowAddr}"/>
+<hp:cellSpan colSpan="${colSpan}" rowSpan="${rowSpan}"/>
+<hp:cellSz width="${width}" height="${height}"/>
+<hp:cellMargin left="${TABLE_CELL_MARGIN}" right="${TABLE_CELL_MARGIN}" top="${TABLE_CELL_MARGIN_V}" bottom="${TABLE_CELL_MARGIN_V}"/>
+<hp:subList id="0" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="${width}" textHeight="0" hasTextRef="0" hasNumRef="0">
+${cellParagraphs(text, width, paraPrIDRef)}
+</hp:subList>
+</hp:tc>`;
+}
+
+function riskFormTableParagraph(colCnt: number, rowCnt: number, totalHeight: number, rowsXml: string): string {
+  const tblId = nextId();
+  return `<hp:p id="${nextId()}" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">
+<hp:run charPrIDRef="0"><hp:tbl id="${tblId}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${rowCnt}" colCnt="${colCnt}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
+<hp:sz width="${TABLE_TOTAL_WIDTH}" widthRelTo="ABSOLUTE" height="${totalHeight}" heightRelTo="ABSOLUTE" protect="0"/>
+<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/>
+<hp:outMargin left="0" right="0" top="0" bottom="0"/>
+<hp:inMargin left="0" right="0" top="0" bottom="0"/>
+${rowsXml}
+</hp:tbl></hp:run>
+<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
+</hp:p>`;
+}
+
+// 제목(rowSpan2,colSpan2) | 결재(rowSpan2) | 담당/소장(각 1열, 아래 칸은 서명용 빈 칸).
+function riskFormApprovalTableParagraph(title: string): string {
+  const titleWidth = Math.round(TABLE_TOTAL_WIDTH * 0.44);
+  const approvalLabelWidth = Math.round(TABLE_TOTAL_WIDTH * 0.12);
+  const signColWidth = Math.round((TABLE_TOTAL_WIDTH - titleWidth - approvalLabelWidth) / 2);
+  const rowHeight = 900;
+  const row0 = [
+    riskFormCellXml(title, 0, 0, titleWidth, rowHeight * 2, { colSpan: 2, rowSpan: 2, shaded: true }),
+    riskFormCellXml("결재", 2, 0, approvalLabelWidth, rowHeight * 2, { rowSpan: 2, shaded: true }),
+    riskFormCellXml("담당", 3, 0, signColWidth, rowHeight, { shaded: true }),
+    riskFormCellXml("소장", 4, 0, signColWidth, rowHeight, { shaded: true }),
+  ].join("\n");
+  const row1 = [
+    riskFormCellXml("", 3, 1, signColWidth, rowHeight),
+    riskFormCellXml("", 4, 1, signColWidth, rowHeight),
+  ].join("\n");
+  return riskFormTableParagraph(5, 2, rowHeight * 2, `<hp:tr>${row0}</hp:tr>\n<hp:tr>${row1}</hp:tr>`);
+}
+
+// 현장명·장소·일시 등 라벨/값 4열 표 + 마지막 교육내용/협의사항 행(값 칸이
+// 나머지 3칸을 다 차지). rows의 각 항목이 label2==="" 이면 값 칸이 3칸을 다
+// 차지하는 행(안건 등)이다.
+function riskFormInfoTableParagraph(
+  rows: [string, string, string, string][],
+  contentLabel: string,
+  contentText: string
+): string {
+  const labelWidth = Math.round(TABLE_TOTAL_WIDTH * 0.15);
+  const valueWidth = Math.round((TABLE_TOTAL_WIDTH - labelWidth * 2) / 2);
+  const rowHeight = TABLE_ROW_HEIGHT;
+  const rowXmls: string[] = [];
+  let rowAddr = 0;
+  for (const [label1, value1, label2, value2] of rows) {
+    if (label2 === "") {
+      const cells = [
+        riskFormCellXml(label1, 0, rowAddr, labelWidth, rowHeight, { shaded: true }),
+        riskFormCellXml(value1, 1, rowAddr, valueWidth * 2 + labelWidth, rowHeight, { colSpan: 3, narrow: false }),
+      ].join("\n");
+      rowXmls.push(`<hp:tr>${cells}</hp:tr>`);
+    } else {
+      const cells = [
+        riskFormCellXml(label1, 0, rowAddr, labelWidth, rowHeight, { shaded: true }),
+        riskFormCellXml(value1, 1, rowAddr, valueWidth, rowHeight, { narrow: false }),
+        riskFormCellXml(label2, 2, rowAddr, labelWidth, rowHeight, { shaded: true }),
+        riskFormCellXml(value2, 3, rowAddr, valueWidth, rowHeight, { narrow: false }),
+      ].join("\n");
+      rowXmls.push(`<hp:tr>${cells}</hp:tr>`);
+    }
+    rowAddr += 1;
+  }
+  const contentRowHeight = rowHeight * 3;
+  const contentCells = [
+    riskFormCellXml(contentLabel, 0, rowAddr, labelWidth, contentRowHeight, { shaded: true }),
+    riskFormCellXml(contentText, 1, rowAddr, valueWidth * 2 + labelWidth, contentRowHeight, {
+      colSpan: 3,
+      narrow: false,
+    }),
+  ].join("\n");
+  rowXmls.push(`<hp:tr>${contentCells}</hp:tr>`);
+  rowAddr += 1;
+
+  const totalHeight = rowHeight * (rowAddr - 1) + contentRowHeight;
+  return riskFormTableParagraph(4, rowAddr, totalHeight, rowXmls.join("\n"));
+}
+
+function buildRiskAssessmentFormsParagraphs(
+  formFields: RiskAssessmentFormFieldsData,
+  projectTitle: string,
+  eduParticipants: { headers: string[]; rows: string[][] } | undefined,
+  meetingParticipants: { headers: string[]; rows: string[][] } | undefined
+): string[] {
+  const paragraphs: string[] = [];
+  paragraphs.push(textParagraph("서식 1. 위험성평가 교육일지", "6", false));
+  paragraphs.push(riskFormApprovalTableParagraph("위험성평가 교육일지"));
+  paragraphs.push(
+    riskFormInfoTableParagraph(
+      [
+        ["현장명", projectTitle, "교육장소", formFields.eduLocation],
+        ["교육일시", formFields.eduDatetime, "교육종류", formFields.eduType || "위험성 평가교육"],
+        ["교육대상", "위험성평가 참여자\n(현장소장, 관리감독자, 근로자 등)", "교육강사", formFields.eduInstructor],
+      ],
+      "교육내용",
+      RISK_ASSESSMENT_FORM_1_CONTENT_TEXT
+    )
+  );
+  paragraphs.push(emptyParagraph());
+  if (eduParticipants?.rows.length) {
+    paragraphs.push(tableParagraph(eduParticipants.headers, eduParticipants.rows, false));
+  }
+
+  paragraphs.push(textParagraph("서식 2. 위험성평가 회의록", "6", false));
+  paragraphs.push(riskFormApprovalTableParagraph("위험성평가 회의록"));
+  paragraphs.push(
+    riskFormInfoTableParagraph(
+      [
+        ["현장명", projectTitle, "회의장소", formFields.meetingLocation],
+        ["회의일시", formFields.meetingDatetime, "평가종류", formFields.meetingType || "최초위험성평가"],
+        ["안건", formFields.meetingAgenda || "위험성평가 실시규정 및 최초위험성평가서 작성 등", "", ""],
+      ],
+      "협의사항",
+      RISK_ASSESSMENT_FORM_2_CONTENT_TEXT
+    )
+  );
+  paragraphs.push(emptyParagraph());
+  if (meetingParticipants?.rows.length) {
+    paragraphs.push(tableParagraph(meetingParticipants.headers, meetingParticipants.rows, false));
+  }
+
+  return paragraphs;
 }
 
 // 유해·위험 기계/차량/물질 관리계획: 항목(장비명·물질명)별로 "관리계획/세부실행
@@ -1033,11 +1189,24 @@ function buildSection0Xml(
         paragraphs.push(...buildEmergencyTeamDiagramParagraphs(section.riskAssessmentOrgChart));
       }
     }
-    for (const t of section.tables) {
-      if (t.rows.length === 0) continue;
-      paragraphs.push(emptyParagraph());
-      paragraphs.push(tableParagraph(t.headers, t.rows, false));
-      paragraphs.push(emptyParagraph());
+    if (section.riskAssessmentFormFields) {
+      // 서식1·2 참여자 명단 표(section.tables[0]/[1])는 아래 buildRiskAssessmentFormsParagraphs가
+      // 정보 병합표와 함께 순서대로 직접 그리므로, 여기서는 일반 표로 중복 출력하지 않는다.
+      paragraphs.push(
+        ...buildRiskAssessmentFormsParagraphs(
+          section.riskAssessmentFormFields,
+          cover?.projectName || title,
+          section.tables[0],
+          section.tables[1]
+        )
+      );
+    } else {
+      for (const t of section.tables) {
+        if (t.rows.length === 0) continue;
+        paragraphs.push(emptyParagraph());
+        paragraphs.push(tableParagraph(t.headers, t.rows, false));
+        paragraphs.push(emptyParagraph());
+      }
     }
     if (section.accidentImages?.length) {
       // DOCX(buildLabeledImagePage)와 동일하게 자료마다 제목 + 이미지 그대로

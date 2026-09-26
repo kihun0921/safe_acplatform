@@ -13,19 +13,23 @@ import {
   AlignmentType,
   BorderStyle,
   VerticalAlign,
+  VerticalMergeType,
   TableLayoutType,
 } from "docx";
-import type {
-  WizardSection,
-  CoverPageData,
-  OverviewPageData,
-  ManagementPolicyData,
-  OrgChartData,
-  OrgChartNode,
-  EmergencyTeamData,
-  HazardDetailGroup,
-  WorkforcePlanGroup,
-  ExecutionOptionsData,
+import {
+  RISK_ASSESSMENT_FORM_1_CONTENT_TEXT,
+  RISK_ASSESSMENT_FORM_2_CONTENT_TEXT,
+  type WizardSection,
+  type CoverPageData,
+  type OverviewPageData,
+  type ManagementPolicyData,
+  type OrgChartData,
+  type OrgChartNode,
+  type EmergencyTeamData,
+  type HazardDetailGroup,
+  type WorkforcePlanGroup,
+  type ExecutionOptionsData,
+  type RiskAssessmentFormFieldsData,
 } from "./wizardExport";
 import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
@@ -238,6 +242,187 @@ function buildGenericTable(headers: string[], rows: string[][]): Table {
   }
 
   return new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE }, layout: TableLayoutType.FIXED });
+}
+
+// "위험성평가 실시규정"의 서식1(교육일지)·서식2(회의록) — 실제 LH 샘플(143~145p)의
+// 담당/결재/소장 서명란 + 현장명·장소·일시 등 라벨/값 병합표를 그대로 재현한다.
+// docx.js는 세로 병합(rowSpan)을 "위 칸 verticalMerge:RESTART + 아래 칸
+// verticalMerge:CONTINUE" 조합으로 표현하므로, 결재란 아래 칸에도(내용은 비지만)
+// 반드시 실제 TableCell을 둬야 한다 — 생략하면 열 개수가 안 맞아 표가 깨진다.
+function riskFormLabelCell(text: string): TableCell {
+  return new TableCell({
+    width: { size: 15, type: WidthType.PERCENTAGE },
+    verticalAlign: VerticalAlign.CENTER,
+    shading: { fill: "F3F4F6" },
+    borders: CELL_BORDERS,
+    margins: CELL_MARGINS,
+    children: [
+      new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text, bold: true, size: 18, font: FONT })] }),
+    ],
+  });
+}
+
+function riskFormValueCell(lines: string[], opts: { columnSpan?: number; small?: boolean } = {}): TableCell {
+  const size = opts.small ? 16 : 18;
+  return new TableCell({
+    columnSpan: opts.columnSpan,
+    width: { size: 35, type: WidthType.PERCENTAGE },
+    verticalAlign: VerticalAlign.CENTER,
+    borders: CELL_BORDERS,
+    margins: CELL_MARGINS,
+    children: lines.map(
+      (line, i) =>
+        new Paragraph({
+          spacing: { after: i === lines.length - 1 ? 0 : 40 },
+          children: [new TextRun({ text: line || "(미입력)", size, font: FONT })],
+        })
+    ),
+  });
+}
+
+function buildRiskAssessmentFormTable(
+  title: string,
+  projectTitle: string,
+  rows: [string, string, string, string][],
+  contentLabel: string,
+  contentText: string
+): Table {
+  const tableRows: TableRow[] = [
+    new TableRow({
+      children: [
+        new TableCell({
+          columnSpan: 2,
+          verticalMerge: VerticalMergeType.RESTART,
+          verticalAlign: VerticalAlign.CENTER,
+          shading: { fill: "F3F4F6" },
+          borders: CELL_BORDERS,
+          margins: CELL_MARGINS,
+          children: [
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: title, bold: true, size: 22, font: FONT })] }),
+          ],
+        }),
+        new TableCell({
+          verticalMerge: VerticalMergeType.RESTART,
+          verticalAlign: VerticalAlign.CENTER,
+          shading: { fill: "F3F4F6" },
+          borders: CELL_BORDERS,
+          margins: CELL_MARGINS,
+          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "결재", bold: true, size: 18, font: FONT })] })],
+        }),
+        new TableCell({
+          shading: { fill: "F3F4F6" },
+          borders: CELL_BORDERS,
+          margins: CELL_MARGINS,
+          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "담당", bold: true, size: 18, font: FONT })] })],
+        }),
+        new TableCell({
+          shading: { fill: "F3F4F6" },
+          borders: CELL_BORDERS,
+          margins: CELL_MARGINS,
+          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "소장", bold: true, size: 18, font: FONT })] })],
+        }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        new TableCell({ columnSpan: 2, verticalMerge: VerticalMergeType.CONTINUE, borders: CELL_BORDERS, children: [new Paragraph({})] }),
+        new TableCell({ verticalMerge: VerticalMergeType.CONTINUE, borders: CELL_BORDERS, children: [new Paragraph({})] }),
+        new TableCell({ borders: CELL_BORDERS, margins: CELL_MARGINS, children: [new Paragraph({})] }),
+        new TableCell({ borders: CELL_BORDERS, margins: CELL_MARGINS, children: [new Paragraph({})] }),
+      ],
+    }),
+  ];
+
+  for (const [label1, value1, label2, value2] of rows) {
+    if (label2 === "") {
+      // 안건/교육내용/협의사항처럼 값 칸이 나머지 3칸을 다 차지하는 행.
+      tableRows.push(
+        new TableRow({
+          children: [riskFormLabelCell(label1), riskFormValueCell(value1.split("\n"), { columnSpan: 3 })],
+        })
+      );
+    } else {
+      tableRows.push(
+        new TableRow({
+          children: [
+            riskFormLabelCell(label1),
+            riskFormValueCell(value1.split("\n")),
+            riskFormLabelCell(label2),
+            riskFormValueCell(value2.split("\n")),
+          ],
+        })
+      );
+    }
+  }
+
+  tableRows.push(
+    new TableRow({
+      children: [riskFormLabelCell(contentLabel), riskFormValueCell(contentText.split("\n"), { columnSpan: 3, small: true })],
+    })
+  );
+
+  return new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE }, layout: TableLayoutType.FIXED });
+}
+
+// 서식1·2의 참여자 명단 표(직책/성명/서명/사진)는 section.tables[0]/[1]로 이미
+// 추출돼 있으므로(wizardExport.ts, data-workforce-table 기반) buildGenericTable로
+// 그대로 그린다 — "서명"·"사진" 칸은 빈 문자열로 와서 인쇄용 빈 칸이 된다.
+function buildRiskAssessmentFormsBlocks(
+  formFields: RiskAssessmentFormFieldsData,
+  projectTitle: string,
+  eduParticipants: { headers: string[]; rows: string[][] } | undefined,
+  meetingParticipants: { headers: string[]; rows: string[][] } | undefined
+): (Paragraph | Table)[] {
+  const blocks: (Paragraph | Table)[] = [];
+  blocks.push(
+    new Paragraph({
+      spacing: { before: 200, after: 120 },
+      children: [new TextRun({ text: "서식 1. 위험성평가 교육일지", bold: true, size: 22, font: FONT })],
+    })
+  );
+  blocks.push(
+    buildRiskAssessmentFormTable(
+      "위험성평가 교육일지",
+      projectTitle,
+      [
+        ["현장명", projectTitle, "교육장소", formFields.eduLocation],
+        ["교육일시", formFields.eduDatetime, "교육종류", formFields.eduType || "위험성 평가교육"],
+        ["교육대상", "위험성평가 참여자\n(현장소장, 관리감독자, 근로자 등)", "교육강사", formFields.eduInstructor],
+      ],
+      "교육내용",
+      RISK_ASSESSMENT_FORM_1_CONTENT_TEXT
+    )
+  );
+  blocks.push(new Paragraph({ spacing: { before: 160, after: 200 }, children: [] }));
+  if (eduParticipants?.rows.length) {
+    blocks.push(buildGenericTable(eduParticipants.headers, eduParticipants.rows));
+  }
+
+  blocks.push(
+    new Paragraph({
+      spacing: { before: 300, after: 120 },
+      children: [new TextRun({ text: "서식 2. 위험성평가 회의록", bold: true, size: 22, font: FONT })],
+    })
+  );
+  blocks.push(
+    buildRiskAssessmentFormTable(
+      "위험성평가 회의록",
+      projectTitle,
+      [
+        ["현장명", projectTitle, "회의장소", formFields.meetingLocation],
+        ["회의일시", formFields.meetingDatetime, "평가종류", formFields.meetingType || "최초위험성평가"],
+        ["안건", formFields.meetingAgenda || "위험성평가 실시규정 및 최초위험성평가서 작성 등", "", ""],
+      ],
+      "협의사항",
+      RISK_ASSESSMENT_FORM_2_CONTENT_TEXT
+    )
+  );
+  blocks.push(new Paragraph({ spacing: { before: 160, after: 200 }, children: [] }));
+  if (meetingParticipants?.rows.length) {
+    blocks.push(buildGenericTable(meetingParticipants.headers, meetingParticipants.rows));
+  }
+
+  return blocks;
 }
 
 // "작업투입 인력 인적사항"의 3개 소서식(안전취약근로자 식별/화재감시자 등 지정/
@@ -1063,10 +1248,23 @@ export async function generateWizardDocx(
       }
     }
 
-    for (const t of section.tables) {
-      if (t.rows.length === 0) continue;
-      children.push(buildGenericTable(t.headers, t.rows));
-      children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
+    if (section.riskAssessmentFormFields) {
+      // 서식1·2 참여자 명단 표(section.tables[0]/[1])는 아래 buildRiskAssessmentFormsBlocks가
+      // 정보 병합표와 함께 순서대로 직접 그리므로, 여기서는 일반 표로 중복 출력하지 않는다.
+      children.push(
+        ...buildRiskAssessmentFormsBlocks(
+          section.riskAssessmentFormFields,
+          cover?.projectName || title,
+          section.tables[0],
+          section.tables[1]
+        )
+      );
+    } else {
+      for (const t of section.tables) {
+        if (t.rows.length === 0) continue;
+        children.push(buildGenericTable(t.headers, t.rows));
+        children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
+      }
     }
 
     if (section.hazardDetailGroups?.length) {

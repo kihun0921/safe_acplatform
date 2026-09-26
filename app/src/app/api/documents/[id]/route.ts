@@ -40,6 +40,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     riskEducationParticipantRows,
     riskMeetingParticipantRows,
     executionOptions,
+    riskAssessmentFormFields,
     percentComplete,
     status,
   } = body ?? {};
@@ -74,6 +75,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (riskEducationParticipantRows) contentPatch.riskEducationParticipantRows = riskEducationParticipantRows;
   if (riskMeetingParticipantRows) contentPatch.riskMeetingParticipantRows = riskMeetingParticipantRows;
   if (executionOptions) contentPatch.executionOptions = executionOptions;
+  if (riskAssessmentFormFields) contentPatch.riskAssessmentFormFields = riskAssessmentFormFields;
 
   if (Object.keys(contentPatch).length > 0 || typeof percentComplete === "number" || status) {
     const { error } = await supabase.rpc("merge_document_content", {

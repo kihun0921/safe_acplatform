@@ -33,6 +33,7 @@ export default function WizardScreen({
   const emergencyContactSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safetyCostSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const executionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const riskFormSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const workforceSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
@@ -68,7 +69,7 @@ export default function WizardScreen({
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]):not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]):not([data-accident-image-input]):not([data-workforce-field]):not([data-execution-toggle]):not([data-execution-field]), textarea:not([data-risk-field]):not([data-hazard-field]):not([data-execution-field]), select:not([data-template-select]):not([data-risk-field])"
+        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]):not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]):not([data-accident-image-input]):not([data-workforce-field]):not([data-execution-toggle]):not([data-execution-field]):not([data-risk-form-field]), textarea:not([data-risk-field]):not([data-hazard-field]):not([data-execution-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -305,6 +306,43 @@ export default function WizardScreen({
       };
       if (immediate) return run();
       executionSaveTimer.current = setTimeout(run, 15000);
+      return Promise.resolve();
+    };
+
+    // ── 위험성평가 실시규정의 서식1(교육일지)·서식2(회의록) 상단 정보(장소·일시·
+    // 종류·강사/안건 등): 실제 샘플과 같은 rowspan/colspan 병합표 셀 안에 들어있어
+    // field-N 인덱스 대상에서 뺐으므로(표 셀 입력은 인접한 참여자 명단 표의 행
+    // 추가·삭제로 인덱스가 흔들릴 수 있어 executionOptions와 같은 이유로 별도
+    // 경로를 쓴다), documents.content.riskAssessmentFormFields에 하나의 객체로
+    // 저장한다.
+    const saveRiskAssessmentFormFields = (immediate = false): Promise<void> => {
+      if (riskFormSaveTimer.current) clearTimeout(riskFormSaveTimer.current);
+      const run = async () => {
+        setSaving(true);
+        try {
+          const byId = (id: string) => root.querySelector<HTMLInputElement>(`#${id}`)?.value ?? "";
+          const riskAssessmentFormFields = {
+            eduLocation: byId("wizard-field-rar-edu-location"),
+            eduDatetime: byId("wizard-field-rar-edu-datetime"),
+            eduType: byId("wizard-field-rar-edu-type"),
+            eduInstructor: byId("wizard-field-rar-edu-instructor"),
+            meetingLocation: byId("wizard-field-rar-meeting-location"),
+            meetingDatetime: byId("wizard-field-rar-meeting-datetime"),
+            meetingType: byId("wizard-field-rar-meeting-type"),
+            meetingAgenda: byId("wizard-field-rar-meeting-agenda"),
+          };
+          await fetch(`/api/documents/${documentId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ riskAssessmentFormFields }),
+          });
+          setSavedAt(new Date());
+        } finally {
+          setSaving(false);
+        }
+      };
+      if (immediate) return run();
+      riskFormSaveTimer.current = setTimeout(run, 15000);
       return Promise.resolve();
     };
 
@@ -966,6 +1004,11 @@ export default function WizardScreen({
         saveExecutionOptions(false);
         return;
       }
+      // 위험성평가 실시규정 서식1·2 상단 정보 입력(위 saveRiskAssessmentFormFields 참고).
+      if (el.matches("[data-risk-form-field]")) {
+        saveRiskAssessmentFormFields(false);
+        return;
+      }
       const key = el.dataset.wizardKey;
       if (!key) return;
       if (el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio")) {
@@ -1124,6 +1167,7 @@ export default function WizardScreen({
           void saveSafetyCostAmounts(true);
           void flushAllWorkforceSaves();
           void saveExecutionOptions(true);
+          void saveRiskAssessmentFormFields(true);
           return;
         }
         void exportDocument(exportFormat!, btn as HTMLButtonElement);
@@ -1140,6 +1184,7 @@ export default function WizardScreen({
         void saveSafetyCostAmounts(true);
         void flushAllWorkforceSaves();
         void saveExecutionOptions(true);
+        void saveRiskAssessmentFormFields(true);
       }
     };
 
@@ -1156,6 +1201,7 @@ export default function WizardScreen({
         await saveSafetyCostAmounts(true);
         await flushAllWorkforceSaves();
         await saveExecutionOptions(true);
+        await saveRiskAssessmentFormFields(true);
         const res = await fetch(`/api/documents/${documentId}/export?format=${format}`);
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -1283,6 +1329,7 @@ export default function WizardScreen({
       if (emergencyContactSaveTimer.current) clearTimeout(emergencyContactSaveTimer.current);
       if (safetyCostSaveTimer.current) clearTimeout(safetyCostSaveTimer.current);
       if (executionSaveTimer.current) clearTimeout(executionSaveTimer.current);
+      if (riskFormSaveTimer.current) clearTimeout(riskFormSaveTimer.current);
       Object.values(hazardTimersMap).forEach((t) => clearTimeout(t));
       Object.values(workforceTimersMap).forEach((t) => clearTimeout(t));
     };

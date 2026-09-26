@@ -359,11 +359,20 @@ function buildImageParagraphs(
   // </hp:run>), 이 코드는 hp:run 안에 hp:pic만 두고 hp:t가 아예 없었다 —
   // hp:pic 자식 순서·media-type 수정과 함께, 한글이 이 run을 온전한 run으로
   // 인식하지 못해 그림을 조용히 무시하던 원인 중 하나로 추정된다.
+  // hp:lineseg의 vertsize/textheight/horzsize는 "이 줄이 실제로 차지하는
+  // 크기"를 나타낸다 — 표·일반 텍스트 문단은 이 값이 대략적인 캐시라서
+  // 고정값(1000)이어도 문제없이 열렸지만(다른 파일 크기 정보로 자체 보정
+  // 되는 것으로 추정), 그림은 실제 샘플을 보면 이 값이 그림의 실제 크기
+  // (widthUnit/heightUnit)에 비례해서 채워져 있었다 — 줄 높이를 실제 그림
+  // 높이보다 훨씬 작은 값(1000)으로 선언하면 한글이 그림을 그 작은 줄
+  // 영역으로 잘라내 사실상 안 보이게 되는 것으로 추정된다.
   paragraphs.push(`<hp:p id="${nextId()}" paraPrIDRef="${CENTER_PARA_PR_ID}" styleIDRef="0" pageBreak="${
     label ? 0 : pageBreak ? 1 : 0
   }" columnBreak="0" merged="0">
 <hp:run charPrIDRef="0">${picXml}<hp:t/></hp:run>
-<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
+<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="${heightUnit}" textheight="${heightUnit}" baseline="${Math.round(
+    heightUnit * 0.85
+  )}" spacing="600" horzpos="0" horzsize="${widthUnit}" flags="393216"/></hp:linesegarray>
 </hp:p>`);
   return paragraphs.join("\n");
 }

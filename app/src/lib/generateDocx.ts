@@ -1049,6 +1049,18 @@ export async function generateWizardDocx(
           })
         );
       });
+      // "위험성평가 실시규정"의 "4. 조직의 구성"은 실제 샘플처럼 박스+화살표
+      // 다이어그램으로 그린다 — "3. 용어의 정의" 바로 뒤(실제 문서와 같은 위치)에
+      // 끼워 넣는다.
+      if (field.label === "3. 용어의 정의" && section.riskAssessmentOrgChart) {
+        children.push(
+          new Paragraph({
+            spacing: { before: 200, after: 200 },
+            children: [new TextRun({ text: "4. 조직의 구성", bold: true, size: 22, font: FONT })],
+          })
+        );
+        children.push(...buildEmergencyTeamDiagram(section.riskAssessmentOrgChart));
+      }
     }
 
     for (const t of section.tables) {

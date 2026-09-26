@@ -921,10 +921,23 @@ export async function generateWizardPdf(
             )}
             {section.emergencyTeam && <EmergencyTeamDiagram data={section.emergencyTeam} />}
             {section.fields.map((f, idx) => (
-              <View key={idx} style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>{f.label}</Text>
-                <Text style={styles.fieldValue}>{f.value || "(미입력)"}</Text>
-              </View>
+              <Fragment key={idx}>
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>{f.label}</Text>
+                  <Text style={styles.fieldValue}>{f.value || "(미입력)"}</Text>
+                </View>
+                {/* "위험성평가 실시규정"의 "4. 조직의 구성"은 실제 샘플처럼 박스+
+                    화살표 다이어그램으로 그린다 — "3. 용어의 정의" 바로 뒤(실제
+                    문서와 같은 위치)에 끼워 넣는다. */}
+                {f.label === "3. 용어의 정의" && section.riskAssessmentOrgChart && (
+                  <>
+                    <Text style={{ fontSize: 11, fontWeight: "bold", marginTop: 8, marginBottom: 8 }}>
+                      4. 조직의 구성
+                    </Text>
+                    <EmergencyTeamDiagram data={section.riskAssessmentOrgChart} />
+                  </>
+                )}
+              </Fragment>
             ))}
             {section.tables.map((t, tIdx) => (
               <GenericTable key={tIdx} headers={t.headers} rows={t.rows} />

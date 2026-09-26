@@ -27,6 +27,9 @@ export interface WizardSection {
   // 목록에서는 제외하고(data-org-diagram-field), 대신 이 구조화된 형태로 뽑아
   // 다운로드 문서에서도 조직도와 동일한 박스+연결선 다이어그램으로 그린다.
   emergencyTeam?: EmergencyTeamData;
+  // "위험성평가 실시규정(붙임1)"의 "4. 조직의 구성" — emergencyTeam과 모양이
+  // 똑같은 대장 1명→부관 1명→3인 분기 다이어그램이라 같은 타입을 재사용한다.
+  riskAssessmentOrgChart?: EmergencyTeamData;
   // "재해발생 수준"의 증빙자료(산재요양승인확인서/산업재해율 조회결과/안전보건
   // 경영시스템 인증서) 첨부 이미지. 이 함수(extractWizardSections)는 HTML 문자열만
   // 다루는 순수 파싱 함수라 Storage에서 실제 이진 데이터를 읽어올 수 없으므로, 이
@@ -430,6 +433,34 @@ const EMERGENCY_TEAM_ROLE_LABELS = {
   supportTeam: "지원반(품질2팀 팀장)",
 } as const;
 
+// "위험성평가 실시규정(붙임1)"의 "4. 조직의 구성"을 실제 샘플과 동일한
+// 안전보건협의체 박스+화살표 다이어그램으로 그리기 위한 데이터. EmergencyTeamData와
+// 모양(대장 1명 → 부관 1명 → 3인 분기)이 똑같아 타입과 렌더러(buildEmergencyTeamDiagram
+// 등)를 그대로 재사용하고, role 라벨만 이 규정 전용 문구로 바꾼다. 이름은
+// wizard-field-rar-reviewer-name(=현장소장)·-preparer-name(=안전관리자)·
+// -org-general/-construction/-quality-name(=조직 3팀장)에서 읽어온다 — 예전엔 이
+// 5개 입력값이 "4. 조직의 구성" 읽기전용 안내문에 전혀 반영되지 않아 이름을
+// 입력해도 아무것도 바뀌지 않는 것처럼 보이던 문제를 고친 것이다.
+const RISK_ASSESSMENT_ORG_CHART_ROLE_LABELS = {
+  chief: "안전보건관리책임자(안전보건총괄책임자, 현장소장)",
+  safetyManager: "안전관리자",
+  controlTeam: "공무팀장",
+  rescueTeam: "공사팀장(관리감독자 겸임)",
+  supportTeam: "품질팀장",
+} as const;
+
+function extractRiskAssessmentOrgChartData($: cheerio.CheerioAPI): EmergencyTeamData {
+  const byId = (id: string) => $(`#${id}`).attr("value")?.trim() ?? "";
+  const node = (id: string, role: string): OrgChartNode => ({ role, name: byId(id), contact: "" });
+  return {
+    chief: node("wizard-field-rar-reviewer-name", RISK_ASSESSMENT_ORG_CHART_ROLE_LABELS.chief),
+    safetyManager: node("wizard-field-rar-preparer-name", RISK_ASSESSMENT_ORG_CHART_ROLE_LABELS.safetyManager),
+    controlTeam: node("wizard-field-rar-org-general-name", RISK_ASSESSMENT_ORG_CHART_ROLE_LABELS.controlTeam),
+    rescueTeam: node("wizard-field-rar-org-construction-name", RISK_ASSESSMENT_ORG_CHART_ROLE_LABELS.rescueTeam),
+    supportTeam: node("wizard-field-rar-org-quality-name", RISK_ASSESSMENT_ORG_CHART_ROLE_LABELS.supportTeam),
+  };
+}
+
 function extractEmergencyTeamData($: cheerio.CheerioAPI): EmergencyTeamData {
   const byId = (id: string) => $(`#${id}`).attr("value")?.trim() ?? "";
   const node = (key: string, role: string): OrgChartNode => ({
@@ -621,6 +652,8 @@ export function extractWizardSections(
     }
 
     const emergencyTeam = id === "sec-emergency_plan" ? extractEmergencyTeamData($) : undefined;
+    const riskAssessmentOrgChart =
+      id === "sec-risk_assessment_rules" ? extractRiskAssessmentOrgChartData($) : undefined;
     const hazardDetailGroups = HAZARD_DETAIL_FIELDS_BY_SECTION[id]
       ? extractHazardDetailGroups($, $section, id)
       : undefined;
@@ -638,6 +671,7 @@ export function extractWizardSections(
       fields,
       tables,
       emergencyTeam,
+      riskAssessmentOrgChart,
       hazardDetailGroups,
       headingNumber,
       chapterRoman: chapter?.roman,

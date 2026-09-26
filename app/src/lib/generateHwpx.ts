@@ -7,6 +7,7 @@ import type {
   OverviewPageData,
   ManagementPolicyData,
   OrgChartData,
+  EmergencyTeamData,
   HazardDetailGroup,
   WorkforcePlanGroup,
   ExecutionOptionsData,
@@ -215,6 +216,22 @@ function arrowParagraph(): string {
 <hp:run charPrIDRef="0"><hp:t>↓</hp:t></hp:run>
 <hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="42520" flags="393216"/></hp:linesegarray>
 </hp:p>`;
+}
+
+// 조직도와 동일한 박스+화살표 다이어그램(대장 1명 → 부관 1명 → 3인 분기 →
+// 협력업체·근로자). emergency_plan의 비상대책반 구성과 risk_assessment_rules의
+// "4. 조직의 구성"이 똑같은 모양이라 함수 하나로 공유한다.
+function buildEmergencyTeamDiagramParagraphs(t: EmergencyTeamData): string[] {
+  return [
+    boxRowParagraph([t.chief], false),
+    arrowParagraph(),
+    boxRowParagraph([t.safetyManager], false),
+    arrowParagraph(),
+    boxRowParagraph([t.controlTeam, t.rescueTeam, t.supportTeam], true),
+    arrowParagraph(),
+    textParagraph("협력업체, 근로자", "0", false),
+    emptyParagraph(),
+  ];
 }
 
 // ── 이미지 첨부(hp:pic) ────────────────────────────────────────────────────
@@ -1002,22 +1019,19 @@ function buildSection0Xml(
     nextHeadingNumber = headingNumber + 1;
     paragraphs.push(emptyParagraph());
     if (section.emergencyTeam) {
-      // 조직도와 동일한 박스+화살표 표 다이어그램(대책반장 → 안전관리자 →
-      // 3개 팀 → 협력업체·근로자).
-      const t = section.emergencyTeam;
-      paragraphs.push(boxRowParagraph([t.chief], false));
-      paragraphs.push(arrowParagraph());
-      paragraphs.push(boxRowParagraph([t.safetyManager], false));
-      paragraphs.push(arrowParagraph());
-      paragraphs.push(boxRowParagraph([t.controlTeam, t.rescueTeam, t.supportTeam], true));
-      paragraphs.push(arrowParagraph());
-      paragraphs.push(textParagraph("협력업체, 근로자", "0", false));
-      paragraphs.push(emptyParagraph());
+      paragraphs.push(...buildEmergencyTeamDiagramParagraphs(section.emergencyTeam));
     }
     for (const field of section.fields) {
       // textParagraph()가 "\n" 줄바꿈과 한 줄 초과 텍스트 강제 줄바꿈을 모두
       // 처리하므로(내부에서 여러 <hp:p>로 나눠 반환), 한 번만 호출하면 된다.
       paragraphs.push(textParagraph(`${field.label}: ${field.value || "(미입력)"}`, "0", false));
+      // "위험성평가 실시규정"의 "4. 조직의 구성"은 실제 샘플처럼 박스+화살표
+      // 다이어그램으로 그린다 — "3. 용어의 정의" 바로 뒤(실제 문서와 같은 위치)에
+      // 끼워 넣는다.
+      if (field.label === "3. 용어의 정의" && section.riskAssessmentOrgChart) {
+        paragraphs.push(textParagraph("4. 조직의 구성", "6", false));
+        paragraphs.push(...buildEmergencyTeamDiagramParagraphs(section.riskAssessmentOrgChart));
+      }
     }
     for (const t of section.tables) {
       if (t.rows.length === 0) continue;

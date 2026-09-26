@@ -264,9 +264,13 @@ function riskFormLabelCell(text: string): TableCell {
 
 function riskFormValueCell(lines: string[], opts: { columnSpan?: number; small?: boolean } = {}): TableCell {
   const size = opts.small ? 16 : 18;
+  // columnSpan:3(안건/교육내용/협의사항 행)은 라벨 1칸을 제외한 나머지 전체
+  // (값 35% + 라벨 15% + 값 35% = 85%)를 차지해야 한다 — 항상 35%로 고정하면
+  // 그 행만 폭 합이 100%에 못 미쳐(15+35=50%) 다른 행과 어긋나 보인다.
+  const width = opts.columnSpan === 3 ? 85 : 35;
   return new TableCell({
     columnSpan: opts.columnSpan,
-    width: { size: 35, type: WidthType.PERCENTAGE },
+    width: { size: width, type: WidthType.PERCENTAGE },
     verticalAlign: VerticalAlign.CENTER,
     borders: CELL_BORDERS,
     margins: CELL_MARGINS,
@@ -280,58 +284,59 @@ function riskFormValueCell(lines: string[], opts: { columnSpan?: number; small?:
   });
 }
 
-function buildRiskAssessmentFormTable(
-  title: string,
-  projectTitle: string,
+// 담당/결재/소장 서명란(5열: 제목 2열 병합+결재 1열 병합+담당 1열+소장 1열)과
+// 아래 현장명·장소·일시 등 라벨/값 표(4열: 라벨/값/라벨/값)는 열 구성 자체가
+// 다르다(5열 vs 4열) — docx.js Table 하나 안에서 행마다 columnSpan 합이 다르면
+// (예전엔 5열 행에 너비를 안 줘서) Word가 그리드를 못 맞춰 마지막 칸(담당·소장)이
+// 표 밖으로 밀려나는 실제 버그가 있었다. 표를 아예 2개로 나누고 각각 자기
+// 그리드에 맞는 너비를 명시해 이 문제를 없앤다.
+function buildRiskFormApprovalTable(title: string): Table {
+  const headerCell = (text: string, columnSpan: number | undefined, width: number, verticalMerge?: "restart" | "continue") =>
+    new TableCell({
+      columnSpan,
+      verticalMerge: verticalMerge ? (verticalMerge === "restart" ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE) : undefined,
+      width: { size: width, type: WidthType.PERCENTAGE },
+      verticalAlign: VerticalAlign.CENTER,
+      shading: { fill: "F3F4F6" },
+      borders: CELL_BORDERS,
+      margins: CELL_MARGINS,
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: text ? [new TextRun({ text, bold: true, size: text === title ? 22 : 18, font: FONT })] : [],
+        }),
+      ],
+    });
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    layout: TableLayoutType.FIXED,
+    rows: [
+      new TableRow({
+        children: [
+          headerCell(title, 2, 44, "restart"),
+          headerCell("결재", undefined, 12, "restart"),
+          headerCell("담당", undefined, 22),
+          headerCell("소장", undefined, 22),
+        ],
+      }),
+      new TableRow({
+        children: [
+          headerCell("", 2, 44, "continue"),
+          headerCell("", undefined, 12, "continue"),
+          headerCell("", undefined, 22),
+          headerCell("", undefined, 22),
+        ],
+      }),
+    ],
+  });
+}
+
+function buildRiskFormInfoTable(
   rows: [string, string, string, string][],
   contentLabel: string,
   contentText: string
 ): Table {
-  const tableRows: TableRow[] = [
-    new TableRow({
-      children: [
-        new TableCell({
-          columnSpan: 2,
-          verticalMerge: VerticalMergeType.RESTART,
-          verticalAlign: VerticalAlign.CENTER,
-          shading: { fill: "F3F4F6" },
-          borders: CELL_BORDERS,
-          margins: CELL_MARGINS,
-          children: [
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: title, bold: true, size: 22, font: FONT })] }),
-          ],
-        }),
-        new TableCell({
-          verticalMerge: VerticalMergeType.RESTART,
-          verticalAlign: VerticalAlign.CENTER,
-          shading: { fill: "F3F4F6" },
-          borders: CELL_BORDERS,
-          margins: CELL_MARGINS,
-          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "결재", bold: true, size: 18, font: FONT })] })],
-        }),
-        new TableCell({
-          shading: { fill: "F3F4F6" },
-          borders: CELL_BORDERS,
-          margins: CELL_MARGINS,
-          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "담당", bold: true, size: 18, font: FONT })] })],
-        }),
-        new TableCell({
-          shading: { fill: "F3F4F6" },
-          borders: CELL_BORDERS,
-          margins: CELL_MARGINS,
-          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "소장", bold: true, size: 18, font: FONT })] })],
-        }),
-      ],
-    }),
-    new TableRow({
-      children: [
-        new TableCell({ columnSpan: 2, verticalMerge: VerticalMergeType.CONTINUE, borders: CELL_BORDERS, children: [new Paragraph({})] }),
-        new TableCell({ verticalMerge: VerticalMergeType.CONTINUE, borders: CELL_BORDERS, children: [new Paragraph({})] }),
-        new TableCell({ borders: CELL_BORDERS, margins: CELL_MARGINS, children: [new Paragraph({})] }),
-        new TableCell({ borders: CELL_BORDERS, margins: CELL_MARGINS, children: [new Paragraph({})] }),
-      ],
-    }),
-  ];
+  const tableRows: TableRow[] = [];
 
   for (const [label1, value1, label2, value2] of rows) {
     if (label2 === "") {
@@ -380,10 +385,9 @@ function buildRiskAssessmentFormsBlocks(
       children: [new TextRun({ text: "서식 1. 위험성평가 교육일지", bold: true, size: 22, font: FONT })],
     })
   );
+  blocks.push(buildRiskFormApprovalTable("위험성평가 교육일지"));
   blocks.push(
-    buildRiskAssessmentFormTable(
-      "위험성평가 교육일지",
-      projectTitle,
+    buildRiskFormInfoTable(
       [
         ["현장명", projectTitle, "교육장소", formFields.eduLocation],
         ["교육일시", formFields.eduDatetime, "교육종류", formFields.eduType || "위험성 평가교육"],
@@ -404,10 +408,9 @@ function buildRiskAssessmentFormsBlocks(
       children: [new TextRun({ text: "서식 2. 위험성평가 회의록", bold: true, size: 22, font: FONT })],
     })
   );
+  blocks.push(buildRiskFormApprovalTable("위험성평가 회의록"));
   blocks.push(
-    buildRiskAssessmentFormTable(
-      "위험성평가 회의록",
-      projectTitle,
+    buildRiskFormInfoTable(
       [
         ["현장명", projectTitle, "회의장소", formFields.meetingLocation],
         ["회의일시", formFields.meetingDatetime, "평가종류", formFields.meetingType || "최초위험성평가"],

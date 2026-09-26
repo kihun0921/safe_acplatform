@@ -32,6 +32,7 @@ export default function WizardScreen({
   const ppeQtySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emergencyContactSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safetyCostSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const executionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const workforceSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
@@ -67,7 +68,7 @@ export default function WizardScreen({
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]):not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]):not([data-accident-image-input]):not([data-workforce-field]), textarea:not([data-risk-field]):not([data-hazard-field]), select:not([data-template-select]):not([data-risk-field])"
+        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]):not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]):not([data-accident-image-input]):not([data-workforce-field]):not([data-execution-toggle]):not([data-execution-field]), textarea:not([data-risk-field]):not([data-hazard-field]):not([data-execution-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -264,6 +265,46 @@ export default function WizardScreen({
       };
       if (immediate) return run();
       safetyCostSaveTimer.current = setTimeout(run, 15000);
+      return Promise.resolve();
+    };
+
+    // ── 현장 안전보건 실행계획(Ⅲ. sec-execution)의 선택항목 토글·내용: 항목 개수가
+    // 고정된 2개(건설기계·장비 안전검사 관리/하도급 협력업체 협의체 운영)라
+    // ppeQuantities와 동일한 이유로 field-N 체계 대신 documents.content.
+    // executionOptions에 하나의 객체로 저장한다(안 그러면 이 절 앞뒤로 필드가
+    // 추가·삭제될 때마다 이미 저장된 문서들의 인덱스가 밀려 엉뚱한 값이 뒤섞이는
+    // 문제가 실제로 있었다).
+    const saveExecutionOptions = (immediate = false): Promise<void> => {
+      if (executionSaveTimer.current) clearTimeout(executionSaveTimer.current);
+      const run = async () => {
+        setSaving(true);
+        try {
+          const machineryToggle = root.querySelector<HTMLInputElement>('[data-execution-toggle="machinery"]');
+          const councilToggle = root.querySelector<HTMLInputElement>('[data-execution-toggle="council"]');
+          const machineryIntro = root.querySelector<HTMLTextAreaElement>('[data-execution-field="machinery-intro"]');
+          const machineryCount = root.querySelector<HTMLInputElement>('[data-execution-field="machinery-count"]');
+          const machineryCert = root.querySelector<HTMLInputElement>('[data-execution-field="machinery-cert"]');
+          const councilText = root.querySelector<HTMLTextAreaElement>('[data-execution-field="council-text"]');
+          const executionOptions = {
+            machineryEnabled: machineryToggle?.checked ?? true,
+            machineryIntro: machineryIntro?.value ?? "",
+            machineryCount: machineryCount?.value ?? "",
+            machineryCertAttached: machineryCert?.checked ?? false,
+            councilEnabled: councilToggle?.checked ?? false,
+            councilText: councilText?.value ?? "",
+          };
+          await fetch(`/api/documents/${documentId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ executionOptions }),
+          });
+          setSavedAt(new Date());
+        } finally {
+          setSaving(false);
+        }
+      };
+      if (immediate) return run();
+      executionSaveTimer.current = setTimeout(run, 15000);
       return Promise.resolve();
     };
 
@@ -883,9 +924,9 @@ export default function WizardScreen({
       if (el.matches("[data-template-select]")) return;
       // "현장 안전보건 실행계획"(sec-execution)의 선택항목 토글: 발주처 특기시방서에
       // 없는 조항은 토글을 꺼서 출력물에서 제외할 수 있다는 안내와 일치하도록,
-      // 토글을 끄면 그 항목의 입력 영역을 숨기고 안내 문구를 보여준다. 토글 자체는
-      // 일반 field-N 자동저장으로 값이 저장되므로(아래로 흘러 내려가 return하지
-      // 않는다) 별도 저장 로직이 필요 없다.
+      // 토글을 끄면 그 항목의 입력 영역을 숨기고 안내 문구를 보여준다. 이 절은
+      // field-N 자동저장이 아니라 documents.content.executionOptions에 별도
+      // 저장하므로(위 saveExecutionOptions 참고) 여기서 직접 호출한다.
       if (el.matches("[data-execution-toggle]")) {
         const toggleKey = (el as HTMLInputElement).dataset.executionToggle;
         const card = el.closest<HTMLElement>("[data-execution-card]");
@@ -895,6 +936,12 @@ export default function WizardScreen({
         if (panel) panel.hidden = !checked;
         if (emptyNote) emptyNote.hidden = checked;
         card?.classList.toggle("opacity-75", !checked);
+        saveExecutionOptions(false);
+        return;
+      }
+      if (el.matches("[data-execution-field]")) {
+        saveExecutionOptions(false);
+        return;
       }
       const key = el.dataset.wizardKey;
       if (!key) return;
@@ -1053,6 +1100,7 @@ export default function WizardScreen({
           void saveEmergencyContactRows(true);
           void saveSafetyCostAmounts(true);
           void flushAllWorkforceSaves();
+          void saveExecutionOptions(true);
           return;
         }
         void exportDocument(exportFormat!, btn as HTMLButtonElement);
@@ -1068,6 +1116,7 @@ export default function WizardScreen({
         void saveEmergencyContactRows(true);
         void saveSafetyCostAmounts(true);
         void flushAllWorkforceSaves();
+        void saveExecutionOptions(true);
       }
     };
 
@@ -1083,6 +1132,7 @@ export default function WizardScreen({
         await saveEmergencyContactRows(true);
         await saveSafetyCostAmounts(true);
         await flushAllWorkforceSaves();
+        await saveExecutionOptions(true);
         const res = await fetch(`/api/documents/${documentId}/export?format=${format}`);
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -1209,6 +1259,7 @@ export default function WizardScreen({
       if (ppeQtySaveTimer.current) clearTimeout(ppeQtySaveTimer.current);
       if (emergencyContactSaveTimer.current) clearTimeout(emergencyContactSaveTimer.current);
       if (safetyCostSaveTimer.current) clearTimeout(safetyCostSaveTimer.current);
+      if (executionSaveTimer.current) clearTimeout(executionSaveTimer.current);
       Object.values(hazardTimersMap).forEach((t) => clearTimeout(t));
       Object.values(workforceTimersMap).forEach((t) => clearTimeout(t));
     };

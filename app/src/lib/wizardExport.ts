@@ -176,6 +176,10 @@ function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string |
     if ($el.attr("data-safety-cost-item") !== undefined) return false;
     if ($el.attr("data-safety-cost-reserve") !== undefined) return false;
     if ($el.attr("data-accident-image-input") !== undefined) return false;
+    // "현장 안전보건 실행계획"의 선택항목 토글·필드는 documents.content.
+    // executionOptions에 별도 저장되고 wizardHtml.ts가 서버에서 미리 값을
+    // 구워 넣으므로(buildExecutionSectionHtml), field-N 인덱스 대상에서 뺀다.
+    if ($el.attr("data-execution-toggle") !== undefined || $el.attr("data-execution-field") !== undefined) return false;
     if (el.tagName === "select" && $el.attr("data-template-select") !== undefined) return false;
     return true;
   });

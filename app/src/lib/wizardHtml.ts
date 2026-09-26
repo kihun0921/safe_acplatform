@@ -419,58 +419,9 @@ __RISK_ROW_TEMPLATE__
 <p class="text-[11px] text-neutral-500 mt-0.5">발주처 특기시방서에 명시되지 않은 조항은 토글을 꺼서 제외할 수 있습니다.</p>
 </div>
 </div>
-<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">선택항목 1 / 2 활성화</span>
+<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">__EXECUTION_ACTIVE_BADGE__</span>
 </div>
-<div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-<!-- Card 1: 건설기계·장비 안전검사 관리 (기본 ON) -->
-<div class="rounded-xl border border-neutral-200 p-4 bg-white hover:border-neutral-300 transition" data-execution-card="machinery">
-<div class="flex items-center justify-between mb-3">
-<div class="flex items-center gap-2">
-<span class="w-7 h-7 rounded bg-primary-soft text-primary flex items-center justify-center">
-<span class="material-symbols-outlined text-lg" data-icon="precision_manufacturing">precision_manufacturing</span>
-</span>
-<span class="text-xs font-bold text-neutral-900">1. 건설기계·장비 안전검사 관리</span>
-</div>
-<label class="relative inline-flex items-center cursor-pointer">
-<input checked="" class="sr-only peer" data-execution-toggle="machinery" type="checkbox"/>
-<div class="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-</label>
-</div>
-<div class="space-y-2 text-xs text-neutral-600" data-execution-panel="machinery">
-<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-execution-field="machinery-intro" rows="2">현장 반입 예정 건설기계 6종(타워크레인, 백호, 이동식크레인 등) 사전 안전등록 서식 연계 완료.</textarea>
-<div class="bg-neutral-50 rounded p-2 border border-neutral-200 flex items-center justify-between gap-2">
-<label class="flex items-center gap-1.5 text-[11px] text-neutral-700 shrink-0">등록 장비
-<input class="w-14 text-xs bg-white border border-neutral-300 rounded px-1.5 py-0.5" data-execution-field="machinery-count" type="text" value="4대"/>
-등록 완료</label>
-<label class="flex items-center gap-1 text-[11px] font-bold text-status-success shrink-0">
-<input checked="" class="rounded border-neutral-300" data-execution-field="machinery-cert" type="checkbox"/>검사증 첨부확인
-</label>
-</div>
-</div>
-</div>
-<!-- Card 2: 하도급 협력업체 협의체 운영 (기본 OFF) -->
-<div class="rounded-xl border border-neutral-200 p-4 bg-neutral-50/70 opacity-75 hover:opacity-100 transition" data-execution-card="council">
-<div class="flex items-center justify-between mb-3">
-<div class="flex items-center gap-2">
-<span class="w-7 h-7 rounded bg-neutral-200 text-neutral-500 flex items-center justify-center">
-<span class="material-symbols-outlined text-lg" data-icon="groups">groups</span>
-</span>
-<span class="text-xs font-bold text-neutral-600">2. 하도급 협력업체 협의체 운영</span>
-</div>
-<label class="relative inline-flex items-center cursor-pointer">
-<input class="sr-only peer" data-execution-toggle="council" type="checkbox"/>
-<div class="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-</label>
-</div>
-<div class="space-y-1 text-xs text-neutral-500" data-execution-panel="council" hidden>
-<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-execution-field="council-text" rows="2">매월 1회 정기회의를 개최하여 협력업체와 안전보건 사항을 협의한다.</textarea>
-<span class="text-[11px] text-neutral-500 font-medium">활성화 시 월 1회 정기회의록 서식이 부록에 추가됩니다.</span>
-</div>
-<p class="leading-relaxed text-neutral-400 italic text-xs" data-execution-empty-note="council">
-                  * 미적용 상태 (출력물에서 자동 제외됨). 단독 도급 공사이거나 하도급이 없는 경우 꺼둘 수 있습니다.
-                </p>
-</div>
-</div>
+__EXECUTION_SECTION__
 </section>
 <!-- ════════ SECTION Ⅳ: 현장 운영관리 및 비상대책 ════════ -->
 <section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-emergency">
@@ -697,6 +648,99 @@ export const SCRIPT_documents_wizard = `
 
 const escapeHtmlPolicy = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// "현장 안전보건 실행계획"(sec-execution)의 2개 선택항목 저장 형태.
+// documents.content.executionOptions에 그대로 저장된다(field-N 인덱스와
+// 무관한 전용 저장 경로 — 위 escapeHtmlPolicy 바로 위 주석 참고).
+type ExecutionOptions = {
+  machineryEnabled: boolean;
+  machineryIntro: string;
+  machineryCount: string;
+  machineryCertAttached: boolean;
+  councilEnabled: boolean;
+  councilText: string;
+};
+
+const EXECUTION_OPTIONS_DEFAULT: ExecutionOptions = {
+  machineryEnabled: true,
+  machineryIntro: "현장 반입 예정 건설기계 6종(타워크레인, 백호, 이동식크레인 등) 사전 안전등록 서식 연계 완료.",
+  machineryCount: "4대",
+  machineryCertAttached: true,
+  councilEnabled: false,
+  councilText: "매월 1회 정기회의를 개최하여 협력업체와 안전보건 사항을 협의한다.",
+};
+
+function normalizeExecutionOptions(raw: unknown): ExecutionOptions {
+  const r = (raw ?? {}) as Partial<ExecutionOptions>;
+  return {
+    machineryEnabled: typeof r.machineryEnabled === "boolean" ? r.machineryEnabled : EXECUTION_OPTIONS_DEFAULT.machineryEnabled,
+    machineryIntro: typeof r.machineryIntro === "string" ? r.machineryIntro : EXECUTION_OPTIONS_DEFAULT.machineryIntro,
+    machineryCount: typeof r.machineryCount === "string" ? r.machineryCount : EXECUTION_OPTIONS_DEFAULT.machineryCount,
+    machineryCertAttached:
+      typeof r.machineryCertAttached === "boolean" ? r.machineryCertAttached : EXECUTION_OPTIONS_DEFAULT.machineryCertAttached,
+    councilEnabled: typeof r.councilEnabled === "boolean" ? r.councilEnabled : EXECUTION_OPTIONS_DEFAULT.councilEnabled,
+    councilText: typeof r.councilText === "string" ? r.councilText : EXECUTION_OPTIONS_DEFAULT.councilText,
+  };
+}
+
+function buildExecutionSectionHtml(o: ExecutionOptions): string {
+  return `<div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="rounded-xl border border-neutral-200 p-4 bg-white hover:border-neutral-300 transition" data-execution-card="machinery">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="w-7 h-7 rounded bg-primary-soft text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-lg" data-icon="precision_manufacturing">precision_manufacturing</span>
+</span>
+<span class="text-xs font-bold text-neutral-900">1. 건설기계·장비 안전검사 관리</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input${o.machineryEnabled ? ' checked=""' : ""} class="sr-only peer" data-execution-toggle="machinery" type="checkbox"/>
+<div class="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="space-y-2 text-xs text-neutral-600"${o.machineryEnabled ? "" : " hidden"} data-execution-panel="machinery">
+<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-execution-field="machinery-intro" rows="2">${escapeHtmlPolicy(
+    o.machineryIntro
+  )}</textarea>
+<div class="bg-neutral-50 rounded p-2 border border-neutral-200 flex items-center justify-between gap-2">
+<label class="flex items-center gap-1.5 text-[11px] text-neutral-700 shrink-0">등록 장비
+<input class="w-14 text-xs bg-white border border-neutral-300 rounded px-1.5 py-0.5" data-execution-field="machinery-count" type="text" value="${escapeHtmlPolicy(
+    o.machineryCount
+  )}"/>
+등록 완료</label>
+<label class="flex items-center gap-1 text-[11px] font-bold text-status-success shrink-0">
+<input${o.machineryCertAttached ? ' checked=""' : ""} class="rounded border-neutral-300" data-execution-field="machinery-cert" type="checkbox"/>검사증 첨부확인
+</label>
+</div>
+</div>
+</div>
+<div class="rounded-xl border border-neutral-200 p-4 bg-neutral-50/70${
+    o.councilEnabled ? "" : " opacity-75 hover:opacity-100"
+  } transition" data-execution-card="council">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="w-7 h-7 rounded bg-neutral-200 text-neutral-500 flex items-center justify-center">
+<span class="material-symbols-outlined text-lg" data-icon="groups">groups</span>
+</span>
+<span class="text-xs font-bold text-neutral-600">2. 하도급 협력업체 협의체 운영</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input${o.councilEnabled ? ' checked=""' : ""} class="sr-only peer" data-execution-toggle="council" type="checkbox"/>
+<div class="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="space-y-1 text-xs text-neutral-500"${o.councilEnabled ? "" : " hidden"} data-execution-panel="council">
+<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-execution-field="council-text" rows="2">${escapeHtmlPolicy(
+    o.councilText
+  )}</textarea>
+<span class="text-[11px] text-neutral-500 font-medium">활성화 시 월 1회 정기회의록 서식이 부록에 추가됩니다.</span>
+</div>
+<p class="leading-relaxed text-neutral-400 italic text-xs"${o.councilEnabled ? " hidden" : ""} data-execution-empty-note="council">
+                  * 미적용 상태 (출력물에서 자동 제외됨). 단독 도급 공사이거나 하도급이 없는 경우 꺼둘 수 있습니다.
+                </p>
+</div>
+</div>`;
+}
 
 // "Ⅰ.사업개요" 바로 다음에 오는 "안전보건 경영방침 및 목표" 절. 회원사가 자체
 // 안전보건경영방침 이미지를 갖고 있으면 그 이미지를 업로드해 그대로 첨부하고
@@ -4045,6 +4089,18 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
     .replace("__RISK_DB_SELECT__", riskDbSelectHtml)
     .replace("__RISK_ROWS__", riskRowsHtml)
     .replace("__RISK_ROW_TEMPLATE__", riskRowTemplateHtml);
+
+  // "현장 안전보건 실행계획"(sec-execution)의 선택항목 토글·내용은 documents.
+  // content.executionOptions에서 직접 읽어 서버에서 미리 구운(bake) HTML로
+  // 심는다 — 일반 field-N 자동저장(DOM 순서 기반 인덱스)에 태우면, 나중에
+  // 이 절 앞뒤로 필드가 추가·삭제될 때마다 이미 저장된 문서들의 인덱스가
+  // 밀려 엉뚱한 값이 뒤섞이는 문제가 실제로 있었다(위험성평가·작업투입 인력
+  // 등 다른 동적 항목들도 같은 이유로 전용 저장 경로를 쓰는 것과 동일한 이유).
+  const executionOptions = normalizeExecutionOptions(doc.content?.executionOptions);
+  const executionActiveCount = (executionOptions.machineryEnabled ? 1 : 0) + (executionOptions.councilEnabled ? 1 : 0);
+  html = html
+    .replace("__EXECUTION_SECTION__", buildExecutionSectionHtml(executionOptions))
+    .replace("__EXECUTION_ACTIVE_BADGE__", `선택항목 ${executionActiveCount} / 2 활성화`);
 
   if (disabledCommonSections.length > 0) {
     html = removeDisabledCommonSections(html, disabledCommonSections);

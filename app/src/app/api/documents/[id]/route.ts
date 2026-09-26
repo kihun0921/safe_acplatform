@@ -37,6 +37,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     workforceVulnerableRows,
     workforceFireWatchRows,
     workforcePairWorkRows,
+    executionOptions,
     percentComplete,
     status,
   } = body ?? {};
@@ -46,7 +47,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // Vehicle,Substance}Rows(유해·위험 기계·기구·물질 관리계획 항목), ppeQuantities(보호구
   // 지급 예정수량), emergencyContactRows(유관기관 비상연락체계), safetyCostAmounts
   // (안전보건 관리비용 산업안전보건관리비/세부내역 금액), accidentLevelAttachments
-  // (재해발생 수준 증빙자료 이미지 경로) 등 여러 키를
+  // (재해발생 수준 증빙자료 이미지 경로), executionOptions(현장 안전보건 실행계획
+  // 선택항목 토글·내용) 등 여러 키를
   // 독립적으로 담는다. "임시저장" 한 번에 이 키들이 서로 다른 PATCH 요청으로 거의
   // 동시에 도착할 수 있는데(위험성평가 표는 항상 별도 요청으로 저장됨), 여기서
   // "읽고 → 병합 → 쓰기"를 따로 하면 두 요청이 겹칠 때 나중에 끝나는 쪽이 먼저
@@ -67,6 +69,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (workforceVulnerableRows) contentPatch.workforceVulnerableRows = workforceVulnerableRows;
   if (workforceFireWatchRows) contentPatch.workforceFireWatchRows = workforceFireWatchRows;
   if (workforcePairWorkRows) contentPatch.workforcePairWorkRows = workforcePairWorkRows;
+  if (executionOptions) contentPatch.executionOptions = executionOptions;
 
   if (Object.keys(contentPatch).length > 0 || typeof percentComplete === "number" || status) {
     const { error } = await supabase.rpc("merge_document_content", {

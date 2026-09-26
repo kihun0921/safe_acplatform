@@ -284,16 +284,18 @@ function riskFormValueCell(lines: string[], opts: { columnSpan?: number; small?:
   });
 }
 
-// 담당/결재/소장 서명란(5열: 제목 2열 병합+결재 1열 병합+담당 1열+소장 1열)과
-// 아래 현장명·장소·일시 등 라벨/값 표(4열: 라벨/값/라벨/값)는 열 구성 자체가
-// 다르다(5열 vs 4열) — docx.js Table 하나 안에서 행마다 columnSpan 합이 다르면
-// (예전엔 5열 행에 너비를 안 줘서) Word가 그리드를 못 맞춰 마지막 칸(담당·소장)이
-// 표 밖으로 밀려나는 실제 버그가 있었다. 표를 아예 2개로 나누고 각각 자기
-// 그리드에 맞는 너비를 명시해 이 문제를 없앤다.
+// 담당/결재/소장 서명란. 예전엔 제목 칸을 columnSpan:2(2열 병합)로 만들어
+// verticalMerge(rowSpan)와 columnSpan을 한 셀에 같이 썼는데, docx.js가 만드는
+// tblGrid는 실제 열 너비와 무관하게 항상 더미 값(Table 생성자가 기본값으로
+// 셀 개수만큼 100트윕씩 채움)이라 Word가 "제목 칸이 그리드 2칸을 차지한다"는
+// 사실과 각 칸의 실제 백분율 너비를 함께 해석하지 못해 담당·소장 칸이 어긋나
+// 보였다. 이 표는 애초에 제목 칸이 정말 2개의 논리적 열로 나뉠 필요가 없으므로
+// (그냥 "넓은 칸 1개"면 충분), columnSpan 자체를 없애고 4칸 모두 단순
+// 1열짜리 셀로 만들어 각 칸의 퍼센트 너비만으로 넓이를 표현한다 — rowSpan
+// (verticalMerge)만 남기고 columnSpan을 제거하면 이 조합 문제가 사라진다.
 function buildRiskFormApprovalTable(title: string): Table {
-  const headerCell = (text: string, columnSpan: number | undefined, width: number, verticalMerge?: "restart" | "continue") =>
+  const headerCell = (text: string, width: number, verticalMerge?: "restart" | "continue") =>
     new TableCell({
-      columnSpan,
       verticalMerge: verticalMerge ? (verticalMerge === "restart" ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE) : undefined,
       width: { size: width, type: WidthType.PERCENTAGE },
       verticalAlign: VerticalAlign.CENTER,
@@ -310,21 +312,22 @@ function buildRiskFormApprovalTable(title: string): Table {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     layout: TableLayoutType.FIXED,
+    columnWidths: [4400, 1200, 2200, 2200],
     rows: [
       new TableRow({
         children: [
-          headerCell(title, 2, 44, "restart"),
-          headerCell("결재", undefined, 12, "restart"),
-          headerCell("담당", undefined, 22),
-          headerCell("소장", undefined, 22),
+          headerCell(title, 44, "restart"),
+          headerCell("결재", 12, "restart"),
+          headerCell("담당", 22),
+          headerCell("소장", 22),
         ],
       }),
       new TableRow({
         children: [
-          headerCell("", 2, 44, "continue"),
-          headerCell("", undefined, 12, "continue"),
-          headerCell("", undefined, 22),
-          headerCell("", undefined, 22),
+          headerCell("", 44, "continue"),
+          headerCell("", 12, "continue"),
+          headerCell("", 22),
+          headerCell("", 22),
         ],
       }),
     ],
@@ -366,7 +369,12 @@ function buildRiskFormInfoTable(
     })
   );
 
-  return new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE }, layout: TableLayoutType.FIXED });
+  return new Table({
+    rows: tableRows,
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    layout: TableLayoutType.FIXED,
+    columnWidths: [1500, 3500, 1500, 3500],
+  });
 }
 
 // 서식1·2의 참여자 명단 표(직책/성명/서명/사진)는 section.tables[0]/[1]로 이미

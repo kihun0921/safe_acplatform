@@ -9,6 +9,7 @@ import type {
   OrgChartData,
   HazardDetailGroup,
   WorkforcePlanGroup,
+  ExecutionOptionsData,
 } from "./wizardExport";
 import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
@@ -455,6 +456,35 @@ function buildWorkforcePlanGroupsParagraphs(groups: WorkforcePlanGroup[]): strin
     paragraphs.push(tableParagraph(group.table.headers, group.table.rows, false));
     paragraphs.push(emptyParagraph());
   });
+  return paragraphs;
+}
+
+// "현장 안전보건 실행계획"(sec-execution)의 2개 선택항목을 토글이 켜진 것만
+// 순서대로 보여준다(발주처 특기시방서에 없는 조항은 위저드 화면에서 토글을
+// 꺼서 출력물에서 통째로 제외할 수 있다는 안내와 일치시킨 동작).
+function buildExecutionOptionsParagraphs(data: ExecutionOptionsData): string[] {
+  const paragraphs: string[] = [];
+  let n = 0;
+  if (data.machineryEnabled) {
+    n += 1;
+    paragraphs.push(textParagraph(`${n}. 건설기계·장비 안전검사 관리`, "6", false));
+    if (data.machineryIntro) paragraphs.push(textParagraph(data.machineryIntro, "0", false));
+    paragraphs.push(
+      textParagraph(
+        `등록 장비 ${data.machineryCount || "(미입력)"} 등록 완료 · 검사증 ${data.machineryCertAttached ? "첨부확인" : "미첨부"}`,
+        "0",
+        false
+      )
+    );
+    paragraphs.push(emptyParagraph());
+  }
+  if (data.councilEnabled) {
+    n += 1;
+    paragraphs.push(textParagraph(`${n}. 하도급 협력업체 협의체 운영`, "6", false));
+    if (data.councilText) paragraphs.push(textParagraph(data.councilText, "0", false));
+    paragraphs.push(textParagraph("※ 월 1회 정기회의록을 작성·보관한다.", "0", false));
+    paragraphs.push(emptyParagraph());
+  }
   return paragraphs;
 }
 
@@ -1004,6 +1034,9 @@ function buildSection0Xml(
     }
     if (section.hazardDetailGroups?.length) {
       paragraphs.push(...buildHazardDetailGroupsParagraphs(section.hazardDetailGroups));
+    }
+    if (section.executionOptions) {
+      paragraphs.push(...buildExecutionOptionsParagraphs(section.executionOptions));
     }
     paragraphs.push(emptyParagraph());
   });

@@ -58,6 +58,19 @@ export interface WizardSection {
   // 없었다 — 이 필드가 있으면 fields/tables 대신 이 필드로 렌더링해 소서식별
   // 번호("1.", "2.", "3.")·목적/대상 문구·표를 순서대로 보여준다.
   workforcePlanGroups?: WorkforcePlanGroup[];
+  // "현장 안전보건 실행계획"(sec-execution)의 2개 선택항목(건설기계·장비 안전검사
+  // 관리/하도급 협력업체 협의체 운영) 토글 상태와 내용. 토글이 꺼진 항목은
+  // 생성기에서 아예 출력하지 않는다(발주처 특기시방서에 없는 조항 제외 기능).
+  executionOptions?: ExecutionOptionsData;
+}
+
+export interface ExecutionOptionsData {
+  machineryEnabled: boolean;
+  machineryIntro: string;
+  machineryCount: string;
+  machineryCertAttached: boolean;
+  councilEnabled: boolean;
+  councilText: string;
 }
 
 export interface WorkforcePlanGroup {
@@ -488,6 +501,26 @@ function extractWorkforcePlanGroups($: cheerio.CheerioAPI, $section: ReturnType<
   return groups;
 }
 
+// "현장 안전보건 실행계획"(sec-execution)의 2개 선택항목(건설기계·장비 안전검사
+// 관리/하도급 협력업체 협의체 운영) 토글 상태와 내용을 뽑는다. 토글 자체는
+// 위저드 화면의 일반 field-N 자동저장으로 그대로 저장되므로(값 종류가 항상
+// 정확히 2개 토글+4개 필드로 고정돼 있어 행 추가·삭제가 있는 위험성평가·작업투입
+// 인력과 달리 별도 저장소가 필요 없다), 여기서는 applySavedFields가 이미 반영한
+// DOM 값을 그대로 읽기만 한다.
+function extractExecutionOptionsData($: cheerio.CheerioAPI, $section: ReturnType<cheerio.CheerioAPI>): ExecutionOptionsData {
+  const isChecked = (selector: string) => $section.find(selector).attr("checked") !== undefined;
+  const textareaValue = (selector: string) => $section.find(selector).first().text().trim();
+  const inputValue = (selector: string) => ($section.find(selector).attr("value") ?? "").trim();
+  return {
+    machineryEnabled: isChecked('[data-execution-toggle="machinery"]'),
+    machineryIntro: textareaValue('[data-execution-field="machinery-intro"]'),
+    machineryCount: inputValue('[data-execution-field="machinery-count"]'),
+    machineryCertAttached: isChecked('[data-execution-field="machinery-cert"]'),
+    councilEnabled: isChecked('[data-execution-toggle="council"]'),
+    councilText: textareaValue('[data-execution-field="council-text"]'),
+  };
+}
+
 // "sec-tpl-education_plan" → "education_plan", "sec-overview" → "overview" —
 // section_order의 members가 쓰는 원래 id로 되돌린다(발주처 전용 항목은
 // buildTemplateSectionsHtml이 "sec-tpl-" 접두어를 붙이고, 공통/고정서식 항목은
@@ -553,6 +586,12 @@ export function extractWizardSections(
       // 여기서 "관리: 값" 식 일반 필드로 중복 출력하지 않는다(실제로 발생했던 버그 —
       // 표 5개 분량의 셀 값이 전부 라벨 없는 필드로 새어나갔다).
       if ($el.attr("data-workforce-field") !== undefined) return;
+      // "현장 안전보건 실행계획"(sec-execution)의 2개 선택항목(건설기계·장비
+      // 안전검사 관리/하도급 협력업체 협의체 운영)도 아래 extractExecutionOptionsData()가
+      // 토글 상태에 따라 구조화해서 뽑으므로, 여기서 일반 필드로 중복 출력하지
+      // 않는다 — 특히 토글이 꺼진 항목의 내용까지 "포함: 아니오"와 함께 그대로
+      // 새어나가면 안 되기 때문이다.
+      if ($el.attr("data-execution-field") !== undefined || $el.attr("data-execution-toggle") !== undefined) return;
       const label = findLabel($, el);
       const value = fieldValue($, el);
       if (label) fields.push({ label, value });
@@ -575,6 +614,7 @@ export function extractWizardSections(
       ? extractHazardDetailGroups($, $section, id)
       : undefined;
     const workforcePlanGroups = id === "sec-workforce" ? extractWorkforcePlanGroups($, $section) : undefined;
+    const executionOptions = id === "sec-execution" ? extractExecutionOptionsData($, $section) : undefined;
 
     const bareId = bareSectionId(id);
     const headingNumber = chapterNumbers[bareId];
@@ -583,6 +623,7 @@ export function extractWizardSections(
       id,
       heading,
       workforcePlanGroups,
+      executionOptions,
       fields,
       tables,
       emergencyTeam,

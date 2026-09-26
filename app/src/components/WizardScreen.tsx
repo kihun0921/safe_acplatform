@@ -88,6 +88,20 @@ export default function WizardScreen({
       }
     });
 
+    // "현장 안전보건 실행계획" 선택항목 토글: 위 루프에서 저장된 체크 상태를
+    // 반영한 직후, 그 상태에 맞춰 입력 영역 표시 여부도 처음부터 맞춰 둔다
+    // (안 그러면 재방문 시 체크박스는 켜져 있는데 입력 영역은 정적 HTML의 기본
+    // hidden 상태 그대로 남아 서로 어긋난다).
+    root.querySelectorAll<HTMLInputElement>("[data-execution-toggle]").forEach((toggle) => {
+      const toggleKey = toggle.dataset.executionToggle;
+      const card = toggle.closest<HTMLElement>("[data-execution-card]");
+      const panel = card?.querySelector<HTMLElement>(`[data-execution-panel="${toggleKey}"]`);
+      const emptyNote = card?.querySelector<HTMLElement>(`[data-execution-empty-note="${toggleKey}"]`);
+      if (panel) panel.hidden = !toggle.checked;
+      if (emptyNote) emptyNote.hidden = toggle.checked;
+      card?.classList.toggle("opacity-75", !toggle.checked);
+    });
+
     const updateAttachmentsBadge = () => {
       const badge = root.querySelector<HTMLElement>("#attachments-active-count");
       const section = root.querySelector<HTMLElement>("#sec-attachments");
@@ -867,6 +881,21 @@ export default function WizardScreen({
         return;
       }
       if (el.matches("[data-template-select]")) return;
+      // "현장 안전보건 실행계획"(sec-execution)의 선택항목 토글: 발주처 특기시방서에
+      // 없는 조항은 토글을 꺼서 출력물에서 제외할 수 있다는 안내와 일치하도록,
+      // 토글을 끄면 그 항목의 입력 영역을 숨기고 안내 문구를 보여준다. 토글 자체는
+      // 일반 field-N 자동저장으로 값이 저장되므로(아래로 흘러 내려가 return하지
+      // 않는다) 별도 저장 로직이 필요 없다.
+      if (el.matches("[data-execution-toggle]")) {
+        const toggleKey = (el as HTMLInputElement).dataset.executionToggle;
+        const card = el.closest<HTMLElement>("[data-execution-card]");
+        const checked = (el as HTMLInputElement).checked;
+        const panel = card?.querySelector<HTMLElement>(`[data-execution-panel="${toggleKey}"]`);
+        const emptyNote = card?.querySelector<HTMLElement>(`[data-execution-empty-note="${toggleKey}"]`);
+        if (panel) panel.hidden = !checked;
+        if (emptyNote) emptyNote.hidden = checked;
+        card?.classList.toggle("opacity-75", !checked);
+      }
       const key = el.dataset.wizardKey;
       if (!key) return;
       if (el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio")) {

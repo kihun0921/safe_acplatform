@@ -25,6 +25,7 @@ import type {
   EmergencyTeamData,
   HazardDetailGroup,
   WorkforcePlanGroup,
+  ExecutionOptionsData,
 } from "./wizardExport";
 import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
@@ -267,6 +268,61 @@ function buildWorkforcePlanGroupsBlocks(groups: WorkforcePlanGroup[]): (Paragrap
     }
     blocks.push(buildGenericTable(group.table.headers, group.table.rows));
   });
+  return blocks;
+}
+
+// "현장 안전보건 실행계획"(sec-execution)의 2개 선택항목을 토글이 켜진 것만
+// 순서대로 보여준다(발주처 특기시방서에 없는 조항은 위저드 화면에서 토글을
+// 꺼서 출력물에서 통째로 제외할 수 있다는 안내와 일치시킨 동작).
+function buildExecutionOptionsBlocks(data: ExecutionOptionsData): Paragraph[] {
+  const blocks: Paragraph[] = [];
+  let n = 0;
+  if (data.machineryEnabled) {
+    n += 1;
+    blocks.push(
+      new Paragraph({
+        spacing: { before: n === 1 ? 0 : 300, after: 120 },
+        children: [new TextRun({ text: `${n}. 건설기계·장비 안전검사 관리`, bold: true, size: 22, font: FONT })],
+      })
+    );
+    if (data.machineryIntro) {
+      blocks.push(
+        new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: data.machineryIntro, size: 18, font: FONT })] })
+      );
+    }
+    blocks.push(
+      new Paragraph({
+        spacing: { after: 160 },
+        children: [
+          new TextRun({
+            text: `등록 장비 ${data.machineryCount || "(미입력)"} 등록 완료 · 검사증 ${data.machineryCertAttached ? "첨부확인" : "미첨부"}`,
+            size: 18,
+            font: FONT,
+          }),
+        ],
+      })
+    );
+  }
+  if (data.councilEnabled) {
+    n += 1;
+    blocks.push(
+      new Paragraph({
+        spacing: { before: n === 1 ? 0 : 300, after: 120 },
+        children: [new TextRun({ text: `${n}. 하도급 협력업체 협의체 운영`, bold: true, size: 22, font: FONT })],
+      })
+    );
+    if (data.councilText) {
+      blocks.push(
+        new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: data.councilText, size: 18, font: FONT })] })
+      );
+    }
+    blocks.push(
+      new Paragraph({
+        spacing: { after: 160 },
+        children: [new TextRun({ text: "※ 월 1회 정기회의록을 작성·보관한다.", size: 16, font: FONT, color: "6b7280" })],
+      })
+    );
+  }
   return blocks;
 }
 
@@ -1007,6 +1063,10 @@ export async function generateWizardDocx(
 
     if (section.workforcePlanGroups?.length) {
       children.push(...buildWorkforcePlanGroupsBlocks(section.workforcePlanGroups));
+    }
+
+    if (section.executionOptions) {
+      children.push(...buildExecutionOptionsBlocks(section.executionOptions));
     }
   });
 

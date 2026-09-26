@@ -422,8 +422,8 @@ __RISK_ROW_TEMPLATE__
 <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">선택항목 1 / 2 활성화</span>
 </div>
 <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-<!-- Card 1: 건설기계·장비 안전관리 (ON) -->
-<div class="rounded-xl border border-neutral-200 p-4 bg-white hover:border-neutral-300 transition">
+<!-- Card 1: 건설기계·장비 안전검사 관리 (기본 ON) -->
+<div class="rounded-xl border border-neutral-200 p-4 bg-white hover:border-neutral-300 transition" data-execution-card="machinery">
 <div class="flex items-center justify-between mb-3">
 <div class="flex items-center gap-2">
 <span class="w-7 h-7 rounded bg-primary-soft text-primary flex items-center justify-center">
@@ -432,20 +432,24 @@ __RISK_ROW_TEMPLATE__
 <span class="text-xs font-bold text-neutral-900">1. 건설기계·장비 안전검사 관리</span>
 </div>
 <label class="relative inline-flex items-center cursor-pointer">
-<input checked="" class="sr-only peer" type="checkbox"/>
+<input checked="" class="sr-only peer" data-execution-toggle="machinery" type="checkbox"/>
 <div class="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
 </label>
 </div>
-<div class="space-y-2 text-xs text-neutral-600">
-<p class="leading-relaxed">현장 반입 예정 건설기계 6종(타워크레인, 백호, 이동식크레인 등) 사전 안전등록 서식 연계 완료.</p>
-<div class="bg-neutral-50 rounded p-2 border border-neutral-200 font-mono text-[11px] text-neutral-700 flex justify-between">
-<span>등록 장비 4대 등록 완료</span>
-<span class="text-status-success font-bold">검사증 첨부확인</span>
+<div class="space-y-2 text-xs text-neutral-600" data-execution-panel="machinery">
+<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-execution-field="machinery-intro" rows="2">현장 반입 예정 건설기계 6종(타워크레인, 백호, 이동식크레인 등) 사전 안전등록 서식 연계 완료.</textarea>
+<div class="bg-neutral-50 rounded p-2 border border-neutral-200 flex items-center justify-between gap-2">
+<label class="flex items-center gap-1.5 text-[11px] text-neutral-700 shrink-0">등록 장비
+<input class="w-14 text-xs bg-white border border-neutral-300 rounded px-1.5 py-0.5" data-execution-field="machinery-count" type="text" value="4대"/>
+등록 완료</label>
+<label class="flex items-center gap-1 text-[11px] font-bold text-status-success shrink-0">
+<input checked="" class="rounded border-neutral-300" data-execution-field="machinery-cert" type="checkbox"/>검사증 첨부확인
+</label>
 </div>
 </div>
 </div>
-<!-- Card 2: 협력업체 안전보건 협의체 (OFF - Disabled State) -->
-<div class="rounded-xl border border-neutral-200 p-4 bg-neutral-50/70 opacity-75 hover:opacity-100 transition">
+<!-- Card 2: 하도급 협력업체 협의체 운영 (기본 OFF) -->
+<div class="rounded-xl border border-neutral-200 p-4 bg-neutral-50/70 opacity-75 hover:opacity-100 transition" data-execution-card="council">
 <div class="flex items-center justify-between mb-3">
 <div class="flex items-center gap-2">
 <span class="w-7 h-7 rounded bg-neutral-200 text-neutral-500 flex items-center justify-center">
@@ -453,18 +457,18 @@ __RISK_ROW_TEMPLATE__
 </span>
 <span class="text-xs font-bold text-neutral-600">2. 하도급 협력업체 협의체 운영</span>
 </div>
-<!-- Inactive Toggle -->
 <label class="relative inline-flex items-center cursor-pointer">
-<input class="sr-only peer" type="checkbox"/>
+<input class="sr-only peer" data-execution-toggle="council" type="checkbox"/>
 <div class="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
 </label>
 </div>
-<div class="space-y-1 text-xs text-neutral-500">
-<p class="leading-relaxed text-neutral-400 italic">
-                  * 미적용 상태 (출력물에서 자동 제외됨). 단독 도급 공사이거나 하도급이 없는 경우 꺼둘 수 있습니다.
-                </p>
+<div class="space-y-1 text-xs text-neutral-500" data-execution-panel="council" hidden>
+<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-execution-field="council-text" rows="2">매월 1회 정기회의를 개최하여 협력업체와 안전보건 사항을 협의한다.</textarea>
 <span class="text-[11px] text-neutral-500 font-medium">활성화 시 월 1회 정기회의록 서식이 부록에 추가됩니다.</span>
 </div>
+<p class="leading-relaxed text-neutral-400 italic text-xs" data-execution-empty-note="council">
+                  * 미적용 상태 (출력물에서 자동 제외됨). 단독 도급 공사이거나 하도급이 없는 경우 꺼둘 수 있습니다.
+                </p>
 </div>
 </div>
 </section>

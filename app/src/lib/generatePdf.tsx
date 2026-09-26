@@ -12,6 +12,7 @@ import type {
   EmergencyTeamData,
   HazardDetailGroup,
   WorkforcePlanGroup,
+  ExecutionOptionsData,
 } from "./wizardExport";
 import { computeSectionOrderChapters, type CoverStyle, type SectionOrderGroup } from "./agencyTemplates";
 import { readImageDimensions } from "./imageDimensions";
@@ -760,6 +761,35 @@ function WorkforcePlanGroupsBlock({ groups }: { groups: WorkforcePlanGroup[] }) 
   );
 }
 
+// "현장 안전보건 실행계획"(sec-execution)의 2개 선택항목을 토글이 켜진 것만
+// 순서대로 보여준다(발주처 특기시방서에 없는 조항은 위저드 화면에서 토글을
+// 꺼서 출력물에서 통째로 제외할 수 있다는 안내와 일치시킨 동작).
+function ExecutionOptionsBlock({ data }: { data: ExecutionOptionsData }) {
+  let n = 0;
+  const machineryNumber = data.machineryEnabled ? ++n : 0;
+  const councilNumber = data.councilEnabled ? ++n : 0;
+  return (
+    <>
+      {data.machineryEnabled && (
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 11, fontWeight: "bold", marginBottom: 8 }}>{machineryNumber}. 건설기계·장비 안전검사 관리</Text>
+          {data.machineryIntro && <Text style={{ fontSize: 9, marginBottom: 6, lineHeight: 1.5 }}>{data.machineryIntro}</Text>}
+          <Text style={{ fontSize: 9 }}>
+            등록 장비 {data.machineryCount || "(미입력)"} 등록 완료 · 검사증 {data.machineryCertAttached ? "첨부확인" : "미첨부"}
+          </Text>
+        </View>
+      )}
+      {data.councilEnabled && (
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 11, fontWeight: "bold", marginBottom: 8 }}>{councilNumber}. 하도급 협력업체 협의체 운영</Text>
+          {data.councilText && <Text style={{ fontSize: 9, marginBottom: 6, lineHeight: 1.5 }}>{data.councilText}</Text>}
+          <Text style={{ fontSize: 8, color: "#6b7280" }}>※ 월 1회 정기회의록을 작성·보관한다.</Text>
+        </View>
+      )}
+    </>
+  );
+}
+
 function EmergencyTeamDiagram({ data }: { data: EmergencyTeamData }) {
   const row1Y = 10;
   const row2Y = 86;
@@ -905,6 +935,7 @@ export async function generateWizardPdf(
             {section.workforcePlanGroups?.length ? (
               <WorkforcePlanGroupsBlock groups={section.workforcePlanGroups} />
             ) : null}
+            {section.executionOptions && <ExecutionOptionsBlock data={section.executionOptions} />}
           </Page>
           {section.accidentImages?.map((img, idx) => (
             <LabeledImagePage key={idx} imageBuffer={img.buffer} label={img.label} />

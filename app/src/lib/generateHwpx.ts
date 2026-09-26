@@ -323,7 +323,7 @@ function buildImageParagraphs(
   // 달라도(혹은 더 관대해서) 문제없이 열렸지만, 그림만 조용히 무시되는 실제
   // 버그의 원인이었다. 순서를 실제 샘플과 동일하게 맞추고, 실제 샘플에는 없는
   // reverseVideo/isVectorImage 속성도 제거했다.
-  const picXml = `<hp:pic id="${picId}" reverse="0" zOrder="${nextZOrder()}" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${picInstId}">
+  const picXml = `<hp:pic id="${picId}" zOrder="${nextZOrder()}" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${picInstId}" reverse="0">
 <hp:offset x="0" y="0"/>
 <hp:orgSz width="${widthUnit}" height="${heightUnit}"/>
 <hp:curSz width="${widthUnit}" height="${heightUnit}"/>
@@ -341,12 +341,12 @@ function buildImageParagraphs(
 <hc:pt2 x="${widthUnit}" y="${heightUnit}"/>
 <hc:pt3 x="0" y="${heightUnit}"/>
 </hp:imgRect>
-<hp:imgClip left="0" top="0" right="${dims.width}" bottom="${dims.height}"/>
+<hp:imgClip left="0" right="${dims.width}" top="0" bottom="${dims.height}"/>
 <hp:inMargin left="0" right="0" top="0" bottom="0"/>
 <hp:imgDim dimwidth="${dims.width}" dimheight="${dims.height}"/>
 <hp:effects/>
 <hp:sz width="${widthUnit}" widthRelTo="ABSOLUTE" height="${heightUnit}" heightRelTo="ABSOLUTE" protect="0"/>
-<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="CENTER" vertOffset="0" horzOffset="0"/>
+<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/>
 <hp:outMargin left="0" right="0" top="0" bottom="0"/>
 </hp:pic>`;
 

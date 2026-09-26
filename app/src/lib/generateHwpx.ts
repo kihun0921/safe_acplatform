@@ -44,6 +44,19 @@ function nextId(): number {
   return idCounter;
 }
 
+// zOrder는 문서 안의 표·그림 등 개체(gso) 전체가 공유하는 전역 쌓임 순서
+// 번호다 — 실제 한글이 만든 hwpx 샘플을 직접 열어 대조해보니 표와 그림
+// 모두 1,2,3...으로 하나도 겹치지 않게 번호가 매겨져 있었는데, 이 코드는
+// 모든 표·그림에 zOrder="0"을 그대로 하드코딩해서 표·그림 수십 개가 전부
+// 같은 순번을 주장하는 충돌 상태였다 — 표는 눈에 띄는 문제가 없었지만
+// 그림만 한글이 조용히 무시하던(hp:pic 자식 순서·media-type·hp:t·zip 압축
+// 방식 수정에도 해결되지 않던) 진짜 원인으로 추정된다.
+let zOrderCounter = 0;
+function nextZOrder(): number {
+  zOrderCounter += 1;
+  return zOrderCounter;
+}
+
 // ── 긴 한 줄 텍스트 강제 줄바꿈 ────────────────────────────────────────────
 // 이 생성기는 각 <hp:p>에 <hp:lineseg> 하나(그 문단이 "한 줄"이라는 하드코딩된
 // 힌트)만 넣는다. 실제 한글 프로그램으로 직접 열어 검증한 결과, "\n"으로 이미
@@ -198,7 +211,7 @@ function buildBoxRowTableXml(nodes: BoxNode[], fullWidth: boolean): string {
   const cells = nodes.map((n, i) => buildBoxCellXml(n, colWidth, i)).join("\n");
   const tblId = nextId();
   const horzAlign = fullWidth ? "LEFT" : "CENTER";
-  return `<hp:tbl id="${tblId}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="1" colCnt="${columnCount}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
+  return `<hp:tbl id="${tblId}" zOrder="${nextZOrder()}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="1" colCnt="${columnCount}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
 <hp:sz width="${totalWidth}" widthRelTo="ABSOLUTE" height="${BOX_ROW_HEIGHT}" heightRelTo="ABSOLUTE" protect="0"/>
 <hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="${horzAlign}" vertOffset="0" horzOffset="0"/>
 <hp:outMargin left="0" right="0" top="0" bottom="0"/>
@@ -296,7 +309,7 @@ function buildImageParagraphs(
   // 달라도(혹은 더 관대해서) 문제없이 열렸지만, 그림만 조용히 무시되는 실제
   // 버그의 원인이었다. 순서를 실제 샘플과 동일하게 맞추고, 실제 샘플에는 없는
   // reverseVideo/isVectorImage 속성도 제거했다.
-  const picXml = `<hp:pic id="${picId}" reverse="0" zOrder="0" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${picId}">
+  const picXml = `<hp:pic id="${picId}" reverse="0" zOrder="${nextZOrder()}" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${picId}">
 <hp:offset x="0" y="0"/>
 <hp:orgSz width="${widthUnit}" height="${heightUnit}"/>
 <hp:curSz width="${widthUnit}" height="${heightUnit}"/>
@@ -436,7 +449,7 @@ function buildTableXml(headers: string[], rows: string[][]): string {
     rowAddr += 1;
   }
 
-  return `<hp:tbl id="${tblId}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="1" rowCnt="${rowCount}" colCnt="${columnCount}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
+  return `<hp:tbl id="${tblId}" zOrder="${nextZOrder()}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="1" rowCnt="${rowCount}" colCnt="${columnCount}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
 <hp:sz width="${TABLE_TOTAL_WIDTH}" widthRelTo="ABSOLUTE" height="${rowCount * TABLE_ROW_HEIGHT}" heightRelTo="ABSOLUTE" protect="0"/>
 <hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/>
 <hp:outMargin left="0" right="0" top="0" bottom="0"/>
@@ -485,7 +498,7 @@ ${cellParagraphs(text, width, paraPrIDRef)}
 function riskFormTableParagraph(colCnt: number, rowCnt: number, totalHeight: number, rowsXml: string): string {
   const tblId = nextId();
   return `<hp:p id="${nextId()}" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">
-<hp:run charPrIDRef="0"><hp:tbl id="${tblId}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${rowCnt}" colCnt="${colCnt}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
+<hp:run charPrIDRef="0"><hp:tbl id="${tblId}" zOrder="${nextZOrder()}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${rowCnt}" colCnt="${colCnt}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
 <hp:sz width="${TABLE_TOTAL_WIDTH}" widthRelTo="ABSOLUTE" height="${totalHeight}" heightRelTo="ABSOLUTE" protect="0"/>
 <hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/>
 <hp:outMargin left="0" right="0" top="0" bottom="0"/>
@@ -756,7 +769,7 @@ function coverTableParagraph(
     )
     .join("\n");
   return `<hp:p id="${nextId()}" paraPrIDRef="${CENTER_PARA_PR_ID}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">
-<hp:run charPrIDRef="0"><hp:tbl id="${tblId}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${rowsOfCells.length}" colCnt="${colCount}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
+<hp:run charPrIDRef="0"><hp:tbl id="${tblId}" zOrder="${nextZOrder()}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${rowsOfCells.length}" colCnt="${colCount}" cellSpacing="0" borderFillIDRef="${TABLE_BODY_BORDER_FILL_ID}" noAdjust="0">
 <hp:sz width="${totalWidth}" widthRelTo="ABSOLUTE" height="${rowHeight * rowsOfCells.length}" heightRelTo="ABSOLUTE" protect="0"/>
 <hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="${horzAlign}" vertOffset="0" horzOffset="0"/>
 <hp:outMargin left="0" right="0" top="0" bottom="0"/>

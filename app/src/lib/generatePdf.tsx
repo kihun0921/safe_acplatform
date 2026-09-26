@@ -286,7 +286,12 @@ const styles = StyleSheet.create({
   policyShadedText: { textAlign: "center", fontWeight: "bold", textDecoration: "underline" },
   policyBody: { lineHeight: 1.6, marginBottom: 12 },
   policyBullet: { marginBottom: 6, lineHeight: 1.5 },
-  policyImagePage: { padding: 20, alignItems: "center", justifyContent: "center" },
+  // 다른 모든 Page 스타일(page/coverPage/overviewPage/policyPage 등)과 달리
+  // fontFamily가 빠져 있어, 안전보건 경영방침 이미지 업로드 모드의 제목("N. 안전보건
+  // 경영방침 및 목표")이 react-pdf 기본 폰트(한글 글리프 없음)로 렌더링되며 깨져
+  // 보이는 실제 버그가 있었다 — 첨부 이미지 자체는 래스터라 영향 없었지만 제목
+  // <Text>는 그대로 영향을 받았다.
+  policyImagePage: { padding: 20, alignItems: "center", justifyContent: "center", fontFamily: "NotoSansKR" },
 });
 
 // 공공 제출서식 표지는 대부분 제목을 테두리 박스로 감싸서 강조한다 — 발주처

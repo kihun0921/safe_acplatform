@@ -575,6 +575,13 @@ export function extractWizardSections(
       // 이 입력의 라벨로 오인해 "(미입력)" 값과 함께 출력물에 새어나간다 — 즉시
       // 처리 후 버리는 일회성 업로드용이라 애초에 문서 내용이 아니므로 제외한다.
       if ($el.attr("data-process-extract-input") !== undefined) return;
+      // "재해발생 수준"(sec-accident_level)의 증빙자료 첨부 파일 입력도 같은
+      // 이유로 제외한다 — <label>로 감싸져 있어 findLabel()이 "이미지 파일
+      // 선택" 버튼 문구(및 아이콘 리거처 이름 "upload_file")를 이 입력의
+      // 라벨로 오인해 "upload_file 이미지 파일 선택: (미입력)"이 그대로 출력물에
+      // 새어나가는 실제 버그가 있었다. 첨부된 이미지 자체는 export route가
+      // Storage에서 읽어와 section.accidentImages로 별도 채운다.
+      if ($el.attr("data-accident-image-input") !== undefined) return;
       // 비상대책반 구성 다이어그램의 성명·연락처 입력은 아래 extractEmergencyTeamData()가
       // 별도로 구조화해서 뽑아 박스+연결선 다이어그램으로 그리므로, 여기서 또
       // "역할 성명: 값" 식 일반 필드로 중복 출력하지 않는다.

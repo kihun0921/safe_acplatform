@@ -37,6 +37,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     workforceVulnerableRows,
     workforceFireWatchRows,
     workforcePairWorkRows,
+    riskEducationParticipantRows,
+    riskMeetingParticipantRows,
     executionOptions,
     percentComplete,
     status,
@@ -69,6 +71,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (workforceVulnerableRows) contentPatch.workforceVulnerableRows = workforceVulnerableRows;
   if (workforceFireWatchRows) contentPatch.workforceFireWatchRows = workforceFireWatchRows;
   if (workforcePairWorkRows) contentPatch.workforcePairWorkRows = workforcePairWorkRows;
+  if (riskEducationParticipantRows) contentPatch.riskEducationParticipantRows = riskEducationParticipantRows;
+  if (riskMeetingParticipantRows) contentPatch.riskMeetingParticipantRows = riskMeetingParticipantRows;
   if (executionOptions) contentPatch.executionOptions = executionOptions;
 
   if (Object.keys(contentPatch).length > 0 || typeof percentComplete === "number" || status) {

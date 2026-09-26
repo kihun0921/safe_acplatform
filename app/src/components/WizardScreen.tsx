@@ -367,6 +367,8 @@ export default function WizardScreen({
       vulnerable_workers: "workforceVulnerableRows",
       fire_watch: "workforceFireWatchRows",
       pair_work: "workforcePairWorkRows",
+      risk_edu_participants: "riskEducationParticipantRows",
+      risk_meeting_participants: "riskMeetingParticipantRows",
     };
 
     const renumberWorkforceRows = (tableKey: string) => {

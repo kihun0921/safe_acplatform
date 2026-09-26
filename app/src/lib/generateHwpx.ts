@@ -287,7 +287,16 @@ function buildImageParagraphs(
   registered.push({ id: imageId, ext: format, buffer });
 
   const picId = nextId();
-  const picXml = `<hp:pic id="${picId}" reverse="0" zOrder="0" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${picId}" reverseVideo="0" isVectorImage="0">
+  // hp:pic의 자식 요소 순서는 OWPML XSD가 xsd:sequence로 엄격히 강제한다 —
+  // 실제 한글이 만든 샘플 hwpx(입찰공고문 등)를 열어 직접 대조해보니 순서가
+  // offset→orgSz→curSz→flip→rotationInfo→renderingInfo→hc:img→imgRect→imgClip→
+  // inMargin→imgDim→effects→sz→pos→outMargin 였는데, 이 코드는 hc:img를 맨
+  // 끝에 두고 sz/pos/outMargin을 imgRect보다 앞에 두는 등 순서가 완전히
+  // 뒤섞여 있었고 effects 요소 자체가 빠져 있었다 — 텍스트·표는 스키마 순서가
+  // 달라도(혹은 더 관대해서) 문제없이 열렸지만, 그림만 조용히 무시되는 실제
+  // 버그의 원인이었다. 순서를 실제 샘플과 동일하게 맞추고, 실제 샘플에는 없는
+  // reverseVideo/isVectorImage 속성도 제거했다.
+  const picXml = `<hp:pic id="${picId}" reverse="0" zOrder="0" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${picId}">
 <hp:offset x="0" y="0"/>
 <hp:orgSz width="${widthUnit}" height="${heightUnit}"/>
 <hp:curSz width="${widthUnit}" height="${heightUnit}"/>
@@ -298,9 +307,7 @@ function buildImageParagraphs(
 <hc:scaMatrix e1="1" e2="0" e3="0" e4="1" e5="0" e6="0"/>
 <hc:rotMatrix e1="1" e2="0" e3="0" e4="1" e5="0" e6="0"/>
 </hp:renderingInfo>
-<hp:sz width="${widthUnit}" widthRelTo="ABSOLUTE" height="${heightUnit}" heightRelTo="ABSOLUTE" protect="0"/>
-<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="CENTER" vertOffset="0" horzOffset="0"/>
-<hp:outMargin left="0" right="0" top="0" bottom="0"/>
+<hc:img binaryItemIDRef="${imageId}" bright="0" contrast="0" effect="REAL_PIC" alpha="0"/>
 <hp:imgRect>
 <hc:pt0 x="0" y="0"/>
 <hc:pt1 x="${widthUnit}" y="0"/>
@@ -310,7 +317,10 @@ function buildImageParagraphs(
 <hp:imgClip left="0" top="0" right="${dims.width}" bottom="${dims.height}"/>
 <hp:inMargin left="0" right="0" top="0" bottom="0"/>
 <hp:imgDim dimwidth="${dims.width}" dimheight="${dims.height}"/>
-<hc:img binaryItemIDRef="${imageId}" bright="0" contrast="0" effect="REAL_PIC" alpha="0"/>
+<hp:effects/>
+<hp:sz width="${widthUnit}" widthRelTo="ABSOLUTE" height="${heightUnit}" heightRelTo="ABSOLUTE" protect="0"/>
+<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="CENTER" vertOffset="0" horzOffset="0"/>
+<hp:outMargin left="0" right="0" top="0" bottom="0"/>
 </hp:pic>`;
 
   const paragraphs: string[] = [];
@@ -1276,12 +1286,15 @@ export async function generateWizardHwpx(
   // opf:manifest에 같은 id로 등록한다(header.xml이 아니라 content.hpf 쪽에
   // 이미지 매니페스트가 있다 — 표 테두리(header.xml)와는 다른 경로).
   const contentHpfTemplate = fs.readFileSync(path.join(TEMPLATE_DIR, "Contents", "content.hpf"), "utf8");
+  // isEmbeded="1"은 실제 한글이 만든 hwpx 샘플의 이미지 매니페스트 항목에 항상
+  // 붙어 있던 속성인데(내장 첨부 데이터임을 나타냄) 이 코드엔 빠져 있었다 —
+  // hp:pic 자식 요소 순서 버그와 함께 이미지가 조용히 무시되던 원인 중 하나.
   const imageManifestItems = registeredImages
     .map(
       (img) =>
         `<opf:item id="${img.id}" href="BinData/${img.id}.${img.ext}" media-type="image/${
           img.ext === "jpg" ? "jpeg" : "png"
-        }"/>`
+        }" isEmbeded="1"/>`
     )
     .join("\n");
   const contentHpf = imageManifestItems

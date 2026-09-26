@@ -762,8 +762,8 @@ export default function WizardScreen({
     // 인증서)라 슬롯 key별로 공용 로직을 쓴다.
     const accidentLevelSection = root.querySelector<HTMLElement>("#sec-accident_level");
 
-    const saveAccidentLevelAttachments = async () => {
-      if (!accidentLevelSection) return;
+    const saveAccidentLevelAttachments = async (): Promise<boolean> => {
+      if (!accidentLevelSection) return false;
       setSaving(true);
       try {
         const attachments: Record<string, string | null> = {};
@@ -771,12 +771,25 @@ export default function WizardScreen({
           const key = slotEl.dataset.accidentSlot;
           if (key) attachments[key] = slotEl.dataset.accidentSlotPath || null;
         });
-        await fetch(`/api/documents/${documentId}`, {
+        // 예전엔 응답 상태를 확인하지 않아, 서버가 4xx/5xx를 돌려줘도(예: RLS
+        // 거부, 잘못된 요청 본문) fetch() 자체는 예외를 던지지 않으므로 그대로
+        // "성공"처럼 넘어가 사용자에게 실패 사실이 전혀 보이지 않았다 — 실제로
+        // 이미지 3개를 스토리지에 업로드했는데도 documents.content.
+        // accidentLevelAttachments가 전부 null로 남아있던 사고가 있었다.
+        const res = await fetch(`/api/documents/${documentId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ accidentLevelAttachments: attachments }),
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `저장 실패 (HTTP ${res.status})`);
+        }
         setSavedAt(new Date());
+        return true;
+      } catch (err) {
+        console.error("[WizardScreen] saveAccidentLevelAttachments failed", err);
+        return false;
       } finally {
         setSaving(false);
       }
@@ -809,8 +822,16 @@ export default function WizardScreen({
         const previewImg = slotEl.querySelector<HTMLImageElement>("[data-accident-image-preview]");
         if (previewImg) previewImg.src = URL.createObjectURL(file);
         if (previewWrap) previewWrap.classList.remove("hidden");
-        if (status) status.textContent = "업로드된 자료가 저장되어 있습니다.";
-        await saveAccidentLevelAttachments();
+        // 스토리지 업로드는 됐어도 문서에 경로를 저장하는 단계가 실패하면(과거엔
+        // 응답 상태를 안 봐서 이 실패가 화면에 전혀 안 보였다) 미리보기만 보이고
+        // 실제로는 저장되지 않은 상태로 남으므로, 저장 성공 여부에 따라 다른
+        // 문구를 보여준다.
+        const saved = await saveAccidentLevelAttachments();
+        if (status) {
+          status.textContent = saved
+            ? "업로드된 자료가 저장되어 있습니다."
+            : "이미지는 업로드됐지만 저장에 실패했습니다 — 새로고침 후 다시 시도해 주세요.";
+        }
       } catch (err) {
         if (status) status.textContent = "업로드 실패 — 다시 시도해 주세요.";
         console.error("[WizardScreen] accident level attachment upload failed", err);

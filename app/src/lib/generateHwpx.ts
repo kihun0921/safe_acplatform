@@ -57,6 +57,14 @@ function nextZOrder(): number {
   return zOrderCounter;
 }
 
+// hp:pic의 id/instid 전용 큰 값 생성기 — nextId()(문단·표가 함께 쓰는 작은
+// 순차 카운터)와 분리해, 실제 한글 샘플의 자릿수(10자리 안팎)에 맞춘다.
+let picIdCounter = 1000000000;
+function nextPicId(): number {
+  picIdCounter += 1;
+  return picIdCounter;
+}
+
 // ── 긴 한 줄 텍스트 강제 줄바꿈 ────────────────────────────────────────────
 // 이 생성기는 각 <hp:p>에 <hp:lineseg> 하나(그 문단이 "한 줄"이라는 하드코딩된
 // 힌트)만 넣는다. 실제 한글 프로그램으로 직접 열어 검증한 결과, "\n"으로 이미
@@ -299,7 +307,13 @@ function buildImageParagraphs(
   const imageId = `hwpximage${registered.length + 1}`;
   registered.push({ id: imageId, ext: format, buffer });
 
-  const picId = nextId();
+  // 실제 한글 샘플의 hp:pic id/instid는 항상 10자리 안팎의 큰 값이고 둘이 서로
+  // 다른데(예: id="1237431970" instid="163690147"), 이 코드는 문단·표에도 같이
+  // 쓰는 작은 순차 카운터(nextId, 현재 몇천 단위)를 그대로 썼고 id==instid로
+  // 동일했다 — 그림 전용 id 생성기를 따로 둬 실제 샘플과 자릿수·서로 다른 값
+  // 규칙을 맞춘다.
+  const picId = nextPicId();
+  const picInstId = nextPicId();
   // hp:pic의 자식 요소 순서는 OWPML XSD가 xsd:sequence로 엄격히 강제한다 —
   // 실제 한글이 만든 샘플 hwpx(입찰공고문 등)를 열어 직접 대조해보니 순서가
   // offset→orgSz→curSz→flip→rotationInfo→renderingInfo→hc:img→imgRect→imgClip→
@@ -309,7 +323,7 @@ function buildImageParagraphs(
   // 달라도(혹은 더 관대해서) 문제없이 열렸지만, 그림만 조용히 무시되는 실제
   // 버그의 원인이었다. 순서를 실제 샘플과 동일하게 맞추고, 실제 샘플에는 없는
   // reverseVideo/isVectorImage 속성도 제거했다.
-  const picXml = `<hp:pic id="${picId}" reverse="0" zOrder="${nextZOrder()}" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${picId}">
+  const picXml = `<hp:pic id="${picId}" reverse="0" zOrder="${nextZOrder()}" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${picInstId}">
 <hp:offset x="0" y="0"/>
 <hp:orgSz width="${widthUnit}" height="${heightUnit}"/>
 <hp:curSz width="${widthUnit}" height="${heightUnit}"/>
@@ -1320,8 +1334,16 @@ export async function generateWizardHwpx(
         }" isEmbeded="1"/>`
     )
     .join("\n");
+  // 이미지 매니페스트 항목 삽입 위치도 실제 샘플과 맞춘다 — 실제 한글은
+  // header 항목 바로 뒤, section0 항목보다 앞에 이미지 항목들을 둔다. OPF
+  // 매니페스트는 표준상 순서 무관이어야 하지만, 다른 구조적 차이를 모두
+  // 없앤 뒤에도 그림이 안 보이는 문제가 있어 실제 샘플과 100% 동일한 순서로
+  // 맞춰 이 변수까지 제거한다.
   const contentHpf = imageManifestItems
-    ? contentHpfTemplate.replace("</opf:manifest>", `${imageManifestItems}\n</opf:manifest>`)
+    ? contentHpfTemplate.replace(
+        '<opf:item id="header" href="Contents/header.xml" media-type="application/xml"/>',
+        `<opf:item id="header" href="Contents/header.xml" media-type="application/xml"/>\n${imageManifestItems}`
+      )
     : contentHpfTemplate;
   zip.file("Contents/content.hpf", contentHpf);
   // 실제 한글이 만든 hwpx 샘플(이미지 4개짜리)을 압축 방식까지 대조해보니

@@ -1289,11 +1289,16 @@ export async function generateWizardHwpx(
   // isEmbeded="1"은 실제 한글이 만든 hwpx 샘플의 이미지 매니페스트 항목에 항상
   // 붙어 있던 속성인데(내장 첨부 데이터임을 나타냄) 이 코드엔 빠져 있었다 —
   // hp:pic 자식 요소 순서 버그와 함께 이미지가 조용히 무시되던 원인 중 하나.
+  // media-type도 실제 샘플(4개 이미지가 들어있는 실제 hwpx)을 직접 열어 대조해보니
+  // jpg는 표준 MIME 타입인 "image/jpeg"가 아니라 한글 자체가 항상 "image/jpg"로
+  // 쓰고 있었다 — 한글의 매니페스트 파서가 이 값을 문자열로 정확히 비교하는
+  // 것으로 보여, 표준을 따른 "image/jpeg"를 쓰면 항목 자체를 인식하지 못하고
+  // 조용히 무시하는 것으로 추정된다. 실제 샘플과 동일하게 맞춘다.
   const imageManifestItems = registeredImages
     .map(
       (img) =>
         `<opf:item id="${img.id}" href="BinData/${img.id}.${img.ext}" media-type="image/${
-          img.ext === "jpg" ? "jpeg" : "png"
+          img.ext === "jpg" ? "jpg" : "png"
         }" isEmbeded="1"/>`
     )
     .join("\n");

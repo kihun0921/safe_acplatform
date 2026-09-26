@@ -328,7 +328,7 @@ function buildImageParagraphs(
 <hp:orgSz width="${widthUnit}" height="${heightUnit}"/>
 <hp:curSz width="${widthUnit}" height="${heightUnit}"/>
 <hp:flip horizontal="0" vertical="0"/>
-<hp:rotationInfo angle="0" centerX="${Math.round(widthUnit / 2)}" centerY="${Math.round(heightUnit / 2)}" rotateimage="1"/>
+<hp:rotationInfo angle="0" centerX="0" centerY="0" rotateimage="0"/>
 <hp:renderingInfo>
 <hc:transMatrix e1="1" e2="0" e3="0" e4="1" e5="0" e6="0"/>
 <hc:scaMatrix e1="1" e2="0" e3="0" e4="1" e5="0" e6="0"/>

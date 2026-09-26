@@ -1311,8 +1311,15 @@ export async function generateWizardHwpx(
     ? contentHpfTemplate.replace("</opf:manifest>", `${imageManifestItems}\n</opf:manifest>`)
     : contentHpfTemplate;
   zip.file("Contents/content.hpf", contentHpf);
+  // 실제 한글이 만든 hwpx 샘플(이미지 4개짜리)을 압축 방식까지 대조해보니
+  // BinData/ 안 이미지는 전부 압축 없이(Stored) 저장돼 있었는데(JPEG는 이미
+  // 자체 압축된 포맷이라 다시 압축해도 의미가 없기도 하다), zip.file()
+  // 기본값은 DEFLATE라 이 코드가 만든 이미지는 압축된 상태로 들어갔다 —
+  // hp:pic 자식 순서·media-type·hp:t 수정에도 그림이 계속 안 보인다면 이
+  // 압축 방식 차이가 마지막 원인일 가능성이 있어 실제 샘플과 동일하게
+  // 맞춘다.
   for (const img of registeredImages) {
-    zip.file(`BinData/${img.id}.${img.ext}`, img.buffer);
+    zip.file(`BinData/${img.id}.${img.ext}`, img.buffer, { compression: "STORE" });
   }
 
   zip.file("META-INF/container.xml", fs.readFileSync(path.join(TEMPLATE_DIR, "META-INF", "container.xml")));

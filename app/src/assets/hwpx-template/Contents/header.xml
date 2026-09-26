@@ -68,7 +68,7 @@
         <hh:rightBorder type="NONE" width="0.1 mm" color="#000000"/>
         <hh:topBorder type="NONE" width="0.1 mm" color="#000000"/>
         <hh:bottomBorder type="NONE" width="0.1 mm" color="#000000"/>
-        <hh:diagonal type="SOLID" width="0.1 mm" color="#000000"/>
+        <hh:diagonal type="NONE" width="0.1 mm" color="#000000"/>
       </hh:borderFill>
       <hh:borderFill id="2" threeD="0" shadow="0" centerLine="NONE" breakCellSeparateLine="0">
         <hh:slash type="NONE" Crooked="0" isCounter="0"/>
@@ -77,7 +77,7 @@
         <hh:rightBorder type="NONE" width="0.1 mm" color="#000000"/>
         <hh:topBorder type="NONE" width="0.1 mm" color="#000000"/>
         <hh:bottomBorder type="NONE" width="0.1 mm" color="#000000"/>
-        <hh:diagonal type="SOLID" width="0.1 mm" color="#000000"/>
+        <hh:diagonal type="NONE" width="0.1 mm" color="#000000"/>
         <hc:fillBrush>
           <hc:winBrush faceColor="none" hatchColor="#999999" alpha="0"/>
         </hc:fillBrush>

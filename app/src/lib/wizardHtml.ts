@@ -4336,7 +4336,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
 
   html = applyOverviewLabel(html, agencyTemplate?.overview_label);
   if (agencyTemplate?.show_cover_nav) {
-    html = insertCoverNavAndSection(html);
+    html = insertCoverNavAndSection(html, agencyTemplate?.cover_style ?? "generic", memberCompany, memberName);
   }
   if (agencyTemplate?.section_order?.length) {
     const extraLabels = Object.fromEntries(templateSections.map((s) => [s.id, s.label]));

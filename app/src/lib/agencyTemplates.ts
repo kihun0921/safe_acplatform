@@ -315,12 +315,130 @@ export function applyOverviewLabel(html: string, overviewLabel: string | null | 
     .replace(">사업개요 및 기본 정보<", `>${label}<`);
 }
 
-// 좌측 목차 맨 위(Ⅰ장보다 위)에 "표지" 안내 항목을 추가한다. 실제 표지는 별도
-// 입력 없이 Ⅰ장에 이미 입력된 값(공사명/발주기관/공사기간/도급금액)과 회원정보로
-// 다운로드 시 자동 생성되므로, 여기서는 그 사실을 안내하는 정보성 섹션만 둔다
-// (입력요소가 없어 field-N 자동저장 인덱스에 영향을 주지 않고, 다운로드 문서
-// 본문에도 중복 출력되지 않도록 wizardExport.ts에서 sec-cover는 별도 제외한다).
-export function insertCoverNavAndSection(html: string): string {
+// "Ⅰ.사업개요" 입력칸에 이미 심어진 wizard-field-* 값들을, 그 필드를 렌더링한
+// HTML 문자열에서 직접 뽑아온다. id 속성이 항상 value 속성보다 앞에 오는(이
+// 파일의 모든 raRField류 헬퍼가 공유하는) 관례를 이용한 정규식 추출이라 별도
+// cheerio 파싱 없이 가볍게 처리한다 — wizardExport.ts의 extractCoverPageData()가
+// (savedFields 적용 이후, 다운로드 시점에) 읽는 것과 같은 id를 그대로 쓴다.
+function extractFieldValueForPreview(html: string, id: string): string {
+  const m = html.match(new RegExp(`id="${id}"[^>]*value="([^"]*)"`));
+  return m ? m[1] : "";
+}
+
+// 실제 다운로드 문서(DOCX/PDF/HWPX)의 표지·제출문과 최대한 같은 문구·구성으로
+// 미리보기를 그린다 — generateDocx.ts의 buildLhStandardCover/buildKwaterStandardCover/
+// buildGenericCover/buildLhSubmissionLetter와 동일한 문구를 유지해야, 위저드
+// 화면에서 본 것과 실제로 받는 파일이 다르게 느껴지지 않는다.
+function buildCoverPreviewHtml(
+  style: CoverStyle,
+  data: {
+    projectName: string;
+    agency: string;
+    period: string;
+    contractAmount: string;
+    safetyBudget: string;
+    submitDate: string;
+    companyName: string;
+    writerName: string;
+  }
+): string {
+  const na = (v: string) => (v.trim() ? v : "(미입력)");
+  const submitYearMonth = (() => {
+    const m = data.submitDate.match(/^(\d{4})\.\s*(\d{1,2})\./);
+    return m ? `${m[1]}년 ${m[2].padStart(2, "0")}월` : data.submitDate;
+  })();
+
+  const approvalTable = `<table class="w-full text-[11px] border border-neutral-300 mt-6">
+<tr><td class="border border-neutral-300 bg-neutral-50 font-bold text-center py-1.5">구 분</td><td class="border border-neutral-300 font-bold text-center py-1.5">작성자</td><td class="border border-neutral-300 font-bold text-center py-1.5">검토자</td><td class="border border-neutral-300 font-bold text-center py-1.5">승인자</td></tr>
+<tr><td class="border border-neutral-300 bg-neutral-50 font-bold text-center py-2">직 책</td><td class="border border-neutral-300 py-2"></td><td class="border border-neutral-300 py-2"></td><td class="border border-neutral-300 py-2"></td></tr>
+<tr><td class="border border-neutral-300 bg-neutral-50 font-bold text-center py-2">성 명</td><td class="border border-neutral-300 text-center py-2">${na(data.writerName)}</td><td class="border border-neutral-300 py-2"></td><td class="border border-neutral-300 py-2"></td></tr>
+<tr><td class="border border-neutral-300 bg-neutral-50 font-bold text-center py-2">서 명</td><td class="border border-neutral-300 py-2"></td><td class="border border-neutral-300 py-2"></td><td class="border border-neutral-300 py-2"></td></tr>
+</table>`;
+
+  const pageWrap = (inner: string) =>
+    `<div class="max-w-xl mx-auto border border-neutral-300 rounded-lg bg-white px-8 py-10 text-xs text-neutral-800">${inner}</div>`;
+
+  const titleBox = (text: string) =>
+    `<div class="border-2 border-neutral-800 rounded px-6 py-8 text-center mb-8"><p class="text-lg font-bold tracking-[0.4em]">${text}</p></div>`;
+
+  const lhSubmissionLetterHtml = `<p class="mt-8 mb-3 text-[11px] text-neutral-400">다음 장: 제출문</p>
+${pageWrap(`
+<p class="text-center text-base font-bold mb-8">제 출 문</p>
+<p class="text-center leading-relaxed mb-8">귀사 발주공사인 "${na(data.projectName)}" 수행을 위해 아래와 같이 안전보건관리계획서를 제출합니다.</p>
+<p class="text-center mb-8">${submitYearMonth}</p>
+<p class="mb-2">업 체 명 : ${na(data.companyName)}</p>
+<p class="mb-8">대표이사 : ${data.writerName}</p>
+<p class="text-right font-bold">${na(data.agency)} 사장 귀하</p>
+`)}`;
+
+  if (style === "lh_standard") {
+    return (
+      pageWrap(`
+${titleBox("안 전 보 건 관 리 계 획 서")}
+<table class="w-full text-[11px] border border-neutral-300">
+<tr><td class="border border-neutral-300 bg-neutral-50 font-bold text-center w-28 py-2.5">공 사(용 역) 명</td><td class="border border-neutral-300 text-center py-2.5">${na(data.projectName)}</td></tr>
+<tr><td class="border border-neutral-300 bg-neutral-50 font-bold text-center py-2.5">공 사 기 간</td><td class="border border-neutral-300 text-center py-2.5">${na(data.period)}</td></tr>
+<tr><td class="border border-neutral-300 bg-neutral-50 font-bold text-center py-2.5">도 급 금 액</td><td class="border border-neutral-300 text-center py-2.5">${data.contractAmount ? `${data.contractAmount} (부가세 포함)` : "(미입력)"}</td></tr>
+<tr><td class="border border-neutral-300 bg-neutral-50 font-bold text-center py-2.5">계상된 안전관리비</td><td class="border border-neutral-300 text-center py-2.5">${na(data.safetyBudget)}</td></tr>
+</table>
+<p class="text-center mt-8 mb-6">${data.submitDate}</p>
+<p class="text-center font-bold mb-6">${na(data.agency)} 귀하</p>
+<p class="text-center font-bold mb-2">${na(data.companyName)}</p>
+${approvalTable}
+`) + lhSubmissionLetterHtml
+    );
+  }
+
+  if (style === "kwater_standard") {
+    const project = data.projectName || "OOOOO";
+    return (
+      pageWrap(`
+<p class="text-center font-bold mb-6">${project} 공사(용역)</p>
+${titleBox("안전보건관리계획서")}
+<p class="text-center mt-10 mb-10">${data.submitDate}</p>
+<p class="text-center font-bold">${data.companyName || "회사명(로고)"}</p>
+`) +
+      `<p class="mt-8 mb-3 text-[11px] text-neutral-400">다음 장: 제출문</p>` +
+      pageWrap(`
+<p class="text-center text-base font-bold mb-8">제 출 문</p>
+<p class="mb-8 leading-relaxed">귀사의 ${project} 수행을 위해 아래와 같이 안전보건관리계획서를 제출합니다.</p>
+<p class="text-center mb-6">${data.submitDate}</p>
+<p class="mb-2">업 체 명 : ${na(data.companyName)}</p>
+<p class="mb-8">대표이사 : ${data.writerName}${data.writerName ? "" : ""}<span class="ml-4">(서명 또는 인)</span></p>
+<p class="text-center font-bold">${na(data.agency)} 귀하</p>
+`)
+    );
+  }
+
+  // generic
+  const infoLine = (label: string, value: string) =>
+    `<p class="text-center mb-3"><span class="font-bold">${label} : </span>${value || "(미입력)"}</p>`;
+  return pageWrap(`
+${titleBox("안전보건관리계획서")}
+${infoLine("공사(용역)명", data.projectName)}
+${infoLine("공사기간", data.period)}
+${infoLine("도급금액", data.contractAmount ? `${data.contractAmount} (부가세 포함)` : "")}
+${infoLine("계상된 안전관리비", data.safetyBudget)}
+<p class="text-center mt-8 mb-6">${data.submitDate}</p>
+<p class="text-center font-bold mb-6">${na(data.agency)} 귀하</p>
+<p class="text-center font-bold mb-2">${na(data.companyName)}</p>
+${approvalTable}
+`);
+}
+
+// 좌측 목차 맨 위(Ⅰ장보다 위)에 "표지" 항목을 추가하고, 실제 다운로드 문서
+// 맨 앞장에 나가는 표지(발주처별 lh_standard/kwater_standard/generic 서식)와
+// 제출문을 그대로 미리 보여준다. 별도 입력칸은 없다 — Ⅰ장에 이미 입력된 값
+// (공사명/발주기관/공사기간/도급금액)과 회원정보를 그대로 반영해 보여주고,
+// 실제로 저장되는 값도 그 필드들이므로 이 섹션 자체는 field-N 자동저장
+// 인덱스에 영향을 주지 않으며, 다운로드 문서 본문에도 중복 출력되지 않도록
+// wizardExport.ts에서 sec-cover는 별도 제외한다.
+export function insertCoverNavAndSection(
+  html: string,
+  coverStyle: CoverStyle = "generic",
+  companyName = "",
+  writerName = ""
+): string {
   const navItem = `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-cover">
 <div class="flex items-center gap-2">
 <span class="w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center">
@@ -331,6 +449,20 @@ export function insertCoverNavAndSection(html: string): string {
 <span class="text-[11px] text-neutral-400 font-medium">자동 생성</span>
 </a>
 `;
+  const submitDate = (() => {
+    const today = new Date();
+    return `${today.getFullYear()}. ${today.getMonth() + 1}. ${today.getDate()}.`;
+  })();
+  const coverPreview = buildCoverPreviewHtml(coverStyle, {
+    projectName: extractFieldValueForPreview(html, "wizard-field-project-name"),
+    agency: extractFieldValueForPreview(html, "wizard-field-agency"),
+    period: extractFieldValueForPreview(html, "wizard-field-period"),
+    contractAmount: extractFieldValueForPreview(html, "wizard-field-contract-amount"),
+    safetyBudget: extractFieldValueForPreview(html, "wizard-field-safety-budget"),
+    submitDate,
+    companyName,
+    writerName,
+  });
   const section = `<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-cover">
 <div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
 <span class="w-6 h-6 rounded-md bg-neutral-400 text-white text-xs font-bold flex items-center justify-center">
@@ -338,8 +470,9 @@ export function insertCoverNavAndSection(html: string): string {
 </span>
 <h2 class="font-headline font-bold text-base text-neutral-900">표지</h2>
 </div>
-<div class="p-6 text-xs text-neutral-600 leading-relaxed">
-표지는 별도로 입력하지 않아도, 아래 입력하시는 공사명·발주기관·공사기간·도급금액과 회원정보(회사명·작성자)를 그대로 반영해 다운로드하시는 문서(DOCX/PDF/HWPX) 맨 앞장에 발주처 표준 양식으로 자동 생성됩니다.
+<div class="p-6">
+<p class="text-xs text-neutral-500 mb-5">표지는 별도로 입력하지 않아도, Ⅰ장에 입력하시는 공사명·발주기관·공사기간·도급금액과 회원정보(회사명·작성자)를 그대로 반영해 아래와 같이 다운로드 문서(DOCX/PDF/HWPX) 맨 앞장에 자동 생성됩니다.</p>
+${coverPreview}
 </div>
 </section>
 `;

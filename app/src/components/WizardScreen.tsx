@@ -1232,16 +1232,6 @@ export default function WizardScreen({
       }
     };
 
-    const onTocClick = (e: MouseEvent) => {
-      const link = (e.target as HTMLElement)?.closest("a[href^='#sec-']");
-      if (!link || !root.contains(link)) return;
-      const id = link.getAttribute("href")?.slice(1);
-      const target = id ? root.querySelector(`#${id}`) : null;
-      if (!target) return;
-      e.preventDefault();
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
-
     // 좌측 목차(TOC)의 "현재 보고 있는 섹션" 강조 표시를, 실제 스크롤 위치에 맞춰
     // 동적으로 갱신한다. 화면을 처음 열었을 때는 항상 맨 위(사업개요 및 기본정보)가
     // 보이므로 자연히 그 항목이 강조되고, 스크롤하면 그때그때 보이는 섹션으로 이동한다.
@@ -1302,6 +1292,34 @@ export default function WizardScreen({
       { rootMargin: "-190px 0px -65% 0px", threshold: 0 }
     );
     sections.forEach((s) => sectionObserver.observe(s));
+
+    // 좌측 목차를 누르면 그 항목 하나만 오른쪽에 보이고 나머지 절은 숨긴다 —
+    // 예전엔 모든 절이 한 페이지에 쭉 이어져 있어(경쟁사 화면처럼 클릭한
+    // 항목만 보여달라는 요청) 원하는 항목을 보려면 계속 스크롤을 내려야
+    // 했다. 미리보기(PDF/DOCX 다운로드)는 이 화면과 별개로 전체 문서를 만들어
+    // 보여주므로, 편집 화면만 "한 번에 한 절"로 바꿔도 전체 문서 확인에는
+    // 영향이 없다.
+    const showOnlySection = (id: string) => {
+      sections.forEach((s) => {
+        s.hidden = s.id !== id;
+      });
+    };
+    if (sections[0]) {
+      showOnlySection(sections[0].id);
+      setActiveSection(sections[0].id);
+    }
+
+    const onTocClick = (e: MouseEvent) => {
+      const link = (e.target as HTMLElement)?.closest("a[href^='#sec-']");
+      if (!link || !root.contains(link)) return;
+      const id = link.getAttribute("href")?.slice(1);
+      const target = id ? root.querySelector<HTMLElement>(`#${id}`) : null;
+      if (!target || !id) return;
+      e.preventDefault();
+      showOnlySection(id);
+      setActiveSection(id);
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
 
     root.addEventListener("input", onFieldChange);
     root.addEventListener("change", onFieldChange);

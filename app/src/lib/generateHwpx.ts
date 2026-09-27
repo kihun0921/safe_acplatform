@@ -693,6 +693,11 @@ function buildExecutionOptionsParagraphs(data: ExecutionOptionsData): string[] {
     n += 1;
     paragraphs.push(textParagraph(`${n}. 건설기계·장비 안전검사 관리`, "6", false));
     if (data.machineryIntro) paragraphs.push(textParagraph(data.machineryIntro, "0", false));
+    const regTable = data.machineryRegistrationTable;
+    if (regTable?.rows.some((row) => row.some((cell) => cell.trim() !== ""))) {
+      paragraphs.push(tableParagraph(regTable.headers, regTable.rows, false));
+      paragraphs.push(emptyParagraph());
+    }
     paragraphs.push(
       textParagraph(
         `등록 장비 ${data.machineryCount || "(미입력)"} 등록 완료 · 검사증 ${data.machineryCertAttached ? "첨부확인" : "미첨부"}`,

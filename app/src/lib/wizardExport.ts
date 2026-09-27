@@ -113,6 +113,7 @@ export interface ExecutionOptionsData {
   machineryIntro: string;
   machineryCount: string;
   machineryCertAttached: boolean;
+  machineryRegistrationTable?: { headers: string[]; rows: string[][] };
   councilEnabled: boolean;
   councilText: string;
 }
@@ -216,6 +217,7 @@ function applySavedFields($: cheerio.CheerioAPI, fields: Record<string, string |
     if ($el.attr("data-hazard-check") !== undefined) return false;
     if ($el.attr("data-ppe-qty") !== undefined) return false;
     if ($el.attr("data-emergency-contact-field") !== undefined) return false;
+    if ($el.attr("data-machinery-reg-field") !== undefined) return false;
     if ($el.attr("data-safety-cost-industrial") !== undefined) return false;
     if ($el.attr("data-safety-cost-item") !== undefined) return false;
     if ($el.attr("data-safety-cost-reserve") !== undefined) return false;
@@ -559,7 +561,9 @@ function extractTableData($: cheerio.CheerioAPI, tableEl: AnyNode): { headers: s
       .each((_, td) => {
         const $td = $(td);
         if (
-          $td.find("[data-risk-delete], [data-emergency-contact-delete], [data-workforce-delete], [data-hazard-delete]").length
+          $td.find(
+            "[data-risk-delete], [data-emergency-contact-delete], [data-machinery-reg-delete], [data-workforce-delete], [data-hazard-delete]"
+          ).length
         )
           return;
         const control = $td.find("input, textarea, select").first();
@@ -609,11 +613,14 @@ function extractExecutionOptionsData($: cheerio.CheerioAPI, $section: ReturnType
   const isChecked = (selector: string) => $section.find(selector).attr("checked") !== undefined;
   const textareaValue = (selector: string) => $section.find(selector).first().text().trim();
   const inputValue = (selector: string) => ($section.find(selector).attr("value") ?? "").trim();
+  const machineryTableEl = $section.find("[data-machinery-reg-table]").get(0);
+  const machineryRegistrationTable = machineryTableEl ? extractTableData($, machineryTableEl) ?? undefined : undefined;
   return {
     machineryEnabled: isChecked('[data-execution-toggle="machinery"]'),
     machineryIntro: textareaValue('[data-execution-field="machinery-intro"]'),
     machineryCount: inputValue('[data-execution-field="machinery-count"]'),
     machineryCertAttached: isChecked('[data-execution-field="machinery-cert"]'),
+    machineryRegistrationTable,
     councilEnabled: isChecked('[data-execution-toggle="council"]'),
     councilText: textareaValue('[data-execution-field="council-text"]'),
   };
@@ -697,6 +704,10 @@ export function extractWizardSections(
       // 않는다 — 특히 토글이 꺼진 항목의 내용까지 "포함: 아니오"와 함께 그대로
       // 새어나가면 안 되기 때문이다.
       if ($el.attr("data-execution-field") !== undefined || $el.attr("data-execution-toggle") !== undefined) return;
+      // 건설기계·장비 사전 안전등록 관리대장의 행 입력(장비명/규격/소유업체 등)도
+      // 아래 extractExecutionOptionsData()가 표로 구조화해서 뽑으므로, 여기서
+      // 일반 필드로 중복 출력하지 않는다.
+      if ($el.attr("data-machinery-reg-field") !== undefined) return;
       // 서식1·2 상단 정보(교육/회의 장소·일시 등)도 아래 extractRiskAssessmentFormFieldsData()가
       // id로 직접 읽어 구조화하므로 여기서 중복 출력하지 않는다(표 셀 안 입력이라
       // findLabel()이 애초에 라벨을 못 찾아 실질적으로는 중복될 일이 없지만, 다른
@@ -719,6 +730,10 @@ export function extractWizardSections(
         // 실제 샘플과 같은 병합표로 직접 그리므로, 여기서 또 "헤더+행" 일반 표로
         // 뽑아 이중으로 출력하지 않는다.
         if ($(tableEl).attr("data-form-info-table") !== undefined) return;
+        // 건설기계·장비 사전 안전등록 관리대장 표도 아래 extractExecutionOptionsData()가
+        // 구조화해서 뽑아 buildExecutionOptionsBlocks가 알맞은 위치(안내문 뒤)에
+        // 직접 그리므로, 여기서 일반 표로 중복 출력하지 않는다.
+        if ($(tableEl).attr("data-machinery-reg-table") !== undefined) return;
         const t = extractTableData($, tableEl);
         if (t) tables.push(t);
       });

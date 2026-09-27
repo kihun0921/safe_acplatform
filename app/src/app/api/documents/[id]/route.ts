@@ -32,6 +32,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     hazardSubstanceRows,
     ppeQuantities,
     emergencyContactRows,
+    machineryRegistrationRows,
     safetyCostAmounts,
     accidentLevelAttachments,
     workforceVulnerableRows,
@@ -67,6 +68,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (hazardSubstanceRows) contentPatch.hazardSubstanceRows = hazardSubstanceRows;
   if (ppeQuantities) contentPatch.ppeQuantities = ppeQuantities;
   if (emergencyContactRows) contentPatch.emergencyContactRows = emergencyContactRows;
+  if (machineryRegistrationRows) contentPatch.machineryRegistrationRows = machineryRegistrationRows;
   if (safetyCostAmounts) contentPatch.safetyCostAmounts = safetyCostAmounts;
   if (accidentLevelAttachments) contentPatch.accidentLevelAttachments = accidentLevelAttachments;
   if (workforceVulnerableRows) contentPatch.workforceVulnerableRows = workforceVulnerableRows;

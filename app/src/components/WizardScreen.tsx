@@ -31,6 +31,7 @@ export default function WizardScreen({
   const hazardSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const ppeQtySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emergencyContactSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const machineryRegSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safetyCostSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const executionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskFormSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,7 +70,7 @@ export default function WizardScreen({
 
     const fieldEls = Array.from(
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]):not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]):not([data-accident-image-input]):not([data-workforce-field]):not([data-execution-toggle]):not([data-execution-field]):not([data-risk-form-field]), textarea:not([data-risk-field]):not([data-hazard-field]):not([data-execution-field]), select:not([data-template-select]):not([data-risk-field])"
+        "input:not([type=hidden]):not([data-risk-field]):not([data-policy-image-input]):not([data-process-extract-input]):not([data-hazard-field]):not([data-hazard-check]):not([data-ppe-qty]):not([data-emergency-contact-field]):not([data-machinery-reg-field]):not([data-safety-cost-industrial]):not([data-safety-cost-item]):not([data-safety-cost-reserve]):not([data-accident-image-input]):not([data-workforce-field]):not([data-execution-toggle]):not([data-execution-field]):not([data-risk-form-field]), textarea:not([data-risk-field]):not([data-hazard-field]):not([data-execution-field]), select:not([data-template-select]):not([data-risk-field])"
       )
     );
     fieldEls.forEach((el, i) => {
@@ -396,6 +397,73 @@ export default function WizardScreen({
       tr.dataset.emergencyContactId = `ec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       emergencyContactTbody.appendChild(tr);
       saveEmergencyContactRows(true);
+    };
+
+    // ── 건설기계·장비 사전 안전등록 관리대장(Ⅲ. sec-execution, "1. 건설기계·장비
+    // 안전검사 관리"): 반입 장비 수가 현장마다 달라 emergencyContactRows와 동일한
+    // 이유로 documents.content.machineryRegistrationRows에 배열 통째로 저장한다.
+    // "등록 장비 N대" 표시칸은 이 표의 실제 행 수를 그대로 반영해야 하므로(예전엔
+    // 자유 입력칸이라 등록 실체 없이도 "완료"라고 써넣을 수 있었다), 행이
+    // 추가·삭제될 때마다 recalcMachineryCount()로 즉시 재계산한다.
+    const machineryRegTbody = root.querySelector<HTMLTableSectionElement>("[data-machinery-reg-tbody]");
+    const machineryRegTemplate = root.querySelector<HTMLTemplateElement>(
+      "template[data-machinery-reg-row-template]"
+    );
+
+    const recalcMachineryCount = () => {
+      const countEl = root.querySelector<HTMLInputElement>('[data-execution-field="machinery-count"]');
+      if (!countEl || !machineryRegTbody) return;
+      // 장비명이 실제로 입력된 행만 "등록 완료"로 센다 — 빈 행만 있는 초기
+      // 상태에서도 행 개수 그대로 세면 아무것도 입력 안 했는데 "1대 등록 완료"로
+      // 보이는, 이번에 지적받은 것과 같은 종류의 문제가 재발한다.
+      const filled = Array.from(machineryRegTbody.querySelectorAll<HTMLInputElement>('[data-machinery-reg-field="name"]')).filter(
+        (el) => el.value.trim() !== ""
+      ).length;
+      countEl.value = `${filled}대`;
+    };
+    recalcMachineryCount();
+
+    const serializeMachineryRegistrationRows = () => {
+      if (!machineryRegTbody) return [] as Record<string, string>[];
+      return Array.from(machineryRegTbody.querySelectorAll<HTMLElement>("tr[data-machinery-reg-id]")).map((tr) => {
+        const row: Record<string, string> = { id: tr.dataset.machineryRegId ?? "" };
+        tr.querySelectorAll<HTMLInputElement>("[data-machinery-reg-field]").forEach((el) => {
+          const key = el.dataset.machineryRegField;
+          if (key) row[key] = el.value;
+        });
+        return row;
+      });
+    };
+
+    const saveMachineryRegistrationRows = (immediate = false): Promise<void> => {
+      if (machineryRegSaveTimer.current) clearTimeout(machineryRegSaveTimer.current);
+      const run = async () => {
+        setSaving(true);
+        try {
+          await fetch(`/api/documents/${documentId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ machineryRegistrationRows: serializeMachineryRegistrationRows() }),
+          });
+          setSavedAt(new Date());
+        } finally {
+          setSaving(false);
+        }
+      };
+      if (immediate) return run();
+      machineryRegSaveTimer.current = setTimeout(run, 15000);
+      return Promise.resolve();
+    };
+
+    const appendMachineryRegistrationRow = () => {
+      if (!machineryRegTbody || !machineryRegTemplate) return;
+      const fragment = machineryRegTemplate.content.cloneNode(true) as DocumentFragment;
+      const tr = fragment.querySelector<HTMLElement>("tr");
+      if (!tr) return;
+      tr.dataset.machineryRegId = `mr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      machineryRegTbody.appendChild(tr);
+      recalcMachineryCount();
+      saveMachineryRegistrationRows(true);
     };
 
     // ── 작업투입 인력 인적사항(Ⅷ. sec-workforce)의 3개 관리대장/명단/편성표:
@@ -991,6 +1059,11 @@ export default function WizardScreen({
         saveEmergencyContactRows(false);
         return;
       }
+      if (el.matches("[data-machinery-reg-field]")) {
+        recalcMachineryCount();
+        saveMachineryRegistrationRows(false);
+        return;
+      }
       if (el.matches("[data-safety-cost-item], [data-safety-cost-reserve]")) {
         recalcSafetyCostTotal();
         saveSafetyCostAmounts(false);
@@ -1108,6 +1181,21 @@ export default function WizardScreen({
         if (tr && confirm("이 기관을 삭제하시겠습니까?")) {
           tr.remove();
           saveEmergencyContactRows(true);
+        }
+        return;
+      }
+      if (btn.hasAttribute("data-machinery-reg-add")) {
+        e.preventDefault();
+        appendMachineryRegistrationRow();
+        return;
+      }
+      if (btn.hasAttribute("data-machinery-reg-delete")) {
+        e.preventDefault();
+        const tr = btn.closest<HTMLElement>("tr[data-machinery-reg-id]");
+        if (tr && confirm("이 장비를 삭제하시겠습니까?")) {
+          tr.remove();
+          recalcMachineryCount();
+          saveMachineryRegistrationRows(true);
         }
         return;
       }
@@ -1363,6 +1451,7 @@ export default function WizardScreen({
       if (riskSaveTimer.current) clearTimeout(riskSaveTimer.current);
       if (ppeQtySaveTimer.current) clearTimeout(ppeQtySaveTimer.current);
       if (emergencyContactSaveTimer.current) clearTimeout(emergencyContactSaveTimer.current);
+      if (machineryRegSaveTimer.current) clearTimeout(machineryRegSaveTimer.current);
       if (safetyCostSaveTimer.current) clearTimeout(safetyCostSaveTimer.current);
       if (executionSaveTimer.current) clearTimeout(executionSaveTimer.current);
       if (riskFormSaveTimer.current) clearTimeout(riskFormSaveTimer.current);

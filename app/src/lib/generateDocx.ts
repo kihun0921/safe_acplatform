@@ -470,8 +470,8 @@ function buildWorkforcePlanGroupsBlocks(groups: WorkforcePlanGroup[]): (Paragrap
 // "현장 안전보건 실행계획"(sec-execution)의 2개 선택항목을 토글이 켜진 것만
 // 순서대로 보여준다(발주처 특기시방서에 없는 조항은 위저드 화면에서 토글을
 // 꺼서 출력물에서 통째로 제외할 수 있다는 안내와 일치시킨 동작).
-function buildExecutionOptionsBlocks(data: ExecutionOptionsData): Paragraph[] {
-  const blocks: Paragraph[] = [];
+function buildExecutionOptionsBlocks(data: ExecutionOptionsData): (Paragraph | Table)[] {
+  const blocks: (Paragraph | Table)[] = [];
   let n = 0;
   if (data.machineryEnabled) {
     n += 1;
@@ -485,6 +485,15 @@ function buildExecutionOptionsBlocks(data: ExecutionOptionsData): Paragraph[] {
       blocks.push(
         new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: data.machineryIntro, size: 18, font: FONT })] })
       );
+    }
+    // 실제 등록현황이 하나라도 입력된 경우에만 관리대장 표를 넣는다(모든 칸이
+    // 빈 채로 행만 있는 초기 상태 표까지 그대로 출력물에 넣으면 빈 표만
+    // 남는다 — "서식만 있고 내용이 없다"는 지적을 되풀이하지 않기 위함).
+    const regTable = data.machineryRegistrationTable;
+    const hasRegData = regTable?.rows.some((row) => row.some((cell) => cell.trim() !== ""));
+    if (regTable && hasRegData) {
+      blocks.push(buildGenericTable(regTable.headers, regTable.rows));
+      blocks.push(new Paragraph({ spacing: { after: 160 }, children: [] }));
     }
     blocks.push(
       new Paragraph({

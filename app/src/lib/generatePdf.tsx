@@ -942,6 +942,14 @@ function ExecutionOptionsBlock({ data }: { data: ExecutionOptionsData }) {
         <View style={{ marginBottom: 16 }}>
           <Text style={{ fontSize: 11, fontWeight: "bold", marginBottom: 8 }}>{machineryNumber}. 건설기계·장비 안전검사 관리</Text>
           {data.machineryIntro && <Text style={{ fontSize: 9, marginBottom: 6, lineHeight: 1.5 }}>{data.machineryIntro}</Text>}
+          {data.machineryRegistrationTable?.rows.some((row) => row.some((cell) => cell.trim() !== "")) && (
+            <View style={{ marginBottom: 8 }}>
+              <GenericTable
+                headers={data.machineryRegistrationTable.headers}
+                rows={data.machineryRegistrationTable.rows}
+              />
+            </View>
+          )}
           <Text style={{ fontSize: 9 }}>
             등록 장비 {data.machineryCount || "(미입력)"} 등록 완료 · 검사증 {data.machineryCertAttached ? "첨부확인" : "미첨부"}
           </Text>

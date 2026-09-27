@@ -668,12 +668,47 @@ type ExecutionOptions = {
 
 const EXECUTION_OPTIONS_DEFAULT: ExecutionOptions = {
   machineryEnabled: true,
-  machineryIntro: "현장 반입 예정 건설기계 6종(타워크레인, 백호, 이동식크레인 등) 사전 안전등록 서식 연계 완료.",
-  machineryCount: "4대",
+  machineryIntro: "현장 반입 예정 건설기계(타워크레인, 백호, 이동식크레인 등)는 아래 등록현황표에 실제 등록 내용을 입력해 관리한다.",
+  machineryCount: "0대",
   machineryCertAttached: true,
   councilEnabled: false,
   councilText: "매월 1회 정기회의를 개최하여 협력업체와 안전보건 사항을 협의한다.",
 };
+
+// 건설기계·장비 사전 안전등록 관리대장 — 예전엔 "N종 서식 연계 완료"라는 문구만
+// 있고 실제 등록 내용을 적을 곳이 없어(자유 서술 textarea뿐), "구체적인 서식이
+// 작성되지 않는다"는 지적을 받았다. 위험성평가/유관기관 비상연락체계와 동일하게
+// 현장마다 반입 장비 수가 달라 자유롭게 추가·삭제 가능한 표(documents.content.
+// machineryRegistrationRows)로 실제 등록현황을 관리한다.
+export interface MachineryRegistrationRow {
+  id: string;
+  name: string;
+  spec: string;
+  owner: string;
+  certNo: string;
+  certExpiry: string;
+  broughtInDate: string;
+}
+
+function buildMachineryRegistrationRowHtml(row: MachineryRegistrationRow): string {
+  const field = (key: keyof MachineryRegistrationRow, placeholder: string) =>
+    `<td class="p-1.5"><input class="w-full text-[11px] bg-white border border-neutral-300 rounded-lg px-2 py-1.5" data-machinery-reg-field="${key}" placeholder="${placeholder}" type="text" value="${escapeHtmlPolicy(
+      row[key]
+    )}"/></td>`;
+  return `<tr data-machinery-reg-id="${escapeHtmlPolicy(row.id)}">
+${field("name", "예: 타워크레인")}
+${field("spec", "규격/모델")}
+${field("owner", "소유업체")}
+${field("certNo", "검사(합격)증번호")}
+${field("certExpiry", "유효기간")}
+${field("broughtInDate", "반입(예정)일자")}
+<td class="p-1.5 text-center">
+<button class="text-neutral-400 hover:text-status-danger transition" data-machinery-reg-delete type="button" title="행 삭제">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
+</td>
+</tr>`;
+}
 
 function normalizeExecutionOptions(raw: unknown): ExecutionOptions {
   const r = (raw ?? {}) as Partial<ExecutionOptions>;
@@ -688,8 +723,21 @@ function normalizeExecutionOptions(raw: unknown): ExecutionOptions {
   };
 }
 
-function buildExecutionSectionHtml(o: ExecutionOptions): string {
-  return `<div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+function buildExecutionSectionHtml(o: ExecutionOptions, machineryRows: MachineryRegistrationRow[]): string {
+  const rows = machineryRows.length ? machineryRows : [{ id: "", name: "", spec: "", owner: "", certNo: "", certExpiry: "", broughtInDate: "" }];
+  const machineryRowsHtml = rows.map(buildMachineryRegistrationRowHtml).join("\n");
+  const blankMachineryRow = buildMachineryRegistrationRowHtml({
+    id: "",
+    name: "",
+    spec: "",
+    owner: "",
+    certNo: "",
+    certExpiry: "",
+    broughtInDate: "",
+  });
+  const machineryFilledCount = machineryRows.filter((r) => r.name.trim() !== "").length;
+  const machineryCount = machineryRows.length ? `${machineryFilledCount}대` : o.machineryCount;
+  return `<div class="p-6 grid grid-cols-1 gap-4">
 <div class="rounded-xl border border-neutral-200 p-4 bg-white hover:border-neutral-300 transition" data-execution-card="machinery">
 <div class="flex items-center justify-between mb-3">
 <div class="flex items-center gap-2">
@@ -707,10 +755,33 @@ function buildExecutionSectionHtml(o: ExecutionOptions): string {
 <textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-2 py-1.5 leading-relaxed" data-execution-field="machinery-intro" rows="2">${escapeHtmlPolicy(
     o.machineryIntro
   )}</textarea>
+<div class="flex items-center justify-between">
+<p class="text-[11px] text-neutral-500">반입 예정(또는 반입된) 건설기계를 실제 등록 내용대로 아래 표에 등록하세요.</p>
+<button class="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 shrink-0" data-machinery-reg-add type="button">
+<span class="material-symbols-outlined text-sm">add_circle</span>장비 추가
+</button>
+</div>
+<table class="w-full text-[11px] border border-neutral-200 rounded-lg overflow-hidden" data-machinery-reg-table>
+<thead>
+<tr class="bg-neutral-100">
+<th class="text-left px-2 py-1.5 font-bold text-neutral-700 border-b border-neutral-200">장비명</th>
+<th class="text-left px-2 py-1.5 font-bold text-neutral-700 border-b border-neutral-200">규격/모델</th>
+<th class="text-left px-2 py-1.5 font-bold text-neutral-700 border-b border-neutral-200">소유업체</th>
+<th class="text-left px-2 py-1.5 font-bold text-neutral-700 border-b border-neutral-200">검사(합격)증번호</th>
+<th class="text-left px-2 py-1.5 font-bold text-neutral-700 border-b border-neutral-200">유효기간</th>
+<th class="text-left px-2 py-1.5 font-bold text-neutral-700 border-b border-neutral-200">반입(예정)일자</th>
+<th class="text-center px-2 py-1.5 font-bold text-neutral-700 border-b border-neutral-200 w-10">관리</th>
+</tr>
+</thead>
+<tbody data-machinery-reg-tbody>
+${machineryRowsHtml}
+</tbody>
+</table>
+<template data-machinery-reg-row-template>${blankMachineryRow}</template>
 <div class="bg-neutral-50 rounded p-2 border border-neutral-200 flex items-center justify-between gap-2">
 <label class="flex items-center gap-1.5 text-[11px] text-neutral-700 shrink-0">등록 장비
-<input class="w-14 text-xs bg-white border border-neutral-300 rounded px-1.5 py-0.5" data-execution-field="machinery-count" type="text" value="${escapeHtmlPolicy(
-    o.machineryCount
+<input class="w-14 text-xs bg-neutral-100 border border-neutral-300 rounded px-1.5 py-0.5" data-execution-field="machinery-count" readonly="" type="text" value="${escapeHtmlPolicy(
+    machineryCount
   )}"/>
 등록 완료</label>
 <label class="flex items-center gap-1 text-[11px] font-bold text-status-success shrink-0">
@@ -4325,9 +4396,10 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
   // 밀려 엉뚱한 값이 뒤섞이는 문제가 실제로 있었다(위험성평가·작업투입 인력
   // 등 다른 동적 항목들도 같은 이유로 전용 저장 경로를 쓰는 것과 동일한 이유).
   const executionOptions = normalizeExecutionOptions(doc.content?.executionOptions);
+  const machineryRegistrationRows = (doc.content?.machineryRegistrationRows as MachineryRegistrationRow[] | undefined) ?? [];
   const executionActiveCount = (executionOptions.machineryEnabled ? 1 : 0) + (executionOptions.councilEnabled ? 1 : 0);
   html = html
-    .replace("__EXECUTION_SECTION__", buildExecutionSectionHtml(executionOptions))
+    .replace("__EXECUTION_SECTION__", buildExecutionSectionHtml(executionOptions, machineryRegistrationRows))
     .replace("__EXECUTION_ACTIVE_BADGE__", `선택항목 ${executionActiveCount} / 2 활성화`);
 
   if (disabledCommonSections.length > 0) {

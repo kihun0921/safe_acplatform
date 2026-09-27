@@ -321,7 +321,7 @@ __TEMPLATE_TOC_ITEMS__
 <span class="text-[11px] text-primary font-medium">요율 2.93% 자동산출 적용</span>
 </div>
 <div class="grid grid-cols-2 gap-2">
-<input id="wizard-field-contract-amount" class="text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 font-mono text-neutral-900" type="text" value="4,850,000,000 원"/>
+<input id="wizard-field-contract-amount" data-money-format="won" inputmode="numeric" class="text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 font-mono text-neutral-900" type="text" value="4,850,000,000 원"/>
 <input id="wizard-field-safety-budget" class="text-xs bg-neutral-100 border border-neutral-300 rounded-lg px-3 py-2 font-mono text-neutral-800 font-semibold" readonly="" type="text" value="142,105,000 원 (계상)"/>
 </div>
 </div>
@@ -3004,7 +3004,7 @@ function buildSafetyCostSectionHtml(
     ({ label }, i) => `<tr>
 <td class="px-3 py-2 border-b border-neutral-100 align-top">${escapeHtmlPolicy(label)}</td>
 <td class="px-3 py-2 border-b border-neutral-100 align-top w-[22%]">
-<input type="text" inputmode="numeric" data-safety-cost-item="${i}" class="w-full text-xs text-right bg-white border border-neutral-300 rounded-lg px-2 py-1.5" placeholder="0" value="${escapeHtmlPolicy(
+<input type="text" inputmode="numeric" data-safety-cost-item="${i}" data-money-format class="w-full text-xs text-right bg-white border border-neutral-300 rounded-lg px-2 py-1.5" placeholder="0" value="${escapeHtmlPolicy(
       itemValues[i]
     )}"/>
 </td>
@@ -3035,7 +3035,7 @@ ${dipReadonlyBlock("가. 법적 근거", SAFETY_COST_LEGAL_BASIS_TEXT)}
 <tr>
 <td class="px-3 py-2 border-b border-neutral-100 font-medium text-neutral-800 align-top">산업안전보건관리비<br/>(산업안전보건법)</td>
 <td class="px-3 py-2 border-b border-neutral-100 align-top">
-<input type="text" inputmode="numeric" data-safety-cost-industrial class="w-full text-xs text-right bg-white border border-neutral-300 rounded-lg px-2 py-1.5" placeholder="0" value="${escapeHtmlPolicy(
+<input type="text" inputmode="numeric" data-safety-cost-industrial data-money-format class="w-full text-xs text-right bg-white border border-neutral-300 rounded-lg px-2 py-1.5" placeholder="0" value="${escapeHtmlPolicy(
     industrialValue
   )}"/>
 </td>
@@ -3068,7 +3068,7 @@ ${itemRows}
 <tr>
 <td class="px-3 py-2 border-b border-neutral-100 align-top">· 예비 안전관리비</td>
 <td class="px-3 py-2 border-b border-neutral-100 align-top">
-<input type="text" inputmode="numeric" data-safety-cost-reserve class="w-full text-xs text-right bg-white border border-neutral-300 rounded-lg px-2 py-1.5" placeholder="0" value="${escapeHtmlPolicy(
+<input type="text" inputmode="numeric" data-safety-cost-reserve data-money-format class="w-full text-xs text-right bg-white border border-neutral-300 rounded-lg px-2 py-1.5" placeholder="0" value="${escapeHtmlPolicy(
     reserveValue
   )}"/>
 </td>

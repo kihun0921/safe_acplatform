@@ -946,6 +946,24 @@ export default function WizardScreen({
         const formatted = formatPhoneNumber(el.value);
         if (formatted !== el.value) el.value = formatted;
       }
+      // 도급공사비/안전관리비 등 금액 입력칸(data-money-format)은 타이핑 도중
+      // 천원단위 콤마를 자동으로 넣어준다. "won" 값이면 뒤에 " 원"을 붙인다
+      // (사업개요의 도급공사비처럼 표지 미리보기·다운로드 문서에 그대로
+      // 노출되는 필드라 기존 공고 자동연동 값의 표기와 맞춘다).
+      if (el instanceof HTMLInputElement && el.matches("[data-money-format]")) {
+        const digits = el.value.replace(/[^\d]/g, "");
+        const suffix = el.dataset.moneyFormat === "won" ? " 원" : "";
+        const formatted = digits ? `${Number(digits).toLocaleString("ko-KR")}${suffix}` : "";
+        if (formatted !== el.value) el.value = formatted;
+        if (el.id === "wizard-field-contract-amount") {
+          const budgetEl = root.querySelector<HTMLInputElement>("#wizard-field-safety-budget");
+          if (budgetEl) {
+            budgetEl.value = digits
+              ? `${Math.round(Number(digits) * 0.0293).toLocaleString("ko-KR")} 원 (계상)`
+              : "";
+          }
+        }
+      }
       if (el.matches("[data-risk-field]")) {
         const field = el.dataset.riskField;
         if (field === "frequency" || field === "severity") {

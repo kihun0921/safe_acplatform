@@ -93,7 +93,13 @@ async function fetchWindowedPPS<T>(
   const WINDOW_DAYS = 15;
   const PAGE_SIZE = 999;
   const MAX_PAGES_PER_WINDOW = 10;
-  const GLOBAL_CAP = options?.globalCap ?? 2000;
+  // 전국 공사입찰공고 물량이 15일 구간당 약 5,800건(실측)에 달해, 예전 기본값
+  // 2,000은 가장 최신 구간(window 1)의 절반도 못 가져오고 나머지 7개 구간은 거의
+  // 통째로 버려지는 상태였다(조경 등 특정 업종이 필터링되는 게 아니라, 호출 자체가
+  // 누적 cap에 막혀 중단되는 문제). 8개 구간(최대 120일)을 실질적으로 다 훑도록
+  // 충분히 올린다 — 구간별 totalCount에 도달하면 자연히 멈추므로(아래 pageNo *
+  // PAGE_SIZE >= totalCount) 실제 호출 수는 이 값보다 훨씬 적게 끝나는 경우가 많다.
+  const GLOBAL_CAP = options?.globalCap ?? 50000;
   const MAX_WINDOWS = options?.maxWindows ?? 8;
 
   const results: T[] = [];

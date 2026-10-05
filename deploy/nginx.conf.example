@@ -12,6 +12,22 @@ server {
     # Let's Encrypt 인증서 발급 성공 후 certbot이 아래 두 지시자를 자동으로 추가/수정한다
     # (443 서버 블록 + http->https 리다이렉트). 최초에는 80만 열어둔다.
 
+    # 나라장터 동기화("지금 동기화" 버튼)는 전국 공사입찰공고 전체를 훑어
+    # 15개 구간(최대 120일)을 순회하므로 몇 분까지 걸릴 수 있다. 기본
+    # proxy_read_timeout(60초)보다 먼저 끊기면 백엔드는 계속 돌아가 DB에는
+    # 정상 반영되지만 브라우저에는 502/504로 실패한 것처럼 보인다 — 이
+    # 엔드포인트만 넉넉히 늘려서 실제 완료까지 기다리게 한다.
+    location /api/admin/sync-announcements {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;

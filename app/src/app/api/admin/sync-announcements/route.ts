@@ -96,8 +96,10 @@ async function fetchWindowedPPS<T>(
   // 전국 공사입찰공고 물량이 15일 구간당 약 5,800건(실측)에 달해, 예전 기본값
   // 2,000은 가장 최신 구간(window 1)의 절반도 못 가져오고 나머지 7개 구간은 거의
   // 통째로 버려지는 상태였다(조경 등 특정 업종이 필터링되는 게 아니라, 호출 자체가
-  // 누적 cap에 막혀 중단되는 문제). 8개 구간(최대 120일)을 실질적으로 다 훑도록
-  // 충분히 올린다 — 구간별 totalCount에 도달하면 자연히 멈추므로(아래 pageNo *
+  // 누적 cap에 막혀 중단되는 문제). 동기화 자체가 POST 응답과 분리된 백그라운드
+  // 작업으로 바뀌면서(아래 runSync 주석 참고) 소요 시간이 더 이상 요청 타임아웃에
+  // 걸릴 위험이 없으므로, 8개 구간(최대 120일)을 실질적으로 다 훑도록 충분히
+  // 높게 잡는다 — 구간별 totalCount에 도달하면 자연히 멈추므로(아래 pageNo *
   // PAGE_SIZE >= totalCount) 실제 호출 수는 이 값보다 훨씬 적게 끝나는 경우가 많다.
   const GLOBAL_CAP = options?.globalCap ?? 50000;
   const MAX_WINDOWS = options?.maxWindows ?? 8;
@@ -435,29 +437,23 @@ async function fetchLH(): Promise<NormalizedAnnouncement[]> {
   return results.filter((a) => a.title && a.external_no && a.deadline);
 }
 
-export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const syncSecret = request.headers.get("x-sync-secret");
-  const isCron = syncSecret && syncSecret === process.env.SYNC_TRIGGER_SECRET;
-
-  if (!isCron) {
-    if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-    const { data: member } = await supabase.from("members").select("role").eq("id", user.id).single();
-    if (member?.role !== "admin") {
-      return NextResponse.json({ error: "관리자만 접근할 수 있습니다." }, { status: 403 });
-    }
-  }
-
+// 공공데이터포털 PPS API는 전국 공사입찰공고 전체를 15일×8구간으로 훑어야 해서
+// 10분 넘게 걸릴 때도 있다(외부 API 응답속도가 들쭉날쭉해 cap을 낮춰도 안정적으로
+// 줄지 않는다는 걸 실측으로 확인했다). 이 요청-응답을 동기로 묶어 두면 Nginx
+// 타임아웃이나 Node의 기본 requestTimeout(5분)에 걸려 버튼 클릭이 실패한 것처럼
+// 보이는 문제가 근본적으로 해결되지 않으므로, 실제 수집·저장 작업은 응답을 먼저
+// 보낸 뒤 백그라운드에서 계속 진행한다(PM2로 상시 구동되는 단일 Node 프로세스라
+// 응답 이후에도 이 함수가 끝까지 실행된다 — 서버리스 환경이었다면 쓸 수 없는
+// 방식이다). 결과는 sync_log에 기록되고, 관리자 화면은 그 기록을 보고 완료 여부를
+// 확인한다.
+async function runSync(ranBy: string) {
   const service = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const [pps, dapa, ppsAward, ppsOpeningResult, kepco, lh] = await Promise.all([
+  try {
+    const [pps, dapa, ppsAward, ppsOpeningResult, kepco, lh] = await Promise.all([
     fetchPPS(),
     fetchDapa(),
     fetchPPSAward(),
@@ -609,10 +605,44 @@ export async function POST(request: Request) {
     awardErrors: awardErrors.slice(0, 5),
     openingErrors: openingErrors.slice(0, 5),
     kepcoLhErrors: kepcoLhErrors.slice(0, 5),
-    ranBy: isCron ? "cron" : user?.email,
-  };
+      ranBy,
+    };
 
-  await service.from("sync_log").insert({ result });
+    const { error: logError } = await service.from("sync_log").insert({ result });
+    if (logError) console.error("[sync-announcements] sync_log insert failed:", logError.message);
+  } catch (err) {
+    console.error("[sync-announcements] background sync failed:", err);
+    const { error: logError } = await service
+      .from("sync_log")
+      .insert({ result: { ok: false, error: String(err), ranBy } });
+    if (logError) console.error("[sync-announcements] failure sync_log insert failed:", logError.message);
+  }
+}
 
-  return NextResponse.json(result);
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const syncSecret = request.headers.get("x-sync-secret");
+  const isCron = syncSecret && syncSecret === process.env.SYNC_TRIGGER_SECRET;
+
+  if (!isCron) {
+    if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    const { data: member } = await supabase.from("members").select("role").eq("id", user.id).single();
+    if (member?.role !== "admin") {
+      return NextResponse.json({ error: "관리자만 접근할 수 있습니다." }, { status: 403 });
+    }
+  }
+
+  // 응답은 즉시 보내고, 실제 동기화는 백그라운드에서 계속 진행한다(위 runSync
+  // 주석 참고). void로 명시해 미처리 프라미스 경고 없이 fire-and-forget한다.
+  void runSync(isCron ? "cron" : user?.email ?? "unknown");
+
+  return NextResponse.json({
+    ok: true,
+    started: true,
+    message: "동기화를 백그라운드에서 시작했습니다. 완료까지 몇 분 정도 걸릴 수 있습니다.",
+  });
 }

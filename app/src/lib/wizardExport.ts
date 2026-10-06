@@ -12,10 +12,20 @@ export interface WizardFieldRow {
   value: string;
 }
 
+// 설명글(필드)과 표가 섹션 안에 번갈아 나오는 경우(예: 군부대 표준서식 —
+// 개요 글 → 표 → 글 → 표 순서) 문서에 쓰인 순서 그대로 보존하기 위한 통합
+// 블록. 아래 fields/tables 배열은 "전부 모아서" 담지만, 이 배열은 "순서대로"
+// 담는다 — 생성기가 fields를 전부 렌더링한 뒤 tables를 전부 렌더링하면 글과
+// 표가 뒤섞여 보이는 문제가 있었다(실제로 지적받음).
+export type WizardContentBlock =
+  | { type: "field"; label: string; value: string }
+  | { type: "table"; headers: string[]; rows: string[][] };
+
 export interface WizardSection {
   id: string;
   heading: string;
   fields: WizardFieldRow[];
+  contentBlocks: WizardContentBlock[];
   // 예전엔 섹션당 표가 최대 1개(.first())만 있다고 가정했는데, "중대산업재해 등
   // 비상 상황시 조치계획"처럼 표가 여러 개(유관기관 연락처 표, 발생유형별 대응
   // 시나리오 표 5개, 발생보고 표)인 섹션이 생기면서 뒤쪽 표들이 통째로 다운로드
@@ -739,6 +749,36 @@ export function extractWizardSections(
       });
     }
 
+    // 위 fields/tables 루프와 같은 제외 규칙을 쓰되, 표를 만나는 순간 표 블록으로
+    // 담고 그 표 안의 입력은 건너뛰어(.closest("table")) 중복 집계를 막는다.
+    const contentBlocks: WizardContentBlock[] = [];
+    if (id !== "sec-workforce") {
+      $section.find("input, textarea, select, table").each((_, el) => {
+        const $el = $(el);
+        if ((el as { tagName?: string }).tagName === "table") {
+          if ($el.attr("data-form-info-table") !== undefined) return;
+          if ($el.attr("data-machinery-reg-table") !== undefined) return;
+          const t = extractTableData($, el);
+          if (t) contentBlocks.push({ type: "table", headers: t.headers, rows: t.rows });
+          return;
+        }
+        if ($el.closest("table").length) return;
+        const type = $el.attr("type");
+        if (type === "hidden") return;
+        if ($el.attr("data-process-extract-input") !== undefined) return;
+        if ($el.attr("data-accident-image-input") !== undefined) return;
+        if ($el.attr("data-org-diagram-field") !== undefined) return;
+        if ($el.attr("data-hazard-field") !== undefined || $el.attr("data-hazard-check") !== undefined) return;
+        if ($el.attr("data-workforce-field") !== undefined) return;
+        if ($el.attr("data-execution-field") !== undefined || $el.attr("data-execution-toggle") !== undefined) return;
+        if ($el.attr("data-machinery-reg-field") !== undefined) return;
+        if ($el.attr("data-risk-form-field") !== undefined) return;
+        const label = findLabel($, el);
+        const value = fieldValue($, el);
+        if (label) contentBlocks.push({ type: "field", label, value });
+      });
+    }
+
     const emergencyTeam = id === "sec-emergency_plan" ? extractEmergencyTeamData($) : undefined;
     const riskAssessmentOrgChart =
       id === "sec-risk_assessment_rules" ? extractRiskAssessmentOrgChartData($) : undefined;
@@ -760,6 +800,7 @@ export function extractWizardSections(
       executionOptions,
       fields,
       tables,
+      contentBlocks,
       emergencyTeam,
       riskAssessmentOrgChart,
       riskAssessmentFormFields,

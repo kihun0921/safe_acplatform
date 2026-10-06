@@ -1232,10 +1232,10 @@ export async function generateWizardDocx(
       });
     }
 
-    for (const field of section.fields) {
-      // field.value에 개행이 있으면(위험성평가 실시규정처럼 여러 문단짜리 긴 텍스트)
-      // TextRun 하나에 몰아넣지 않고 줄마다 별도 Paragraph로 나눠야 실제로 줄바꿈이
-      // 보인다 — TextRun.text 안의 "\n"은 Word가 줄바꿈으로 렌더링하지 않는다.
+    // field.value에 개행이 있으면(위험성평가 실시규정처럼 여러 문단짜리 긴 텍스트)
+    // TextRun 하나에 몰아넣지 않고 줄마다 별도 Paragraph로 나눠야 실제로 줄바꿈이
+    // 보인다 — TextRun.text 안의 "\n"은 Word가 줄바꿈으로 렌더링하지 않는다.
+    const pushFieldParagraphs = (field: { label: string; value: string }) => {
       const lines = (field.value || "(미입력)").split("\n");
       children.push(
         new Paragraph({
@@ -1254,21 +1254,24 @@ export async function generateWizardDocx(
           })
         );
       });
-      // "위험성평가 실시규정"의 "4. 조직의 구성"은 실제 샘플처럼 박스+화살표
-      // 다이어그램으로 그린다 — "3. 용어의 정의" 바로 뒤(실제 문서와 같은 위치)에
-      // 끼워 넣는다.
-      if (field.label === "3. 용어의 정의" && section.riskAssessmentOrgChart) {
-        children.push(
-          new Paragraph({
-            spacing: { before: 200, after: 200 },
-            children: [new TextRun({ text: "4. 조직의 구성", bold: true, size: 22, font: FONT })],
-          })
-        );
-        children.push(...buildEmergencyTeamDiagram(section.riskAssessmentOrgChart));
-      }
-    }
+    };
 
     if (section.riskAssessmentFormFields) {
+      for (const field of section.fields) {
+        pushFieldParagraphs(field);
+        // "위험성평가 실시규정"의 "4. 조직의 구성"은 실제 샘플처럼 박스+화살표
+        // 다이어그램으로 그린다 — "3. 용어의 정의" 바로 뒤(실제 문서와 같은 위치)에
+        // 끼워 넣는다.
+        if (field.label === "3. 용어의 정의" && section.riskAssessmentOrgChart) {
+          children.push(
+            new Paragraph({
+              spacing: { before: 200, after: 200 },
+              children: [new TextRun({ text: "4. 조직의 구성", bold: true, size: 22, font: FONT })],
+            })
+          );
+          children.push(...buildEmergencyTeamDiagram(section.riskAssessmentOrgChart));
+        }
+      }
       // 서식1·2 참여자 명단 표(section.tables[0]/[1])는 아래 buildRiskAssessmentFormsBlocks가
       // 정보 병합표와 함께 순서대로 직접 그리므로, 여기서는 일반 표로 중복 출력하지 않는다.
       children.push(
@@ -1280,10 +1283,17 @@ export async function generateWizardDocx(
         )
       );
     } else {
-      for (const t of section.tables) {
-        if (t.rows.length === 0) continue;
-        children.push(buildGenericTable(t.headers, t.rows));
-        children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
+      // 설명글(필드)과 표가 섹션 안에 번갈아 나오는 경우(군부대 표준서식 등) 문서에
+      // 쓰인 순서 그대로 출력한다 — 예전엔 필드를 전부 먼저, 표를 전부 나중에
+      // 출력해서 글과 표가 뒤섞여 보이는 문제가 있었다.
+      for (const block of section.contentBlocks) {
+        if (block.type === "table") {
+          if (block.rows.length === 0) continue;
+          children.push(buildGenericTable(block.headers, block.rows));
+          children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
+        } else {
+          pushFieldParagraphs(block);
+        }
       }
     }
 

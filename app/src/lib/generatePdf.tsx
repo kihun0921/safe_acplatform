@@ -1096,34 +1096,48 @@ export async function generateWizardPdf(
               </Text>
             )}
             {section.emergencyTeam && <EmergencyTeamDiagram data={section.emergencyTeam} />}
-            {section.fields.map((f, idx) => (
-              <Fragment key={idx}>
-                <View style={styles.fieldRow}>
-                  <Text style={styles.fieldLabel}>{f.label}</Text>
-                  <Text style={styles.fieldValue}>{f.value || "(미입력)"}</Text>
-                </View>
-                {/* "위험성평가 실시규정"의 "4. 조직의 구성"은 실제 샘플처럼 박스+
-                    화살표 다이어그램으로 그린다 — "3. 용어의 정의" 바로 뒤(실제
-                    문서와 같은 위치)에 끼워 넣는다. */}
-                {f.label === "3. 용어의 정의" && section.riskAssessmentOrgChart && (
-                  <>
-                    <Text style={{ fontSize: 11, fontWeight: "bold", marginTop: 8, marginBottom: 8 }}>
-                      4. 조직의 구성
-                    </Text>
-                    <EmergencyTeamDiagram data={section.riskAssessmentOrgChart} />
-                  </>
-                )}
-              </Fragment>
-            ))}
             {section.riskAssessmentFormFields ? (
-              <RiskAssessmentFormsBlock
-                formFields={section.riskAssessmentFormFields}
-                projectTitle={cover?.projectName || title}
-                eduParticipants={section.tables[0]}
-                meetingParticipants={section.tables[1]}
-              />
+              <>
+                {section.fields.map((f, idx) => (
+                  <Fragment key={idx}>
+                    <View style={styles.fieldRow}>
+                      <Text style={styles.fieldLabel}>{f.label}</Text>
+                      <Text style={styles.fieldValue}>{f.value || "(미입력)"}</Text>
+                    </View>
+                    {/* "위험성평가 실시규정"의 "4. 조직의 구성"은 실제 샘플처럼 박스+
+                        화살표 다이어그램으로 그린다 — "3. 용어의 정의" 바로 뒤(실제
+                        문서와 같은 위치)에 끼워 넣는다. */}
+                    {f.label === "3. 용어의 정의" && section.riskAssessmentOrgChart && (
+                      <>
+                        <Text style={{ fontSize: 11, fontWeight: "bold", marginTop: 8, marginBottom: 8 }}>
+                          4. 조직의 구성
+                        </Text>
+                        <EmergencyTeamDiagram data={section.riskAssessmentOrgChart} />
+                      </>
+                    )}
+                  </Fragment>
+                ))}
+                <RiskAssessmentFormsBlock
+                  formFields={section.riskAssessmentFormFields}
+                  projectTitle={cover?.projectName || title}
+                  eduParticipants={section.tables[0]}
+                  meetingParticipants={section.tables[1]}
+                />
+              </>
             ) : (
-              section.tables.map((t, tIdx) => <GenericTable key={tIdx} headers={t.headers} rows={t.rows} />)
+              // 설명글(필드)과 표가 섹션 안에 번갈아 나오는 경우(군부대 표준서식 등)
+              // 문서에 쓰인 순서 그대로 출력한다 — 예전엔 필드를 전부 먼저, 표를
+              // 전부 나중에 출력해서 글과 표가 뒤섞여 보이는 문제가 있었다.
+              section.contentBlocks.map((block, idx) =>
+                block.type === "table" ? (
+                  <GenericTable key={idx} headers={block.headers} rows={block.rows} />
+                ) : (
+                  <View key={idx} style={styles.fieldRow}>
+                    <Text style={styles.fieldLabel}>{block.label}</Text>
+                    <Text style={styles.fieldValue}>{block.value || "(미입력)"}</Text>
+                  </View>
+                )
+              )
             )}
             {section.hazardDetailGroups?.length ? (
               <HazardDetailGroupsBlock groups={section.hazardDetailGroups} />

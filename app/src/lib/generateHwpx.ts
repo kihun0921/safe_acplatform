@@ -1233,19 +1233,19 @@ function buildSection0Xml(
     if (section.emergencyTeam) {
       paragraphs.push(...buildEmergencyTeamDiagramParagraphs(section.emergencyTeam));
     }
-    for (const field of section.fields) {
-      // textParagraph()가 "\n" 줄바꿈과 한 줄 초과 텍스트 강제 줄바꿈을 모두
-      // 처리하므로(내부에서 여러 <hp:p>로 나눠 반환), 한 번만 호출하면 된다.
-      paragraphs.push(textParagraph(`${field.label}: ${field.value || "(미입력)"}`, "0", false));
-      // "위험성평가 실시규정"의 "4. 조직의 구성"은 실제 샘플처럼 박스+화살표
-      // 다이어그램으로 그린다 — "3. 용어의 정의" 바로 뒤(실제 문서와 같은 위치)에
-      // 끼워 넣는다.
-      if (field.label === "3. 용어의 정의" && section.riskAssessmentOrgChart) {
-        paragraphs.push(textParagraph("4. 조직의 구성", "6", false));
-        paragraphs.push(...buildEmergencyTeamDiagramParagraphs(section.riskAssessmentOrgChart));
-      }
-    }
     if (section.riskAssessmentFormFields) {
+      for (const field of section.fields) {
+        // textParagraph()가 "\n" 줄바꿈과 한 줄 초과 텍스트 강제 줄바꿈을 모두
+        // 처리하므로(내부에서 여러 <hp:p>로 나눠 반환), 한 번만 호출하면 된다.
+        paragraphs.push(textParagraph(`${field.label}: ${field.value || "(미입력)"}`, "0", false));
+        // "위험성평가 실시규정"의 "4. 조직의 구성"은 실제 샘플처럼 박스+화살표
+        // 다이어그램으로 그린다 — "3. 용어의 정의" 바로 뒤(실제 문서와 같은 위치)에
+        // 끼워 넣는다.
+        if (field.label === "3. 용어의 정의" && section.riskAssessmentOrgChart) {
+          paragraphs.push(textParagraph("4. 조직의 구성", "6", false));
+          paragraphs.push(...buildEmergencyTeamDiagramParagraphs(section.riskAssessmentOrgChart));
+        }
+      }
       // 서식1·2 참여자 명단 표(section.tables[0]/[1])는 아래 buildRiskAssessmentFormsParagraphs가
       // 정보 병합표와 함께 순서대로 직접 그리므로, 여기서는 일반 표로 중복 출력하지 않는다.
       paragraphs.push(
@@ -1257,11 +1257,18 @@ function buildSection0Xml(
         )
       );
     } else {
-      for (const t of section.tables) {
-        if (t.rows.length === 0) continue;
-        paragraphs.push(emptyParagraph());
-        paragraphs.push(tableParagraph(t.headers, t.rows, false));
-        paragraphs.push(emptyParagraph());
+      // 설명글(필드)과 표가 섹션 안에 번갈아 나오는 경우(군부대 표준서식 등) 문서에
+      // 쓰인 순서 그대로 출력한다 — 예전엔 필드를 전부 먼저, 표를 전부 나중에
+      // 출력해서 글과 표가 뒤섞여 보이는 문제가 있었다.
+      for (const block of section.contentBlocks) {
+        if (block.type === "table") {
+          if (block.rows.length === 0) continue;
+          paragraphs.push(emptyParagraph());
+          paragraphs.push(tableParagraph(block.headers, block.rows, false));
+          paragraphs.push(emptyParagraph());
+        } else {
+          paragraphs.push(textParagraph(`${block.label}: ${block.value || "(미입력)"}`, "0", false));
+        }
       }
     }
     if (section.accidentImages?.length) {

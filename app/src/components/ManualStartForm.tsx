@@ -49,7 +49,7 @@ export default function ManualStartForm() {
       </div>
       <h2 className="text-base font-bold text-white mb-1">아직 자동 연동되지 않은 발주처인가요?</h2>
       <p className="text-xs text-slate-300 mb-4">
-        LH·K-water·가스공사 등은 공고 정보를 직접 입력해 계획서 작성을 시작할 수 있습니다.
+        LH·K-water·가스공사·군부대 등은 공고 정보를 직접 입력해 계획서 작성을 시작할 수 있습니다.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
         <div className="flex flex-col gap-1.5">
@@ -74,6 +74,7 @@ export default function ManualStartForm() {
             <option>한국토지주택공사(LH)</option>
             <option>한국수자원공사(K-water)</option>
             <option>한국가스공사</option>
+            <option>군부대</option>
             <option>기타</option>
           </select>
           {agency === "기타" && (

@@ -263,8 +263,9 @@ export const COVER_STYLES: { value: string; label: string }[] = [
   { value: "generic", label: "범용 표지 (기본)" },
   { value: "lh_standard", label: "한국토지주택공사(LH) 표준 표지" },
   { value: "kwater_standard", label: "한국수자원공사(K-water) 표준 표지" },
+  { value: "military_standard", label: "군부대 표준 표지" },
 ];
-export type CoverStyle = "generic" | "lh_standard" | "kwater_standard";
+export type CoverStyle = "generic" | "lh_standard" | "kwater_standard" | "military_standard";
 
 // 공통 6대 목차 — 각 항목의 실제 DOM id(sec-*)와 관리자 화면에 보여줄 한글 라벨.
 export const COMMON_SECTIONS: { key: string; label: string }[] = [
@@ -409,6 +410,7 @@ function buildCoverPreviewHtml(
     submitDate: string;
     companyName: string;
     writerName: string;
+    ceoName: string;
   }
 ): string {
   const na = (v: string) => (v.trim() ? v : "(미입력)");
@@ -479,6 +481,32 @@ ${titleBox("안전보건관리계획서")}
     );
   }
 
+  if (style === "military_standard") {
+    const submitYearMonthDay = (() => {
+      const m = data.submitDate.match(/^(\d{4})\.\s*(\d{1,2})\./);
+      return m ? `${m[1]} 년 ${m[2]} 월` : data.submitDate;
+    })();
+    return (
+      pageWrap(`
+<p class="text-center font-bold mb-10" style="color:#1f7a3f">${na(data.projectName)}</p>
+<div class="border-t-2 border-b-2 border-neutral-800 py-6 text-center mb-16">
+<p class="text-lg font-bold tracking-[0.3em]">안전 · 보건 관리계획서</p>
+</div>
+<p class="text-center mb-16">${submitYearMonthDay}</p>
+<p class="text-center font-bold">${na(data.companyName)}</p>
+`) +
+      `<p class="mt-8 mb-3 text-[11px] text-neutral-400">다음 장: 제출문</p>` +
+      pageWrap(`
+<p class="text-center text-base font-bold mb-8">제 출 문</p>
+<p class="text-center leading-relaxed mb-10">"${na(data.projectName)}" 수행을 위해 아래와 같이<br/>도급사업 안전·보건 관리계획서를 제출합니다.</p>
+<p class="text-center mb-10">${submitYearMonthDay} 일</p>
+<p class="mb-2">업 체 명 : ${na(data.companyName)}</p>
+<p class="mb-10">대표이사 : ${na(data.ceoName)} (서명 또는 인)</p>
+<p class="text-right font-bold">${na(data.agency)} 귀하</p>
+`)
+    );
+  }
+
   // generic
   const infoLine = (label: string, value: string) =>
     `<p class="text-center mb-3"><span class="font-bold">${label} : </span>${value || "(미입력)"}</p>`;
@@ -506,7 +534,8 @@ export function insertCoverNavAndSection(
   html: string,
   coverStyle: CoverStyle = "generic",
   companyName = "",
-  writerName = ""
+  writerName = "",
+  ceoName = ""
 ): string {
   const navItem = `<a class="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-100 transition group" href="#sec-cover">
 <div class="flex items-center gap-2">
@@ -531,6 +560,7 @@ export function insertCoverNavAndSection(
     submitDate,
     companyName,
     writerName,
+    ceoName,
   });
   const section = `<section class="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden scroll-mt-[196px]" id="sec-cover">
 <div class="px-6 py-4 border-b border-neutral-200 bg-neutral-50/70 flex items-center gap-2.5">
@@ -540,7 +570,7 @@ export function insertCoverNavAndSection(
 <h2 class="font-headline font-bold text-base text-neutral-900">표지</h2>
 </div>
 <div class="p-6">
-<p class="text-xs text-neutral-500 mb-5">표지는 별도로 입력하지 않아도, Ⅰ장에 입력하시는 공사명·발주기관·공사기간·도급금액과 회원정보(회사명·작성자)를 그대로 반영해 아래와 같이 다운로드 문서(DOCX/PDF/HWPX) 맨 앞장에 자동 생성됩니다.</p>
+<p class="text-xs text-neutral-500 mb-5">표지는 별도로 입력하지 않아도, Ⅰ장에 입력하시는 공사명·발주기관·공사기간·도급금액과 회원정보(회사명·작성자·대표자)를 그대로 반영해 아래와 같이 다운로드 문서(DOCX/PDF/HWPX) 맨 앞장에 자동 생성됩니다.</p>
 ${coverPreview}
 </div>
 </section>

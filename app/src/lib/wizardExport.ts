@@ -306,6 +306,10 @@ export interface CoverPageData {
   submitDate: string;
   companyName: string;
   writerName: string;
+  // 군부대 제출문의 "대표이사 : OOO (서명 또는 인)"처럼 작성자(writerName, 보통
+  // 현장담당자)와 대표자가 다른 서식을 위해 추가했다. 안전보건관리비 집행
+  // 청렴서약서가 이미 members.ceo_name을 쓰고 있어 같은 값을 재사용한다.
+  ceoName: string;
 }
 
 // 발주처 API가 자동으로 채운 금액은 이미 "4,850,000,000원" 처럼 콤마·단위가
@@ -322,7 +326,8 @@ export function extractCoverPageData(
   html: string,
   savedFields: Record<string, string | boolean>,
   companyName: string,
-  writerName: string
+  writerName: string,
+  ceoName: string = ""
 ): CoverPageData {
   const $ = cheerio.load(html);
   applySavedFields($, savedFields);
@@ -340,6 +345,7 @@ export function extractCoverPageData(
     submitDate,
     companyName,
     writerName,
+    ceoName,
   };
 }
 

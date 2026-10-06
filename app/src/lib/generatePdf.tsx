@@ -562,9 +562,48 @@ function KwaterStandardCoverPage({ cover }: { cover: CoverPageData }) {
   );
 }
 
+// 실제 군부대 제출 샘플(정진건설, "OO부대 배수로 보수공사")을 그대로 재현한다:
+// 1p 표지(공사명(녹색 강조)+구분선 제목+제출일자+회사명), 2p 제출문("도급사업
+// 안전·보건 관리계획서를 제출합니다" — 군 특유의 문구, LH/K-water와 다름).
+function MilitaryCoverPage({ cover }: { cover: CoverPageData }) {
+  const submitYearMonth = formatSubmitYearMonth(cover.submitDate);
+  return (
+    <Fragment>
+      <Page size="A4" style={styles.coverPage}>
+        <Text style={{ fontSize: 16, fontWeight: "bold", textAlign: "center", marginTop: 60, marginBottom: 40, color: "#1f7a3f" }}>
+          {cover.projectName || "(미입력)"}
+        </Text>
+        <View style={{ borderTopWidth: 2, borderBottomWidth: 2, borderColor: "#1a1a1a", paddingVertical: 20 }}>
+          <Text style={{ fontSize: 20, fontWeight: "bold", textAlign: "center", letterSpacing: 6 }}>
+            안전 · 보건 관리계획서
+          </Text>
+        </View>
+        <Text style={[styles.coverDate, { marginTop: 100 }]}>{submitYearMonth}</Text>
+        <Text style={[styles.coverCompany, { marginTop: 60 }]}>{cover.companyName || "(미입력)"}</Text>
+      </Page>
+      <Page size="A4" style={styles.coverPage}>
+        <Text style={{ fontSize: 22, fontWeight: "bold", textAlign: "center", marginBottom: 60, letterSpacing: 8 }}>
+          제 출 문
+        </Text>
+        <Text style={{ fontSize: 11, lineHeight: 1.8, textAlign: "center", marginBottom: 60 }}>
+          &quot;{cover.projectName || "(미입력)"}&quot; 수행을 위해 아래와 같이 도급사업 안전·보건 관리계획서를
+          제출합니다.
+        </Text>
+        <Text style={[styles.coverDate, { marginBottom: 60 }]}>{submitYearMonth} 일</Text>
+        <Text style={{ fontSize: 11, marginLeft: 90, marginBottom: 16 }}>업 체 명 : {cover.companyName || "(미입력)"}</Text>
+        <Text style={{ fontSize: 11, marginLeft: 90, marginBottom: 60 }}>
+          대표이사 : {cover.ceoName || "(미입력)"} (서명 또는 인)
+        </Text>
+        <Text style={{ fontSize: 12, fontWeight: "bold", textAlign: "right" }}>{cover.agency || "발주기관"} 귀하</Text>
+      </Page>
+    </Fragment>
+  );
+}
+
 const COVER_PAGE_COMPONENTS: Record<CoverStyle, (props: { cover: CoverPageData }) => ReactElement> = {
   lh_standard: LhStandardCoverPage,
   kwater_standard: KwaterStandardCoverPage,
+  military_standard: MilitaryCoverPage,
   generic: GenericCoverPage,
 };
 

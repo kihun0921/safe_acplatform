@@ -1010,9 +1010,47 @@ function buildKwaterStandardCoverParagraphs(cover: CoverPageData): string[] {
   return paragraphs;
 }
 
+// 실제 군부대 제출 샘플(정진건설, "OO부대 배수로 보수공사")을 그대로 재현한다:
+// 1p 표지(공사명+제목 박스+제출일자+회사명), 2p 제출문("도급사업 안전·보건
+// 관리계획서를 제출합니다" — 군 특유의 문구, LH/K-water와 다름).
+function buildMilitaryCoverParagraphs(cover: CoverPageData): string[] {
+  const submitYearMonth = formatSubmitYearMonth(cover.submitDate);
+  const paragraphs: string[] = [];
+  paragraphs.push(...emptyParagraphs(4));
+  paragraphs.push(textParagraph(cover.projectName || "(미입력)", "6", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(2));
+  paragraphs.push(titleBoxParagraph("안전 · 보건 관리계획서"));
+  paragraphs.push(...emptyParagraphs(4));
+  paragraphs.push(textParagraph(submitYearMonth, "0", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(3));
+  paragraphs.push(textParagraph(cover.companyName || "(미입력)", "5", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(3));
+  // 2페이지: 제출문
+  paragraphs.push(textParagraph("제 출 문", "5", true, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(3));
+  paragraphs.push(
+    textParagraph(
+      `"${cover.projectName || "(미입력)"}" 수행을 위해 아래와 같이 도급사업 안전·보건 관리계획서를 제출합니다.`,
+      "0",
+      false,
+      CENTER_PARA_PR_ID
+    )
+  );
+  paragraphs.push(...emptyParagraphs(3));
+  paragraphs.push(textParagraph(`${submitYearMonth} 일`, "0", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(4));
+  paragraphs.push(textParagraph(`업 체 명 : ${cover.companyName || "(미입력)"}`, "0", false));
+  paragraphs.push(textParagraph(`대표이사 : ${cover.ceoName || "(미입력)"} (서명 또는 인)`, "0", false));
+  paragraphs.push(...emptyParagraphs(4));
+  paragraphs.push(textParagraph(`${cover.agency || "발주기관"} 귀하`, "5", false, CENTER_PARA_PR_ID));
+  paragraphs.push(...emptyParagraphs(2));
+  return paragraphs;
+}
+
 const COVER_PARAGRAPH_BUILDERS: Record<CoverStyle, (cover: CoverPageData) => string[]> = {
   lh_standard: buildLhStandardCoverParagraphs,
   kwater_standard: buildKwaterStandardCoverParagraphs,
+  military_standard: buildMilitaryCoverParagraphs,
   generic: buildGenericCoverParagraphs,
 };
 

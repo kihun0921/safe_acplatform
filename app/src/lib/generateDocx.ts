@@ -706,6 +706,74 @@ function buildLhSubmissionLetter(cover: CoverPageData): Paragraph[] {
   ];
 }
 
+// 실제 군부대 제출 샘플(정진건설, "OO부대 배수로 보수공사")을 그대로 반영한 표지 —
+// 정보를 표로 나열하는 LH/K-water와 달리 공사명(녹색 강조)·제목(구분선 박스)·
+// 날짜·회사명만 가운데 정렬로 나열하는 단순한 레이아웃이고, 제출문은 "도급사업
+// 안전·보건 관리계획서를 제출합니다"라는 군 특유의 문구를 쓴다.
+function buildMilitaryCover(cover: CoverPageData): (Paragraph | Table)[] {
+  const submitYearMonth = formatSubmitYearMonth(cover.submitDate);
+  return [
+    new Paragraph({ spacing: { after: 1200 }, children: [] }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 700 },
+      children: [new TextRun({ text: cover.projectName || "(미입력)", bold: true, size: 26, font: FONT, color: "1F7A3F" })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      border: {
+        top: { style: BorderStyle.SINGLE, size: 12, color: "1A1A1A" },
+        bottom: { style: BorderStyle.SINGLE, size: 12, color: "1A1A1A" },
+      },
+      spacing: { before: 200, after: 200 },
+      children: [new TextRun({ text: "안전 · 보건 관리계획서", bold: true, size: 32, font: FONT })],
+    }),
+    new Paragraph({ spacing: { before: 1200, after: 900 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: submitYearMonth, size: 22, font: FONT })] }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: cover.companyName || "(미입력)", bold: true, size: 24, font: FONT })],
+    }),
+    new Paragraph({ children: [new PageBreak()] }),
+    new Paragraph({ spacing: { after: 900 }, children: [] }),
+    new Paragraph({
+      spacing: { after: 900 },
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: "제 출 문", bold: true, size: 32, font: FONT })],
+    }),
+    new Paragraph({
+      spacing: { after: 900, line: 360 },
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: `"${cover.projectName || "(미입력)"}" 수행을 위해 아래와 같이 도급사업 안전·보건 관리계획서를 제출합니다.`,
+          size: 22,
+          font: FONT,
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 500, after: 900 },
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: `${submitYearMonth} 일`, size: 22, font: FONT })],
+    }),
+    new Paragraph({
+      indent: { left: 1800 },
+      spacing: { after: 300 },
+      children: [new TextRun({ text: `업 체 명 : ${cover.companyName || "(미입력)"}`, size: 22, font: FONT })],
+    }),
+    new Paragraph({
+      indent: { left: 1800 },
+      spacing: { after: 900 },
+      children: [new TextRun({ text: `대표이사 : ${cover.ceoName || "(미입력)"} (서명 또는 인)`, size: 22, font: FONT })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [new TextRun({ text: `${cover.agency || "발주기관"} 귀하`, bold: true, size: 24, font: FONT })],
+    }),
+    new Paragraph({ children: [new PageBreak()] }),
+  ];
+}
+
 // 아직 실제 표지 샘플을 확보하지 못한 발주처를 위한 범용 표지. LH처럼 정보를
 // 표(테두리 있는 라벨/값 칸)로 나누지는 않지만, 제목만큼은 공공 제출서식 표지의
 // 관례대로 테두리 박스로 감싸 격식을 갖춘다.
@@ -807,6 +875,7 @@ function buildKwaterStandardCover(cover: CoverPageData): (Paragraph | Table)[] {
 const COVER_RENDERERS: Record<CoverStyle, (cover: CoverPageData) => (Paragraph | Table)[]> = {
   lh_standard: buildLhStandardCover,
   kwater_standard: buildKwaterStandardCover,
+  military_standard: buildMilitaryCover,
   generic: buildGenericCover,
 };
 

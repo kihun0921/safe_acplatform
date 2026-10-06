@@ -115,7 +115,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   ];
   const sectionOrder = (selectedTemplate?.section_order as SectionOrderGroup[] | null | undefined) ?? [];
   const sections = extractWizardSections(html, savedFields, excludeIds, sectionOrder);
-  const cover = extractCoverPageData(html, savedFields, member?.company ?? "", member?.name ?? "");
+  const cover = extractCoverPageData(html, savedFields, member?.company ?? "", member?.name ?? "", member?.ceo_name ?? "");
   const coverStyle = (selectedTemplate?.cover_style as CoverStyle | undefined) ?? "generic";
   const overviewPage = overviewPageStyle
     ? extractOverviewPageData(html, savedFields, resolveOverviewChapterTitle(selectedTemplate))

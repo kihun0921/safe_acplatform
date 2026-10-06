@@ -302,16 +302,23 @@ try {
   const AGENCY = "군부대";
   const existing = await client.query("select id from agency_templates where agency = $1", [AGENCY]);
   if (existing.rows.length > 0) {
-    await client.query("update agency_templates set sections = $1, name = $2, updated_at = now() where id = $3", [
-      JSON.stringify(sections),
-      "군부대공사표준서식",
-      existing.rows[0].id,
-    ]);
+    // 군부대 실제 문서는 Ⅱ~Ⅵ(관리체계/실행계획/비상대책/안전목표/별첨, LH식
+    // 공통 6대 목차)와 전혀 대응되지 않는 2개 장(Ⅰ.실행수준/Ⅱ.재해발생수준)
+    // 구조라, 공통 목차 중 Ⅰ.사업개요만 남기고(공사명·발주기관·공사기간·도급금액
+    // 입력 — 아래 cover_style이 그대로 재사용) 나머지는 전부 끈다. 표지도 정진건설
+    // 실제 샘플(military_standard)로 바꾸고, 좌측 목차 맨 위에 "표지" 안내 항목도
+    // 보여준다.
+    const DISABLED_COMMON_SECTIONS = ["risk", "execution", "emergency", "target", "attachments"];
+    await client.query(
+      "update agency_templates set sections = $1, name = $2, cover_style = $3, disabled_common_sections = $4, show_cover_nav = true, updated_at = now() where id = $5",
+      [JSON.stringify(sections), "군부대공사표준서식", "military_standard", DISABLED_COMMON_SECTIONS, existing.rows[0].id]
+    );
     console.log("updated existing row:", existing.rows[0].id);
   } else {
+    const DISABLED_COMMON_SECTIONS = ["risk", "execution", "emergency", "target", "attachments"];
     const inserted = await client.query(
-      "insert into agency_templates (agency, name, sections) values ($1, $2, $3) returning id",
-      [AGENCY, "군부대공사표준서식", JSON.stringify(sections)]
+      "insert into agency_templates (agency, name, sections, cover_style, disabled_common_sections, show_cover_nav) values ($1, $2, $3, $4, $5, true) returning id",
+      [AGENCY, "군부대공사표준서식", JSON.stringify(sections), "military_standard", DISABLED_COMMON_SECTIONS]
     );
     console.log("inserted new row:", inserted.rows[0].id);
   }

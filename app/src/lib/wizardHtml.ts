@@ -216,50 +216,6 @@ __ANNOUNCEMENT_PDF_LINK__
 __TEMPLATE_TOC_ITEMS__
 </nav>
 </div>
-<!-- Progress and Compliance Score Card -->
-<div class="bg-white rounded-xl border border-neutral-200 p-4 shadow-xs space-y-4">
-<div>
-<div class="flex justify-between items-center mb-1.5">
-<span class="text-xs font-bold text-neutral-800">문서 완성도 및 적합성</span>
-<span class="text-sm font-bold text-primary font-mono">88%</span>
-</div>
-<div class="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
-<div class="bg-primary h-2 rounded-full transition-all duration-500" style="width: 88%;"></div>
-</div>
-<p class="text-[11px] text-neutral-500 mt-1.5">필수 법적 규정 42항목 중 37개 검증 완료</p>
-</div>
-<!-- Trust Certificate Badge Box -->
-<div class="bg-primary-soft/70 border border-primary/15 rounded-lg p-3">
-<div class="flex items-start gap-2">
-<span class="material-symbols-outlined text-primary text-lg shrink-0 mt-0.5" data-icon="verified">verified</span>
-<div>
-<h2 class="text-xs font-bold text-primary leading-snug">LH 적격심사 가점 요건 충족</h2>
-<p class="text-[11px] text-neutral-600 mt-1 leading-relaxed">
-                  안전보건관리계획서 평가 배점 <strong class="text-primary">최고 등급(가점 2.0점)</strong> 대상 표준 양식에 정확히 부합합니다.
-                </p>
-</div>
-</div>
-</div>
-<!-- Quick Jump to Incomplete Items -->
-<button class="w-full py-2 px-3 border border-dashed border-status-warn/60 bg-status-warnSoft/40 hover:bg-status-warnSoft text-status-warn rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition" type="button">
-<span class="material-symbols-outlined text-sm" data-icon="error_outline">error_outline</span>
-            미입력 항목 2개 바로가기 (Ⅱ-3, Ⅵ-별첨)
-          </button>
-</div>
-<!-- Consultant Assistance Banner -->
-<div class="bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-xl p-4 text-white shadow-xs">
-<div class="flex items-center gap-2 mb-2">
-<span class="material-symbols-outlined text-amber-400 text-lg" data-icon="support_agent">support_agent</span>
-<span class="text-xs font-bold text-white tracking-wide">전문 행정안전 컨설턴트 지원</span>
-</div>
-<p class="text-[11px] text-neutral-300 leading-relaxed">
-            LH 및 지자체 인허가 심의위원 출신 전문가가 계획서 제출 전 결격사유를 1:1로 실시간 보완해 드립니다.
-          </p>
-<button class="mt-3 w-full bg-white/10 hover:bg-white/20 text-white text-xs font-semibold py-1.5 px-2.5 rounded-lg border border-white/20 transition flex items-center justify-center gap-1" type="button">
-            실시간 검토 요청하기
-            <span class="material-symbols-outlined text-xs" data-icon="arrow_forward">arrow_forward</span>
-</button>
-</div>
 </aside>
 <!-- ---------------- RIGHT CONTENT: Continuous Document Editor Sections ---------------- -->
 <div class="flex-1 w-full space-y-8 min-w-0">
@@ -4334,7 +4290,6 @@ ${templateOptions
       "[202502-89211] 화성태안3지구 복합커뮤니티센터 신축공사 안전보건관리계획서",
       `${projectTitle} 안전보건관리계획서`
     )
-    .replace("LH 적격심사 가점 요건 충족", `${agencyName} 적격심사 가점 요건 충족`)
     .replace("발주처(LH) 안전관리 가이드라인 2025 개정판 연동 중:", `발주처(${agencyName}) 안전관리 가이드라인 연동 중:`)
     .replace('value="화성태안3지구 복합커뮤니티센터 신축공사"', `value="${projectTitle}"`)
     .replace('value="한국토지주택공사 화성사업본부"', `value="${agencyName}"`)
@@ -4408,7 +4363,7 @@ ${managementPolicySectionHtml}${orgChartSectionHtml}${roleResponsibilitiesSectio
 
   html = applyOverviewLabel(html, agencyTemplate?.overview_label);
   if (agencyTemplate?.show_cover_nav) {
-    html = insertCoverNavAndSection(html, agencyTemplate?.cover_style ?? "generic", memberCompany, memberName);
+    html = insertCoverNavAndSection(html, agencyTemplate?.cover_style ?? "generic", memberCompany, memberName, memberCeoName);
   }
   if (agencyTemplate?.section_order?.length) {
     const extraLabels = Object.fromEntries(templateSections.map((s) => [s.id, s.label]));

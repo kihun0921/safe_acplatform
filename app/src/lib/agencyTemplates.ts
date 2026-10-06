@@ -67,12 +67,21 @@ export function findMatchingAgencyTemplates<T extends { agency: string }>(
 export type AgencyTemplateField = {
   key: string;
   label: string;
-  type: "text" | "textarea";
+  // "richHtml": 라벨+입력칸 한 줄이 아니라, 실제 표(위험성평가표·보호구 지급표 등)
+  // 처럼 제출 문서다운 구조가 필요한 내용을 위한 타입이다. default에 담긴 HTML을
+  // 이스케이프 없이 그대로 심는다 — 그 HTML 안의 input/textarea/select는 일반
+  // id만 달면(data-wizard-key 없이) 다른 발주처 전용 필드와 동일하게 field-N
+  // 자동저장 체계에 그대로 잡히고, 안의 <table>도 다운로드 문서(DOCX/PDF/HWPX)
+  // 생성기가 섹션 안의 표를 모두 긁어가는 범용 로직에 그대로 걸려 실제 표 형태로
+  // 출력된다 — 별도 전용 추출/렌더 코드를 새로 만들 필요가 없다(나열식 텍스트
+  // 대신 서식 있는 표로 출력해 달라는 요청으로 추가됨).
+  type: "text" | "textarea" | "richHtml";
   placeholder?: string;
   // 실제 LH 등 발주처 제출 서식에서 흔히 쓰이는 문구/형식을 미리 채워두는 값.
   // 회원은 빈 칸에서 시작하는 대신 이 초안을 바로 고쳐 쓸 수 있다. 저장된 값이
   // 없을 때만 서버 렌더링 시 이 값으로 채워지고, 한 글자라도 입력해 저장되면
   // 그 이후로는 항상 저장된 값이 우선한다(일반 필드 자동저장과 동일한 동작).
+  // richHtml 타입에서는 이 값이 HTML 원본 자체다.
   default?: string;
 };
 
@@ -287,6 +296,10 @@ export function buildTemplateSectionsHtml(sections: AgencyTemplateSection[]): st
     .map((section) => {
       const fieldsHtml = section.fields
         .map((field) => {
+          if (field.type === "richHtml") {
+            // 이스케이프 없이 그대로 심는다 — 위 AgencyTemplateField.type 주석 참고.
+            return `<div class="md:col-span-2">${field.default ?? ""}</div>`;
+          }
           const fieldHtml =
             field.type === "textarea"
               ? `<textarea class="w-full text-xs bg-white border border-neutral-300 rounded-lg px-3 py-2 text-neutral-900 leading-relaxed" rows="${

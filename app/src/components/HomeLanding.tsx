@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import StartWizardButton from "./StartWizardButton";
+import ManualStartForm from "./ManualStartForm";
 
 const LANDING_HTML_TOP = `
 <!-- 1. TopNavBar (Shared Component Anchor) -->
@@ -624,6 +625,9 @@ export default function HomeLanding({
           )}
           <div className="mt-6 text-center text-xs text-text-muted font-label">
             * 위 공고 리스트는 조달청 나라장터 낙찰정보 실시간 연계 기준이며, 낙찰(개찰)이 확정된 순서로 표시됩니다.
+          </div>
+          <div className="mt-10 max-w-3xl mx-auto">
+            <ManualStartForm />
           </div>
         </div>
       </section>

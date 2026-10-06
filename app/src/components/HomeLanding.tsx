@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import StartWizardButton from "./StartWizardButton";
 
 const LANDING_HTML_TOP = `
 <!-- 1. TopNavBar (Shared Component Anchor) -->
@@ -589,13 +590,15 @@ export default function HomeLanding({
                       </span>
                     </div>
                   </div>
-                  <a
-                    href="/announcements"
-                    className="w-full py-2.5 px-4 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-semibold font-label flex items-center justify-center gap-1.5 transition-all shadow-xs active:opacity-95"
+                  <StartWizardButton
+                    announcementId={a.id}
+                    title={`${a.title} 계획서`}
+                    agency={a.agency}
+                    className="w-full py-2.5 px-4 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-semibold font-label flex items-center justify-center gap-1.5 transition-all shadow-xs active:opacity-95 disabled:opacity-60"
                   >
                     <span>계획서 작성 시작</span>
                     <span className="material-symbols-outlined text-sm">edit_document</span>
-                  </a>
+                  </StartWizardButton>
                 </div>
               );
             })}

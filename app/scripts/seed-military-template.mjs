@@ -86,7 +86,11 @@ const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: fals
 
 try {
   await client.connect();
-  const AGENCY = "제1군수지원사령부";
+  // 군부대는 부대마다 발주기관명이 다르므로(제1군수지원사령부/제17보병사단 등)
+  // 개별 부대명이 아니라 범용 "군부대" 이름으로 등록한다 — 매칭은
+  // src/lib/agencyTemplates.ts의 findMatchingAgencyTemplates()가 발주기관명에
+  // 군 부대 패턴(사령부/사단/여단 등)이 있으면 이 서식 하나로 연결해 준다.
+  const AGENCY = "군부대";
   const existing = await client.query("select id from agency_templates where agency = $1", [AGENCY]);
   if (existing.rows.length > 0) {
     await client.query("update agency_templates set sections = $1, name = $2, updated_at = now() where id = $3", [

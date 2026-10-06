@@ -8,6 +8,62 @@ export function normalizeAgencyName(agency: string): string {
   return agency.replace(/\s*\([^)]*\)\s*$/, "").trim();
 }
 
+// 군부대(육·해·공군, 국방부 직할부대 등)는 발주기관명이 부대마다 전부 다르다
+// (제1군수지원사령부/제17보병사단/제20전투비행단 등) — 다른 발주처처럼 "기관명
+// 하나당 서식 하나"로 정확히 1:1 매칭할 수 없다. 이 시스템은 애초에 군부대 공사를
+// 하나의 범용 서식으로 다루도록 설계됐으므로(부대마다 서식을 따로 등록하지
+// 않는다), 발주기관명에 군 부대 특유의 명칭 패턴이 있으면 전부 agency_templates에
+// "군부대"라는 이름으로 등록된 단 하나의 범용 서식으로 매칭한다.
+export const GENERIC_MILITARY_AGENCY = "군부대";
+const MILITARY_AGENCY_KEYWORDS = [
+  "군수지원사령부",
+  "군수사령부",
+  "방공유도탄사령부",
+  "특수전사령부",
+  "교육사령부",
+  "수도방위사령부",
+  "작전사령부",
+  "항공작전사령부",
+  "함대사령부",
+  "전투비행단",
+  "비행단",
+  "방위사업청",
+  "국방부",
+  "합동참모본부",
+  "육군본부",
+  "해군본부",
+  "공군본부",
+  "해병대사령부",
+  "사단",
+  "여단",
+  "연대",
+  "대대",
+  "군단",
+  "전단",
+];
+export function isMilitaryAgency(agency: string): boolean {
+  return MILITARY_AGENCY_KEYWORDS.some((kw) => agency.includes(kw));
+}
+
+// 발주처 표준서식 매칭의 단일 진입점 — 문서 생성(route.ts), 위저드 화면 렌더링
+// (wizard/page.tsx), 서식 수동 전환(template/route.ts) 세 곳이 서로 다른 매칭
+// 로직을 쓰면 "위저드에선 보이는데 생성 땐 안 붙는다" 같은 불일치가 생기므로
+// 반드시 이 함수 하나로 통일한다. 1) 정규화된 기관명이 정확히 일치하는 서식이
+// 있으면 그것을 쓰고, 2) 없고 군부대로 판단되면 범용 "군부대" 서식으로 대체한다.
+export function findMatchingAgencyTemplates<T extends { agency: string }>(
+  agency: string | null | undefined,
+  templates: T[] | null | undefined
+): T[] {
+  if (!agency || !templates) return [];
+  const normalized = normalizeAgencyName(agency);
+  const exact = templates.filter((t) => normalizeAgencyName(t.agency) === normalized);
+  if (exact.length > 0) return exact;
+  if (isMilitaryAgency(agency)) {
+    return templates.filter((t) => t.agency === GENERIC_MILITARY_AGENCY);
+  }
+  return [];
+}
+
 export type AgencyTemplateField = {
   key: string;
   label: string;

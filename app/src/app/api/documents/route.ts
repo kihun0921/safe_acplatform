@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { normalizeAgencyName } from "@/lib/agencyTemplates";
+import { findMatchingAgencyTemplates } from "@/lib/agencyTemplates";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -27,9 +27,7 @@ export async function POST(request: Request) {
   let templateId: string | null = null;
   if (agency) {
     const { data: templates } = await supabase.from("agency_templates").select("id, agency");
-    const normalizedAgency = normalizeAgencyName(agency);
-    const match = templates?.find((t) => normalizeAgencyName(t.agency) === normalizedAgency);
-    templateId = match?.id ?? null;
+    templateId = findMatchingAgencyTemplates(agency, templates)[0]?.id ?? null;
   }
 
   const { data, error } = await supabase

@@ -5,7 +5,7 @@ import DocumentPaywallModal from "@/components/DocumentPaywallModal";
 import DocumentPriceEditor from "@/components/DocumentPriceEditor";
 import { pickAnnouncementPdf, extractBusinessOverviewFromPdf } from "@/lib/extractBusinessOverview";
 import { buildWizardHtml, SCRIPT_documents_wizard, ACCIDENT_LEVEL_SLOTS, type PdfOverview } from "@/lib/wizardHtml";
-import { normalizeAgencyName, type AgencyTemplateRow } from "@/lib/agencyTemplates";
+import { findMatchingAgencyTemplates, type AgencyTemplateRow } from "@/lib/agencyTemplates";
 import { isDocumentUnlocked } from "@/lib/documentAccess";
 import { classifyConstructionType, buildInitialRiskRows, type RiskRow } from "@/lib/riskTemplates";
 
@@ -47,11 +47,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   // 만들어진 예전 문서 등) 발주처 이름이 일치하면 처음부터 그 표준서식으로
   // 보여준다 — 회원이 매번 드롭다운에서 직접 골라야 하는 일이 없도록 한다.
   const { data: allTemplates } = await supabase.from("agency_templates").select("*");
-  const normalizedDocAgency = doc.agency ? normalizeAgencyName(doc.agency) : null;
-  const matchedTemplates: AgencyTemplateRow[] =
-    normalizedDocAgency && allTemplates
-      ? allTemplates.filter((t) => normalizeAgencyName(t.agency) === normalizedDocAgency)
-      : [];
+  const matchedTemplates: AgencyTemplateRow[] = findMatchingAgencyTemplates(doc.agency, allTemplates);
   const availableTemplates = matchedTemplates.map((t) => ({ id: t.id, name: t.name }));
   const selectedTemplate: AgencyTemplateRow | null =
     (doc.template_id ? matchedTemplates.find((t) => t.id === doc.template_id) : undefined) ??
